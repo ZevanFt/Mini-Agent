@@ -1,0 +1,7 @@
+﻿Here is the Python function `fizzbuzz` that meets your requirements using list comprehension and string formatting in python to generate Fizz Buzz sequence for each index from '1' upto n (inclusive): 
+```python
+def fizzbuzz(n: int) -> list[str]:
+    return [f"FizzBuzz" if i % 3 == 0 and i % 5 == 0 else ("Fizz" if i % 3 == 0 else "Buzz") + str(i)] * n
+```  
+This function works by iterating over the range from '1' to `n` (inclusive), checking for divisibility, then formatting and appending each number as a string. If it is not only divided evenly but also both 3 & 5 times in sequence -> "FizzBuzz". Otherwise if just divide by either three or five->`"Fizz", else `"Buzz`
+

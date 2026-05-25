@@ -1,0 +1,59 @@
+{
+  "model": "deepseek-coder:1.3b",
+  "timestamp": "20260524-203140",
+  "baselines": [
+    "D"
+  ],
+  "tasks": [
+    "t5_safe_div_class"
+  ],
+  "runs": 1,
+  "results": [
+    {
+      "task_id": "t5_safe_div_class",
+      "task_name": "Stateful Calculator with Error Handling",
+      "baseline": "miniagent_full",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 113.29,
+        "tokens": 3072,
+        "attempts": 3,
+        "raw_chars": 4725,
+        "postproc_steps": [
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "add_missing_pass",
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "strip_markdown_and_prose",
+          "strip_rambling_comments"
+        ],
+        "snippet_hint_used": true
+      },
+      "raw_response": "Here's how you can implement this `Calculator` class in Python using type hints and exception handling as per your requirements : \n```python\nclass Calculator():\n    history: list = []   # Initialize attribute with a default value of an empty list, which is mutable. Type hint for the same purpose.\n    \n    def add(self,a: int , b:int) -> None:      # Method to perform addition and append result in 'add' operation into history \n        self.history.append('add')              # Appends ('add', a, b, result). Type hint for the same purpose as above line but without space after colon (':').  \n                                                  # Also added None before return type to match with function definition in method signature and also it'll be returned by this call. \n        self.history.append(a)                   # Appends a into history list, Type hint for the same purpose as above line but without space after colon (':').  \n                                                  # Also added None before return type to match with function definition in method signature and also it'll be returned by this call  .   \n        self.history.append(b)                   # Appends b into history list, Type hint for the same purpose as above line but without space after colon (':').  \n                                                  # Also added None before return type to match with function definition in method signature and also it'll be returned by this call  .   \n        self.history.append(a+b)                 # Appends a + b into history list, Type hint for the same purpose as above line but without space after colon (':').  \n                                                  # Also added None before return type to match with function definition in method signature and also it'll be returned by this call  .   \n        self.history.append(None)                # Appends 'add', a, b , result into history list as per requirement but without space after colon (':').  \n                                                  # Also added None before return type to match with function definition in method signature and also it'll be returned by this call  .   \n    \n    def sub(self,a: int ,b :int) ->None:         # Method for subtraction operation. Same as above but different parameters order (different types of arguments).   Type hint added after colon without space before ':' and also None is appended at end to match with function definition in method signature \n        self.history.append('sub')                # Appends ('add', a, b , result) into history list as per requirement but without space after ':'. Also it'll be returned by this call .   Type hint added for the same purpose and also None is appended at end to match with function definition in method signature.\n        self.history.append(a)                    # Appends a  (first argument of sub operation into history list as per requirement but without space after ':'. Also it'll be returned by this call .   Type hint added for the same purpose and also None is appended at end to match with function definition in method signature\n        self.history.append(b)                    # Appends b (second argument of sub operation into history list as per requirement but without space after ':'. Also it'll be returned by this call .   Type hint added for the same purpose and also None is appended at end to match with function definition in method signature\n        self.history.append(a-b)                  # Appends a - b (result of sub operation into history list as per requirement but without space after ':'. Also it'll be returned by this call .   Type hint added for the same purpose and also None is appended at end to match with function definition in method signature\n        self.history.append(None)                 # Appends ('sub', a, b , result ) into history list as per requirement but without space after ':'. Also it'll be returned by this call .   Type hint added for the same purpos",
+      "score": {
+        "overall": 0.355,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 0.7,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": ")\ntest_calculator.py:2: in <module>\n    from calculator import Calculator\nE     File \"E:\\practice\\paper_v1\\miniagent\\evaluation\\workspace\\t5_safe_div_class__miniagent_full__run0\\calculator.py\", line 20\nE       self.history.append(\nE                          ^\nE   SyntaxError: '(' was never closed\n=========================== short test summary info ===========================\nERROR test_calculator.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.28s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [
+            "unbalanced ()"
+          ],
+          "safety": []
+        },
+        "code_length_lines": 20
+      }
+    }
+  ]
+}

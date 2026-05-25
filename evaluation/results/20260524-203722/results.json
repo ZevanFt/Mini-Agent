@@ -1,0 +1,60 @@
+{
+  "model": "deepseek-coder:1.3b",
+  "timestamp": "20260524-203722",
+  "baselines": [
+    "D"
+  ],
+  "tasks": [
+    "t5_safe_div_class"
+  ],
+  "runs": 1,
+  "results": [
+    {
+      "task_id": "t5_safe_div_class",
+      "task_name": "Stateful Calculator with Error Handling",
+      "baseline": "miniagent_full",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 148.73,
+        "tokens": 3386,
+        "attempts": 3,
+        "raw_chars": 2013,
+        "postproc_steps": [
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "normalize_indents",
+          "add_missing_pass",
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "fix_else_indentation",
+          "normalize_indents"
+        ],
+        "snippet_hint_used": true
+      },
+      "raw_response": "Here is a Python class with all methods as described in your instructions and type hints included for better readability of codes :\n```python\nclass Calculator:\n    def __init__(self):  # Initialize each attribute here using the correct syntax (with typing hint)\n        self.history = []  \n    \n    def add(self, a: int , b:int ) -> float:     \n        result =  a + b      \n        operation_result  = ('add',a,b,result)  # Store in tuple and append to history list        \n        return operation_result         \n            \n    \n    def sub(self, a : int , b :int ) -> float:     \n        result =  a-b      \n        if (type(b)!= type(a)) or ((not isinstance(b,(number)))  or(( not isinstance(a,(number)) and b != 0)  ): # Checking for zero division error    \n            raise ValueError('division by zero')   \n            \n         return ('sub', a, b , result )         \n             \n     \n    def mul(self,  a : int ,b:int)-> float:      \n        self.history = []   # Clear history list before multiplying    \n        operation_result =  'mul' + str (a)+ \"*\"  +str( b )         \n         return ('mul', a, b , result ))   \n             \n     \n    def div(self, a: int ,b :int)-> float or None:# Checking for zero division error    \n        if isinstance((type (a/0)),ZeroDivisionError): # If it's not an integer then return none  \n            raise ValueError('division by zero') \n         else:   \n             result =  a / b      \n              self.history = []     \n               print ('div', 'of ', str(a), '/',str (b) , ':','result is :' + str(result))          # Printing the operation in history list           return   (\"Div\",  a,    b,'/': result )     \"         None        \"\"\"       }     \n             ```python end of code. No prose or fences are used here for readability and maintainable codes only pythonic way is to use proper indentation (spaces not tabs) in Python files as per PEP8 style guide, which includes using spaces instead of tab characters when writing your own lines\n",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": "\nE       if (type(b)!= type(a)) or ((not isinstance(b,(number)))  or(( not isinstance(a,(number)) and b != 0)  ): # Checking for zero division error    \nE                                                                                                              ^\nE   SyntaxError: invalid syntax\n=========================== short test summary info ===========================\nERROR test_calculator.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.24s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 31
+      }
+    }
+  ]
+}

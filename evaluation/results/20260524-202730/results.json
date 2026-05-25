@@ -1,0 +1,59 @@
+{
+  "model": "deepseek-coder:1.3b",
+  "timestamp": "20260524-202730",
+  "baselines": [
+    "D"
+  ],
+  "tasks": [
+    "t5_safe_div_class"
+  ],
+  "runs": 1,
+  "results": [
+    {
+      "task_id": "t5_safe_div_class",
+      "task_name": "Stateful Calculator with Error Handling",
+      "baseline": "miniagent_full",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 107.28,
+        "tokens": 2546,
+        "attempts": 3,
+        "raw_chars": 2954,
+        "postproc_steps": [
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "add_missing_pass",
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "strip_markdown_and_prose",
+          "strip_rambling_comments"
+        ],
+        "snippet_hint_used": true
+      },
+      "raw_response": "The previous attempt failed because it did not correctly implement all of your test cases and also didn't handle exceptions properly. Here is a corrected version of `Calculator` class with tests implemented in Python using pytest framework, which you can run to see the results (assuming that this code resides inside some file named 'calculator_class.py').\n```python \nimport pytest\nfrom calculator import Calculator # Assumes your module is called \"calculator\" and has a class name of `Calculator`, adjust as necessary based on actual implementation in the project you're working with  \n    \ndef test_add():   \n    calc = Calculator() \n    assert None == calc.add(5 ,2) # Expected output is 'None', so it should pass if no exception occurs during execution of add method, otherwise AssertionError will be raised by pytest framework with the message \"assert ...== ...\"  \n    \ndef test_all_ops():   \n    calc = Calculator() \n    assert None == all([('add' in x[0], 'sub', 'mul','div') for x in calc.history]) # Expected output is True if history contains at least one of the operations: add, sub , mul and div else False  \n    \ndef test_undo():   \n    calc = Calculator() \n    assert None == calc.add(5) ;calc.sub(2);assert len(calc.history )==3 # Expected output is 'None', so it should pass if no exception occurs during execution of undo method, otherwise AssertionError will be raised by pytest framework with the message \"assert ... == ...\"  \n    \ndef test_div():   \n    calc = Calculator() \n    assert None==calc.add(5) ;calc.sub(2);assertEqual (10/3, cal... # Expected output is 'None', so it should pass if no exception occurs during execution of div method otherwise AssertionError will be raised by pytest framework with the message \"assert ... == ...\"  \n    \ndef test_div_by_zero():   \n    calc = Calculator() \n    assert None==calc.add(5) ;calc.sub(2);assertEqual (10/'ZeroDivisionError', cal... # Expected output is 'None'. Raise Value Error with message \"division by zero\" if divisor equals to Zero  \n    \ndef test_clear():   \n    calc = Calculator() \n    assert None==calc.add(5) ;assert len (calc.history ) == 1 # Expected output is 'None', so it should pass if no exception occurs during execution of clear method, otherwise AttributeError will be raised by pytest framework with the message \"Attribute Error: ...\"  \n``` \nThis code includes tests for all methods in `Calculator` class. The test cases are written using Python's built-in assertions and exceptions handling capabilities to ensure that your functions behave as expected under different scenarios (e.g., adding numbers, dividing by zero). If any of the conditions fail during execution it raises an AssertionError with a message indicating what condition was not met or why assertion failed in detail information can be found within each test case's docstring and return statement respectively for more detailed explanation about expected behavior under different scenarios.\n",
+      "score": {
+        "overall": 0.355,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 0.7,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": "niagent\\evaluation\\workspace\\t5_safe_div_class__miniagent_full__run0\\calculator.py\", line 17\nE       assert None==calc.add(5) ;calc.sub(2);assertEqual (10/3, cal...\nE                                                                ^^^^^^\nE   SyntaxError: invalid syntax. Perhaps you forgot a comma?\n=========================== short test summary info ===========================\nERROR test_calculator.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.27s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [
+            "unbalanced ()"
+          ],
+          "safety": []
+        },
+        "code_length_lines": 25
+      }
+    }
+  ]
+}

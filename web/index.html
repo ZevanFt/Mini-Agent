@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MiniAgent</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <pre class="ascii-logo">
+ __  __ _ _ _   _ ___ ___ 
+|  \/  (_) | | | / __|_ _|
+| |\/| | | | | | \__ \| | 
+|_|  |_|_|_|___| |___/___|
+          </pre>
+          <span class="logo-subtitle" data-i18n="logo_subtitle">Web Interface</span>
+        </div>
+        <button id="new-session-btn" class="btn-new-session" data-i18n="new_session" title="New Session">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          New Session
+        </button>
+      </div>
+      <div id="session-list" class="session-list"></div>
+      <div class="sidebar-footer">
+        <span class="status-indicator">
+          <span class="status-dot"></span>
+          <span id="status-text" data-i18n="connected">Connected</span>
+        </span>
+        <button id="settings-btn" class="sidebar-btn" title="Settings" data-i18n-title="settings">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M7.5 1.5l1 0 0.5 1.5 1.5 0.5L12 4.5l0 1 1.5 0.5 0.5 1.5 0 1-1.5 0.5-0.5 1.5-1 0-0.5-1.5L9 8.5l-1.5 0L7 7l-1.5 0.5-0.5-1.5-1 0-0.5-1.5L3 5.5l0-1L1.5 4l0.5-1.5L2.5 2l1 0L4 3.5l1.5 0L6 5l1.5 0L7.5 3.5V1.5z" stroke="currentColor" stroke-width="1" fill="none"/>
+            <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1" fill="none"/>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main id="main">
+      <div id="chat-container">
+        <div id="messages">
+          <div id="welcome-screen" class="welcome-screen">
+            <div class="welcome-content">
+              <h1>MiniAgent</h1>
+              <p class="welcome-subtitle" data-i18n="welcome_subtitle">Your Local AI Coding Assistant</p>
+              <div class="suggestions">
+                <button class="suggestion-btn" data-prompt="Explain the project structure">
+                  📂 <span data-i18n="suggest_1">Explain the project structure</span>
+                </button>
+                <button class="suggestion-btn" data-prompt="Help me write a TypeScript function">
+                  💻 <span data-i18n="suggest_2">Help me write code</span>
+                </button>
+                <button class="suggestion-btn" data-prompt="How do I set up the development environment?">
+                  🛠️ <span data-i18n="suggest_3">Setup development environment</span>
+                </button>
+                <button class="suggestion-btn" data-prompt="Review my code and suggest improvements">
+                  🔍 <span data-i18n="suggest_4">Review my code</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="input-area">
+          <form id="chat-form">
+            <div class="input-wrapper">
+              <textarea id="message-input" data-i18n-placeholder="input_placeholder" placeholder="Ask MiniAgent anything..." rows="1"></textarea>
+              <button type="submit" id="send-btn" disabled>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M5 10h10M12 7l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          </form>
+          <div class="input-hint">
+            <kbd>Enter</kbd> <span data-i18n="hint_send">to send</span> · <kbd>Shift+Enter</kbd> <span data-i18n="hint_newline">for new line</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Settings Panel (Overlay) -->
+    <div id="settings-overlay" class="settings-overlay" hidden>
+      <div id="settings-panel" class="settings-panel">
+        <div class="settings-header">
+          <h2 data-i18n="settings_title">Settings</h2>
+          <button id="settings-close-btn" class="settings-close-btn">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="settings-body">
+          <!-- General Settings -->
+          <div class="settings-section">
+            <h3 class="settings-section-title" data-i18n="section_general">General</h3>
+            <div class="setting-item">
+              <label data-i18n="setting_language">Language</label>
+              <select id="setting-language" class="setting-select">
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label data-i18n="setting_theme">Theme</label>
+              <select id="setting-theme" class="setting-select">
+                <option value="dark" data-i18n="theme_dark">Dark</option>
+                <option value="light" data-i18n="theme_light">Light</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label data-i18n="setting_font_size">Font Size</label>
+              <input type="range" id="setting-font-size" min="12" max="20" value="14" class="setting-range">
+              <span id="font-size-value">14px</span>
+            </div>
+          </div>
+
+          <!-- Model Settings -->
+          <div class="settings-section">
+            <h3 class="settings-section-title" data-i18n="section_model">Model</h3>
+            <div class="setting-item">
+              <label data-i18n="setting_model">Ollama Model</label>
+              <select id="setting-model" class="setting-select">
+                <option value="qwen2.5:7b">Qwen 2.5 7B</option>
+                <option value="qwen2.5:14b">Qwen 2.5 14B</option>
+                <option value="llama3.2:3b">Llama 3.2 3B</option>
+                <option value="llama3.1:8b">Llama 3.1 8B</option>
+                <option value="deepseek-coder:6.7b">DeepSeek Coder 6.7B</option>
+                <option value="mistral:7b">Mistral 7B</option>
+                <option value="codellama:7b">CodeLlama 7B</option>
+                <option value="phi3:3.8b">Phi-3 3.8B</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label data-i18n="setting_ollama_url">Ollama URL</label>
+              <input type="text" id="setting-ollama-url" class="setting-input" placeholder="http://localhost:11434">
+            </div>
+            <div class="setting-item">
+              <label data-i18n="setting_temperature">Temperature</label>
+              <input type="range" id="setting-temperature" min="0" max="2" step="0.1" value="0.7" class="setting-range">
+              <span id="temperature-value">0.7</span>
+            </div>
+            <div class="setting-item">
+              <label data-i18n="setting_max_tokens">Max Tokens</label>
+              <input type="number" id="setting-max-tokens" class="setting-input" value="4096" min="256" max="32768" step="256">
+            </div>
+          </div>
+
+          <!-- Server Settings -->
+          <div class="settings-section">
+            <h3 class="settings-section-title" data-i18n="section_server">Server</h3>
+            <div class="setting-item">
+              <label data-i18n="setting_server_port">Server Port</label>
+              <input type="number" id="setting-server-port" class="setting-input" value="3000" min="1024" max="65535">
+            </div>
+            <div class="setting-item">
+              <label data-i18n="setting_server_host">Server Host</label>
+              <select id="setting-server-host" class="setting-select">
+                <option value="127.0.0.1" data-i18n="host_local">Local (127.0.0.1)</option>
+                <option value="0.0.0.0" data-i18n="host_all">All Interfaces (0.0.0.0)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tool Permissions -->
+          <div class="settings-section">
+            <h3 class="settings-section-title" data-i18n="section_tools">Tool Permissions</h3>
+            <div class="setting-item">
+              <label data-i18n="tool_bash">Bash Execution</label>
+              <select id="tool-bash" class="setting-select">
+                <option value="allow" data-i18n="perm_allow">Allow</option>
+                <option value="ask" data-i18n="perm_ask">Ask</option>
+                <option value="deny" data-i18n="perm_deny">Deny</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label data-i18n="tool_file_write">File Write</label>
+              <select id="tool-file-write" class="setting-select">
+                <option value="allow" data-i18n="perm_allow">Allow</option>
+                <option value="ask" data-i18n="perm_ask">Ask</option>
+                <option value="deny" data-i18n="perm_deny">Deny</option>
+              </select>
+            </div>
+            <div class="setting-item">
+              <label data-i18n="tool_web">Web Access</label>
+              <select id="tool-web" class="setting-select">
+                <option value="allow" data-i18n="perm_allow">Allow</option>
+                <option value="ask" data-i18n="perm_ask">Ask</option>
+                <option value="deny" data-i18n="perm_deny">Deny</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- About -->
+          <div class="settings-section">
+            <h3 class="settings-section-title" data-i18n="section_about">About</h3>
+            <div class="setting-item about-item">
+              <span data-i18n="about_version">Version</span>
+              <span class="about-value">1.0.0</span>
+            </div>
+            <div class="setting-item about-item">
+              <span data-i18n="about_engine">Engine</span>
+              <span class="about-value">Ollama + TypeScript</span>
+            </div>
+            <div class="setting-item about-item">
+              <span data-i18n="about_license">License</span>
+              <span class="about-value">MIT</span>
+            </div>
+            <div class="setting-item about-item">
+              <span data-i18n="about_github">GitHub</span>
+              <a href="https://github.com/miniagent" target="_blank" class="about-link">miniagent/miniagent</a>
+            </div>
+          </div>
+        </div>
+        <div class="settings-footer">
+          <button id="settings-save-btn" class="btn-save" data-i18n="save_settings">Save Settings</button>
+          <button id="settings-reset-btn" class="btn-reset" data-i18n="reset_defaults">Reset Defaults</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

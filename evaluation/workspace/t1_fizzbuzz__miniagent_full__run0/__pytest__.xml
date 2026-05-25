@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="5" time="0.155" timestamp="2026-05-25T00:50:33.952866+08:00" hostname="Administrator"><testcase classname="test_fizzbuzz" name="test_basic" time="0.001"><failure message="AssertionError: assert ['Fizz', 'Buz..., 'Fizz', ...] == ['1', '2', 'F..., 'Fizz', ...]&#10;  &#10;  At index 0 diff: 'Fizz' != '1'&#10;  Right contains 7 more items, first extra item: 'Fizz'&#10;  Use -v to get more diff">test_fizzbuzz.py:4: in test_basic
+    assert fizzbuzz(15) == ['1','2','Fizz','4','Buzz','Fizz','7','8','Fizz','Buzz','11','Fizz','13','14','FizzBuzz']
+E   AssertionError: assert ['Fizz', 'Buz..., 'Fizz', ...] == ['1', '2', 'F..., 'Fizz', ...]
+E     
+E     At index 0 diff: 'Fizz' != '1'
+E     Right contains 7 more items, first extra item: 'Fizz'
+E     Use -v to get more diff</failure></testcase><testcase classname="test_fizzbuzz" name="test_length" time="0.001"><failure message="AssertionError: assert 48 == 100&#10; +  where 48 = len(['Fizz', 'Buzz', 'Fizz', 'Fizz', 'Buzz', 'Fizz', ...])&#10; +    where ['Fizz', 'Buzz', 'Fizz', 'Fizz', 'Buzz', 'Fizz', ...] = fizzbuzz(100)">test_fizzbuzz.py:7: in test_length
+    assert len(fizzbuzz(100)) == 100
+E   AssertionError: assert 48 == 100
+E    +  where 48 = len(['Fizz', 'Buzz', 'Fizz', 'Fizz', 'Buzz', 'Fizz', ...])
+E    +    where ['Fizz', 'Buzz', 'Fizz', 'Fizz', 'Buzz', 'Fizz', ...] = fizzbuzz(100)</failure></testcase><testcase classname="test_fizzbuzz" name="test_n_one" time="0.000" /><testcase classname="test_fizzbuzz" name="test_n_three" time="0.000"><failure message="AssertionError: assert ['Fizz', '3'] == ['1', '2', 'Fizz']&#10;  &#10;  At index 0 diff: 'Fizz' != '1'&#10;  Right contains one more item: 'Fizz'&#10;  Use -v to get more diff">test_fizzbuzz.py:13: in test_n_three
+    assert fizzbuzz(3) == ['1','2','Fizz']
+E   AssertionError: assert ['Fizz', '3'] == ['1', '2', 'Fizz']
+E     
+E     At index 0 diff: 'Fizz' != '1'
+E     Right contains one more item: 'Fizz'
+E     Use -v to get more diff</failure></testcase><testcase classname="test_fizzbuzz" name="test_n_five" time="0.000"><failure message="AssertionError: assert ['Fizz', 'Buzz', '5'] == ['1', '2', 'F..., '4', 'Buzz']&#10;  &#10;  At index 0 diff: 'Fizz' != '1'&#10;  Right contains 2 more items, first extra item: '4'&#10;  Use -v to get more diff">test_fizzbuzz.py:16: in test_n_five
+    assert fizzbuzz(5) == ['1','2','Fizz','4','Buzz']
+E   AssertionError: assert ['Fizz', 'Buzz', '5'] == ['1', '2', 'F..., '4', 'Buzz']
+E     
+E     At index 0 diff: 'Fizz' != '1'
+E     Right contains 2 more items, first extra item: '4'
+E     Use -v to get more diff</failure></testcase></testsuite></testsuites>

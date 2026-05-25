@@ -1,0 +1,542 @@
+{
+  "model": "deepseek-coder:1.3b",
+  "timestamp": "20260524-200945",
+  "baselines": [
+    "A",
+    "B",
+    "C"
+  ],
+  "tasks": [
+    "t1_fizzbuzz",
+    "t2_word_count",
+    "t3_json_flatten",
+    "t4_cli_todo",
+    "t5_safe_div_class"
+  ],
+  "runs": 1,
+  "results": [
+    {
+      "task_id": "t1_fizzbuzz",
+      "task_name": "FizzBuzz (warm-up)",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 8.05,
+        "tokens": 320,
+        "speed_tok_per_s": 40.9,
+        "raw_chars": 1284
+      },
+      "raw_response": "Here is the Python code for your problem statement using list comprehension which makes our task easier to accomplish in a single line of python scripting language :-):\n```python\ndef fizzbuzz(n: int) -> list[str]:  # type hint, return will be List['Str'] as we are returning string.  1 indexed array for n times input number 'i' is required in the function definition line above it and also below this point where you can define your code\n    result = [f\"{x}\" if x%3 == 0 or x%5== 0 else \"FizzBuzz\" if (x %15 ==0)else (\"Fizz\")if(x%5==0 )else(\"Buzz\")]*n # list comprehension to generate the required string for each index i\n    return result   # type hint, as we are returning a List['Str'] from our function.  This line is used when you call your method in python and it will give an error if not matched with expected types otherwise no errors occur during execution of code block inside this parenthesis ''. It's just to make sure that the return type matches what was declared as above\n```   ## Note: The function definition should be at least one line after its declaration. If there is a single statement, it must end with an expression or semicolon (`;`). Otherwise Python will throw syntax error because of incorrect indentation level in the code block inside parenthesis `()`\n",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 0,
+          "failed": 5,
+          "errors": 0,
+          "stdout_tail": "meError: name 'x' is not defined\n=========================== short test summary info ===========================\nFAILED test_fizzbuzz.py::test_basic - NameError: name 'x' is not defined\nFAILED test_fizzbuzz.py::test_length - NameError: name 'x' is not defined\nFAILED test_fizzbuzz.py::test_n_one - NameError: name 'x' is not defined\nFAILED test_fizzbuzz.py::test_n_three - NameError: name 'x' is not defined\nFAILED test_fizzbuzz.py::test_n_five - NameError: name 'x' is not defined\n5 failed in 0.10s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 3
+      }
+    },
+    {
+      "task_id": "t1_fizzbuzz",
+      "task_name": "FizzBuzz (warm-up)",
+      "baseline": "miniagent_plain",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 8.82,
+        "tokens": 331,
+        "speed_tok_per_s": 41.1,
+        "raw_chars": 1198
+      },
+      "raw_response": "Here is the Python code for your requirement using list comprehension which makes our task more efficient than a traditional looping construct in python like while or do-while loops and also reduces redundancy with string concatenation operations by avoiding multiple times of printing 'Fizz', 'Buzz' etc., strings. \n```python\ndef fizzbuzz(n: int) -> list[str]:   # type hint for the function parameter n is integer, return value should be a str List (list in python). The Python interpreter will automatically infer this from context if not specified otherwise ie it's optional. \n    result = [f\"{i}\" if ((not(i % 3 or i%5)) else \"FizzBuzz\") for i in range(1, n+1)] # list comprehension to generate the required output string array with length 'n'. The condition inside f-string is used here.\n    return result   # Returning final List of strings as per requirement \n```    \nYou can call this function like below: `print (fizzbuzz(20))`, it will print a list containing the FizzBuzz sequence up to n=19 in Python environment where i is an integer. The output would be something similar [ '1', '2', ‘Fizz’ ,'4','5','Fizz','7','8','Fizz','10','11','Fizz','13','14','FizzBuzz','16','17','Fizz','19']\n",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": "     result = [f\"{i}\" if ((not(i % 3 or i%5)) else \"FizzBuzz\") for i in range(1, n+1)] # list comprehension to generate the required output string array with length 'n'. The condition inside f-string is used here.\nE                                                ^^^^\nE   SyntaxError: invalid syntax\n=========================== short test summary info ===========================\nERROR test_fizzbuzz.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.20s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 3
+      }
+    },
+    {
+      "task_id": "t1_fizzbuzz",
+      "task_name": "FizzBuzz (warm-up)",
+      "baseline": "miniagent_enhanced",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 6.58,
+        "tokens": 212,
+        "attempts": 1,
+        "raw_chars": 769
+      },
+      "raw_response": "Here is the Python function `fizzbuzz` that meets your requirements using list comprehension and string formatting in a single line for each index i (1-indexed):\n```python\ndef fizzbuzz(n: int) -> list[str]:\n    return ['FizzBuzz' if i % 3 == 0 and i % 5 == 0 else 'Fizz' if i % 3 == 0 else 'Buzz' if i % 5 == 0 else str(i) for i in range(1, n + 1)]\n```\nThis function uses list comprehension to generate a new string based on the conditions specified. The `range` function is used inside the loop with an increment of one (to get indices from 1-indexed). For each index 'i', it checks if i divisible by both three and five, or only divided by them separately using modulus operator '%'. If none match then returns corresponding string otherwise return integer as a str.\n",
+      "score": {
+        "overall": 1.0,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 5,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": ".....                                                                    [100%]\n5 passed in 0.11s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 2
+      }
+    },
+    {
+      "task_id": "t2_word_count",
+      "task_name": "Word Frequency Counter",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 14.83,
+        "tokens": 554,
+        "speed_tok_per_s": 39.3,
+        "raw_chars": 2436
+      },
+      "raw_response": "Here is a Python function that uses the `collections` module to count words in an input text, and then converts this into a dictionary where keys are unique words from the original string (case insensitive) with no punctuation marks at their boundaries or empty strings returned if there's nothing left. \n\n```python\nimport collections\nfrom typing import Dict\n\ndef count_words(text: str):   # type hinting for function parameters and return value types are provided here as per the problem statement only, not strictly necessary in this case but good practice to include them if you're going into more complex code. \n    text = ' '.join([char for char in text if char not in ('.,!?;:',)]) # remove punctuation from input string and join it back together with spaces between words, preserving original formatting of the sentence/phrase (if any).  \n    \n    word_list=text.lower().split()  # split into list by whitespace characters to get individual words in a case-insensitive manner; convert all letters lowercase for comparison purposes and also ensure that we're not counting duplicates, so use set data structure instead of dictionary (which will automatically remove any duplicate entries).\n    \n    word_counts = collections.Counter(word_list)  # count the frequency/occurrence in list using Counter from 'collections'.  \n      \n    return dict(word_counts)  # convert counter object to dictionary and then back into a normal python data structure (dictionary).    \n```     \nYou can test this function with: `print( count_words(\"Hello world, hello again. This is Python programming.\") )` which should output something like the following in JSON format if there are no duplicates or punctuation marks at word boundaries and empty strings returned for non-string inputs (like None):\n```json \n{ 'hello':2 ,'world':1,'this':1, 'is':1}   # note that this is case insensitive as per the problem statement. If you want a different behavior consider using `collections` module and defining your own Counter class or use regular dictionary instead of set for word_list in above code snippet to avoid duplicates\n``` \nThis function assumes words are separated by whitespace characters, punctuation is not considered part of the same \"word\". If you want a different behavior consider using `re` module and defining your own pattern or use regular dictionary instead. For example:  ``print( count_words(\"Hello world! This!! Is... Python.\")) ``\n",
+      "score": {
+        "overall": 0.6,
+        "functional": 0.3333,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 6,
+          "passed": 2,
+          "failed": 4,
+          "errors": 0,
+          "stdout_tail": "ntains 1 more item:\nE     {'what': 2}\nE     Use -v to get more diff\n=========================== short test summary info ===========================\nFAILED test_word_count.py::test_simple - AssertionError: assert {'d': 1, 'e':...\nFAILED test_word_count.py::test_case_insensitive - AssertionError: assert {'e...\nFAILED test_word_count.py::test_punctuation - AssertionError: assert {'!': 1,...\nFAILED test_word_count.py::test_multi_punct - AssertionError: assert {'!': 2,...\n4 failed, 2 passed in 0.11s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 11
+      }
+    },
+    {
+      "task_id": "t2_word_count",
+      "task_name": "Word Frequency Counter",
+      "baseline": "miniagent_plain",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 12.4,
+        "tokens": 450,
+        "speed_tok_per_s": 38.8,
+        "raw_chars": 1828
+      },
+      "raw_response": "Here is the Python code for your request using NLTK library to remove all non alphabetic characters and then counting frequency of each unique words in a given text string, ignoring case sensitivity (i.e., 'word' & 'Word', both are considered same). \n\n```python\nimport nltk\nfrom collections import defaultdict\nnltk.download('punkt') # for tokenization and removing punctuation marks from words in sentences\n\ndef count_words(text: str) -> dict[str, int]:  \n    if not text or len(text.strip()) == 0 : \n        return {}    \n        \n    tokens = nltk.word_tokenize(text)[:-1] # removing last token which is a period (.) at the end of sentence in some cases and also it's already removed by strip() method call above if text contains only whitespace or empty string \n  \n    wordcount=defaultdict(int)    \n        \n    for t in tokens:            \n        # removing punctuation marks from words (.,!?;:' etc.) using regex and lowering the case of each character to ignore any difference between uppercase &lowercase letters.      \n        if not bool(re.match('^[a-zA-Z0-9]*$', t)):  # check for non alphabetic characters only, then continue with next iteration  \n            continue   \n            \n        wordcount[t.lower()] += 1    \n        \n    return dict(wordcount)```     \nThis function will work as follows - it takes a string of text and returns the frequency count (in dictionary format where keys are words in lowercase, values represent their frequencies). If input is empty or contains only whitespace characters then an empty Dictionary object {} would be returned.  Note that this code assumes you have already installed NLTK library using pip install nltk command if not done yet and also downloaded 'punkt' package which will help in tokenization of sentences into words (breaking them up at word boundaries).\n",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": "ule\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntest_word_count.py:1: in <module>\n    from word_count import count_words\nword_count.py:1: in <module>\n    import nltk\nE   ModuleNotFoundError: No module named 'nltk'\n=========================== short test summary info ===========================\nERROR test_word_count.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.17s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 20
+      }
+    },
+    {
+      "task_id": "t2_word_count",
+      "task_name": "Word Frequency Counter",
+      "baseline": "miniagent_enhanced",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 11.33,
+        "tokens": 334,
+        "attempts": 1,
+        "raw_chars": 1387
+      },
+      "raw_response": "Here is a Python function that fulfills your requirements using the `collections` module's Counter class and regular expressions for punctuation removal, case insensitivity handling of words in comparison to standard string methods (split(), lower()): \n```python\nimport re\nfrom collections import Counter\n\ndef count_words(text: str) -> dict[str, int]:   # type hinting the function's return value and parameters.\n    if not text or len(text.strip()) == 0 :        # check for empty/whitespace-only input \n       return {}                                   # returns an empty dictionary as per your requirement    \n     \n    words = re.sub('[^\\w\\s]', '', text).lower().split()   # remove punctuation and convert to lower case, split into list of word(s) using standard string methods (stripping whitespace at both ends with 'text.strip())'  )    \n     \n    return dict(Counter(words))                      # returns a dictionary where keys are words in the text input parameter & values represent their frequency count  \n```      \nYou can test this function by calling it like so: `print (count_words(\"Hello world, hello again!\"))`. This will output something similar to {'hello': 2,'world,': 1 ,'again!': 1}. Note that punctuation is removed and case insensitivity handled correctly in the words list comprehension part of this function as well (e.g., 'Hello', not being counted twice).\n",
+      "score": {
+        "overall": 0.955,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 0.7,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 6,
+          "passed": 6,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": "......                                                                   [100%]\n6 passed in 0.14s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [
+            "unbalanced ()"
+          ],
+          "safety": []
+        },
+        "code_length_lines": 10
+      }
+    },
+    {
+      "task_id": "t3_json_flatten",
+      "task_name": "Nested JSON Flattener",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 34.46,
+        "tokens": 1024,
+        "speed_tok_per_s": 30.5,
+        "raw_chars": 4502
+      },
+      "raw_response": "Here is the Python function `flatten` that flattens a nested dictionary using separator '.' and keeps lists at their original values (not flattened). If an empty object or None value comes in, then return {}:\n```python\ndef flatten(obj: dict, sep: str = '.') -> dict:  # type hinting for function parameters.\n    if not obj:   # check the input is a non-empty dictionary (or possibly none). If it's None or empty we can return an empty object here to match your example output requirement of returning {}.\n        return {}\n    \n    def flatten_helper(obj, parent_key='', sep=''):  # helper function for recursive calls. It flattens a nested dictionary and keeps lists at their original values (not flattened). If the current object is list then it will be kept as its value otherwise we'll append key-value pair to result dict with parent_key using separator '.'\n        if not isinstance(obj, dict):  # check whether obj type should go inside. It can only handle dictionary here for now (later you may want more types). If it isn’t a Dictionary then return the object as itself and append key-value pair to result with parent_key using separator '.'\n            if isinstance(obj, list):  # check whether obj type should go inside. It can only handle lists here for now (later you may want more types). If it isn’t a List then return the object as itself and append key-value pair to result with parent_key using separator '.'\n                if not isinstance(parent_key, str):  # check whether we have any previous keys. It can only handle string here for now (later you may want more types). If it isn’t a String then return the object as itself and append key-value pair to result with parent_key using separator '.'\n                    if not sep:   # default case, just add obj into dict without any keys. ‘sep' is optional here (later you may want more types). If it isn’t a String then return the object as itself and append key-value pair to result with parent_key using separator '.'\n                        if not str(obj):   # check whether we have an obj value, which should be string. It can only handle strings here for now (later you may want more types). If it isn’t a String then return the object as itself and append key-value pair to result with parent_key using separator '.'\n                            if not isinstance(obj, str):   # check whether obj type should go inside. It can only handle string here for now (later you may want more types). If it isn’t a String then return the object as itself and append key-value pair to result with parent_key using separator '.'\n                                if not isinstance(obj, int):   # check whether obj type should go inside. It can only handle integer here for now (later you may want more types). If it isn’t an Integer then return the object as itself and append key-value pair to result with parent_key using separator '.'\n                                    if not isinstance(obj, float):   # check whether obj type should go inside. It can only handle floating point here for now (later you may want more types). If it isn’t a Floating Point then return the object as itself and append key-value pair to result with parent_key using separator '.'\n                                        if not isinstance(obj, complex):   # check whether obj type should go inside. It can only handle Complex numbers here for now (later you may want more types). If it isn’t a Complex number then return the object as itself and append key-value pair to result with parent_key using separator '.'\n                                            if not isinstance(obj, bool):   # check whether obj type should go inside. It can only handle Boolean here for now (later you may want more types). If it isn’t a boolean then return the object as itself and append key-value pair to result with parent_key using separator '.'\n                                                if not isinstance(obj, tuple):   # check whether obj type should go ",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": " module.__dict__)\ntest_flatten.py:1: in <module>\n    from flatten import flatten\nE     File \"E:\\practice\\paper_v1\\miniagent\\evaluation\\workspace\\t3_json_flatten__bare_ollama__run0\\flatten.py\", line 18\nE       \nE       ^\nE   IndentationError: expected an indented block after 'if' statement on line 17\n=========================== short test summary info ===========================\nERROR test_flatten.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.23s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 17
+      }
+    },
+    {
+      "task_id": "t3_json_flatten",
+      "task_name": "Nested JSON Flattener",
+      "baseline": "miniagent_plain",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 29.71,
+        "tokens": 847,
+        "speed_tok_per_s": 29.7,
+        "raw_chars": 3872
+      },
+      "raw_response": "Here is the Python code for your requirement using recursion to handle nested dictionaries and lists respectively. The function `flatten` takes two parameters - a dictionary (obj) that needs to be flattended, and an optional separator string ('sep' with default value '.') used in place of '.' when keys are missing or not unique:\n```python\ndef flatten(dct: dict, sep='.') -> list[dict]:  # type hinting for return types. List is a better choice than dictionary as we can have multiple dictionaries at once (list) and it's more intuitive to use lists in this case instead of nested keys separated by dots\n    result = []  \n    \n    def _flatten(prefix, value):  # helper function for recursion. It takes a prefix string followed by the current dictionary/value pair as parameters\n        if isinstance(value, dict):\n            for k, v in sorted(value.items()):      # sorting keys to maintain consistent order of dictionaries (as they are) and ensure uniqueness across different runs – this can be removed based on your requirements or use case scenario  \n                new_prefix = f\"{prefix}{sep}{k}\" if prefix else k     # construct the key with separator. If no previous keys, just set it as is (as in our example) otherwise append to existing one using '.' operator – this can be removed based on your requirements or use case scenario\n                _flatten(new_prefix, v)   # recursive call for nested dictionary/value pair with updated prefix and value. This will handle dictionaries within the values as well (as they are handled in a similar way). If no keys were added to 'result' then it is appended directly into result list\n        elif isinstance(value, list):   # if found any lists we can ignore them or process based on your requirements. Here I am just ignoring and processing the values as per requirement – this case you may want a different behavior for each type of value in 'obj' dictionary (like summing up all numbers etc.)\n            pass    # do nothing here, let it be processed further if needed with other types like strings or integers. This can also change based on your requirements/use cases scenario – this is just an example and you may want to modify as per requirement scenarios  \n        else:     # for all non-dictionary values (like numbers) we are appending them into 'result' list with their corresponding prefixes using the separator. This can be modified based on your requirements or use case scenario – this is just an example and you may want to modify as per requirement scenarios\n            result.append({prefix: value})   # add a new dictionary entry in our results (with key being constructed from 'result' prefix) with the current values, if no keys were added previously then it will be appended directly into list ‘results’ using separator for consistency and uniqueness across different runs\n    \n    _flatten('', dct)   # call helper function to start recursion. We pass an empty string as prefix (because we want the first key in every dictionary), along with our original 'dictionary' object, which will be passed down into '_flatten'. This is where all of your logic happens\n    \n    return result  # once done processing everything and building up a list/dict from recursion. We can then use this finalized results as per requirement scenarios or based on the requirements scenario you have provided in task description  \n```\nThis function will work for any level nested dictionaries, lists (and other types of values), with unique keys across different runs using separator '.', and it's not case sensitive. It also handles empty input dictionary correctly as per requirement scenarios or based on your requirements scenario you have provided in task description – this is just an example to give a general idea about how the function can be used, modify according to need of use cases/requirements\n",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 6,
+          "passed": 0,
+          "failed": 6,
+          "errors": 0,
+          "stdout_tail": "=======================\nFAILED test_flatten.py::test_simple_nested - AssertionError: assert [{'a.b': ...\nFAILED test_flatten.py::test_flat - AssertionError: assert [{'a': 1}, {'b': 2...\nFAILED test_flatten.py::test_empty - assert [] == {}\nFAILED test_flatten.py::test_custom_sep - AssertionError: assert [{'a/b': 1}]...\nFAILED test_flatten.py::test_list_preserved - AssertionError: assert [] == {'...\nFAILED test_flatten.py::test_deep_nesting - AssertionError: assert [{'a.b.c.d...\n6 failed in 0.12s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 16
+      }
+    },
+    {
+      "task_id": "t3_json_flatten",
+      "task_name": "Nested JSON Flattener",
+      "baseline": "miniagent_enhanced",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 79.99,
+        "tokens": 1918,
+        "attempts": 3,
+        "raw_chars": 2732
+      },
+      "raw_response": "Here you go with your updated function definition in Python as requested by Strict Output Rules (SOR):\n```python\ndef flatten(obj, sep='.'):    # Function definition with default parameters.\n     def handle_dicts(_dct):                        # Helper to recursively process dictionaries within a dictionary object \n         return {f'{k}{sep}{v}' if isinstance(v, int) else f'{handle_dicts(v)}': k for k, v in _dct.items()}    # Flattening the nested dictionaries into flat dict with default separator ('.')\n     def handle_lists(_lst):                         # Helper to recursively process list objects within an object/list of values not being dictionary or lists itself \n         return [f'{v}' if isinstance(v, str) else f'{handle_lists(v)}']    # Returning a flattened version as per the requirement. If v (value in dicts and list objects are int type then keep them same otherwise recursively call handle function on it.)\n     def handler(_obj):                             # Handler to process all types of object not being dictionary or lists \n         if isinstance(obj, str) : return obj          # Returning the input as string. If already a flattened dict/list then keep same (not modified). Else call helper function on it and modify accordingly based upon its type ie., list vs int etc..  \n     try:                                            # Try block to handle all edge cases mentioned in task 1,2 &3 of SOR. If any exception occurs return default value else the processed object is returned (default will be None).   \n         if not obj or len(obj) == 0 :return {}          # Returning empty dict when input was either none/empty and handle it accordingly as per requirement in task 1,2 &3 of SOR.  \n         return handler(_obj)                         # Call the main function on object (passed by reference). If no exception occurred then returned value is stored else default None will be used if not specified otherwise according to Python's behavior for unhandled exceptions and errors in a try-except block.) \n     except Exception as e:                          # Except clause handling all other types of error.  \n         print(f\"An exception occurred with message {e}\")    # Printing the caught/raised异常 (message) if any, for debugging purpose only and not required in final version according to SOR rules  .    \n```     \nThis function will handle all edge cases mentioned by Strict Output Rules. It's a recursive approach that flattens nested dictionaries into flat dict with the default separator ('.') while handling lists as they are kept intact and converted from list objects/values to string format if necessary, according to SOR rules 1-5 of task requirements for Python function `flatten`.\n",
+      "score": {
+        "overall": 0.455,
+        "functional": 0.1667,
+        "cleanliness": 1.0,
+        "completeness": 0.7,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 6,
+          "passed": 1,
+          "failed": 5,
+          "errors": 0,
+          "stdout_tail": "============== short test summary info ===========================\nFAILED test_flatten.py::test_simple_nested - AssertionError: assert None == {...\nFAILED test_flatten.py::test_flat - AssertionError: assert None == {'a': 1, '...\nFAILED test_flatten.py::test_custom_sep - AssertionError: assert None == {'a/...\nFAILED test_flatten.py::test_list_preserved - AssertionError: assert None == ...\nFAILED test_flatten.py::test_deep_nesting - AssertionError: assert None == {'...\n5 failed, 1 passed in 0.11s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [
+            "unbalanced ()"
+          ],
+          "safety": []
+        },
+        "code_length_lines": 12
+      }
+    },
+    {
+      "task_id": "t4_cli_todo",
+      "task_name": "CLI TODO File Processor",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 37.17,
+        "tokens": 1024,
+        "speed_tok_per_s": 28.4,
+        "raw_chars": 3617
+      },
+      "raw_response": "Here is a Python script that accomplishes this task using `argparse` for command line argument parsing and regular expressions (regex) for string matching in files. This program reads the text from each todo list, counts how many lines start with '- [ ]' or '[x]', calculates percentage done by dividing completed tasks to total number of todos:\n```python\nimport argparse\nimport sys\nimport re\nfrom math import ceil\n\ndef calculate_percentage(total):\n    if not total.isdigit() : return 0 # If no todo list, then percent is zero (default)\n    \n    completed = sum([1 for line in open('todo_cli.py').readlines() if re.match(\"^- \\[\\] .*$\",line[:4]) or re.match(\"\\s\\[x\\] (.*)\") ]) # Counting lines starting with '- [ ]' and '[x]'.\n    \n    return round((completed / total) *100, 1 )# Calculating percentage done by dividing completed tasks to the number of todos (total). Rounded off upto one decimal place.  \n        \ndef main():\n    parser = argparse.ArgumentParser(description='Calculate Percentage for Todo List') # Create a new Argument Parser object \n    \n    parser.add_argument('file', metavar='FILE', type=str, nargs=1 , help=\"the file to read\")   # Add argument 'filename'. Required positional parameter with default value and its usage message is also provided here (i.e., \"positional arguments are required\").\n    \n    args = parser.parse_args()  # Parse the command line parameters passed during execution of script/program, i.e parse them into namespace object 'ns' which can be accessed by ns.* in code using namespaces and variables as if they were global scope variable (i.e., `global` keyword is not used).\n    \n    try:  # Try block to catch exceptions raised when accessing file or reading it line-by-line, i.e.: FileNotFoundError & StopIteration exception in case of empty files etc...  \n        with open(args[0], 'r') as fp : lines = [l for ln_no, l in enumerate(fp) if re.match(\"^-\\[\\] .*$\", l[:4]) or  (re.search(\"\\s\\[x\\] (.*)\") and len([m.start() for m in re.finditer('- \\[\\]\\s',l )])) ] # List comprehension to read file line by line, count lines starting with '- [ ]' & '[x]'.\n         total = str(len(lines))  # Total number of todos (open + done).  \n         \n    except FileNotFoundError:     # Catching the exception when a non-existant or unreadable file is passed as command line argument. Print error message to stderr and exit with code '1'.     \n        print('error: file not found',file=sys.stderr) \n        sys.exit(1)   # Exit program after printing the above statement in errror mode (i.e., set return value of main function as error).   \n    \n        \n      \n         \n      if len([m.start() for m in re.finditer('- \\[\\]\\s',l )]) == 0: total = '1' # If no todo list, then percent is zero (default)  .  \n        print(f\"open: {total}\")    # Print open todos count to stdout line by line using f string formatting.    \n         done_todos =  len([m.start() for m in re.finditer('\\[x\\] (.*)',l )]) if not total == '1' else 0   # Counting lines starting with '- [ ]'. If no todo list, then count is zero (default) .   \n        print(f\"done: {done_todos}\")     # Print done todos to stdout.     \n         percent = calculate_percentage(total if total != '1' else None )  # Calculate percentage and round it off upto one decimal place, If no todo list then default is zero (default).   \n        print(f\"percent: {str(percent)}%\")     # Print calculated percantages to stdout.     \n        \nif __name__ == \"__main__\":  # Calling the main function when this script runs directly, ie., not imported as a module in another python file or run via command line argument (i.e.: `python todo_",
+      "score": {
+        "overall": 0.325,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 0.5,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 0,
+          "failed": 5,
+          "errors": 0,
+          "stdout_tail": "nt\\n').stderr\n=========================== short test summary info ===========================\nFAILED test_todo_cli.py::test_basic_counts - AssertionError: assert 1 == 0\nFAILED test_todo_cli.py::test_all_done - IndexError: list index out of range\nFAILED test_todo_cli.py::test_empty - IndexError: list index out of range\nFAILED test_todo_cli.py::test_ignores_non_todo_lines - IndexError: list index...\nFAILED test_todo_cli.py::test_file_not_found - assert ('error' in '  file \"e:...\n5 failed in 0.27s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [
+            "contains TODO/FIXME or placeholder pass",
+            "unbalanced ()"
+          ],
+          "safety": []
+        },
+        "code_length_lines": 38
+      }
+    },
+    {
+      "task_id": "t4_cli_todo",
+      "task_name": "CLI TODO File Processor",
+      "baseline": "miniagent_plain",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 26.83,
+        "tokens": 728,
+        "speed_tok_per_s": 28.5,
+        "raw_chars": 3184
+      },
+      "raw_response": "Here is a Python script that fulfills your requirements using argparse for command line arguments and os module to check if files exists or not in python standard library functions respectively. The following program reads the text from each todo list, counts how many are open/done tasks there are based on '- [ ]' vs ['x'] formatting of lines starting with '[-]', then calculates percentage done by dividing total number completed todos (open + done) to all line count and prints out results.\n```python\nimport argparse\nfrom collections import defaultdict\nimport os\n\ndef calculate_percentage(total, open_, done):\n    if not total:  # handle the case where there are no tasks in file or when 'done' is zero (all lines were '- [ ]')\n        return \"0.0%\"\n    \n    percentage = round((open_ / max([1, total])) * 100)  \n        \n    if done: # handle the case where there are no completed tasks in file or when 'done' is zero (all lines were '- [x]')\n        return f\"{percentage}%\"    \n      \ndef main():\n    parser = argparse.ArgumentParser(description='Calculate percentage of todos done from a todo list textfile.')  # create argument parse object  \n                                                                                                                      \n    parser.add_argument('filename', metavar='FILENAME', type=str, help=\"the file to read\")    \n     \n    args = parser.parse_args()      \n        \n    if not os.path.isfile(args.filename):  # check the existence of a given filename in filesystem  \n        print('error: File Not Found', file=stderr)                                                  \n                                                                                                         \n        exit(1)    \n     \n    with open ( args.filename, 'r') as f :      \n         lines = [line for line in f if '- [' in line]  # list comprehension to get all the - [] based tasks  \n         \n                \n            \n           total_lines=len(lines)    \n            done = 0   \n              open= 0     \n               todo  = defaultdict()      \n               \n        for i,line in enumerate ( lines , start =1):  #enumerate to get the line number and content  \n          if 'x' not in line:        \n             continue          \n                 else :            done +=1     open -=    len(lines) +i-done      todo[len(todo)]+= 2      \n              elif '-]'  not in line[:3]:        return \"Invalid Format\"   #check if the format is correct         break         \n           for word in (line.split()):     continue            else:    open -=1             print(\"open :\", len(todo))      exit (\"done \", done)       fianl  def main():                                                                                                                       import argparse        parser =arg parse . ArgumentParser('Calculate percentage of todos')\n```   # end code block. Please replace the above content with your actual implementation if needed and run it using python command like `python todo_cli.py filename` where 'filename' is a text file containing tasks in '- [ ]', or ['x'] formatting, e.g., ‘- [] Task1’ ,'- [x] Completed task2'.\n",
+      "score": {
+        "overall": 0.37,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 0.8,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 0,
+          "failed": 5,
+          "errors": 0,
+          "stdout_tail": " unexpected indent\\n').stderr\n=========================== short test summary info ===========================\nFAILED test_todo_cli.py::test_basic_counts - assert 1 == 0\nFAILED test_todo_cli.py::test_all_done - IndexError: list index out of range\nFAILED test_todo_cli.py::test_empty - IndexError: list index out of range\nFAILED test_todo_cli.py::test_ignores_non_todo_lines - IndexError: list index...\nFAILED test_todo_cli.py::test_file_not_found - assert ('error' in '  file \"e:...\n5 failed in 0.27s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [
+            "contains TODO/FIXME or placeholder pass"
+          ],
+          "safety": []
+        },
+        "code_length_lines": 41
+      }
+    },
+    {
+      "task_id": "t4_cli_todo",
+      "task_name": "CLI TODO File Processor",
+      "baseline": "miniagent_enhanced",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 75.3,
+        "tokens": 1686,
+        "attempts": 3,
+        "raw_chars": 1927
+      },
+      "raw_response": "Here's a correct version for your Python CLI script `todo_cli.py` that reads from text files (path passed as first argv), prints to stdout, counts total number of lines starting with '- [ ]', count the 'done'-starting todos and calculates percentage done in exact output format:\n```python\nimport sys\nfrom os import path, stat\nfrom re import match\nrounded = lambda x : round(x*2)/10 if isinstance(x,(int)) else None    # for calculating the percentages. If total == 0 then it will return zero as per requirement in prompts and also to avoid division by Zero error, we are checking whether 'total' (open + done) != 0 or not\ndef main():  if len(sys.argv) > 1:    # Checking for file existence using os module     try:         with open(sys.argv[1], \"r\") as fp:             lines = [line.strip() for line in fp]       total_open = 0   done=[]      if lines:                     for i, line in enumerate(lines):                 m  = match('- \\[(.*?)\\]',line)                    # Matching the 'open' todos (starts with '- [')                     \n                                                        print(\"error\", sys.stderr), exit()   total_done = len([i for i in lines if not isinstance(match, type)])) else {print('No open todo found'), 1}      # Counting the total number of 'open' todos                     percent = 0    if __name__ == \"__main__\": main()     elif not isinstance(match, type):   print(\"file doesnot exist\", file=sys.stderr)\n```\nThis script will read a text file (passed as first argument), count the total number of lines starting with '- [ ]' and 'done'-starting todos in it using Python regular expressions module `re` . If no such line or todo found, then print an error message to stderror. The percentage done is calculated by dividing open-todos (lines that start with \"- [\" ) count  by total lines read from the file and rounded off upto one decimal place if it's not zero else prints 'percent:0%'.\n",
+      "score": {
+        "overall": 0.28,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 0.2,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 0,
+          "failed": 5,
+          "errors": 0,
+          "stdout_tail": "\\'\\n').stderr\n=========================== short test summary info ===========================\nFAILED test_todo_cli.py::test_basic_counts - AssertionError: assert 1 == 0\nFAILED test_todo_cli.py::test_all_done - IndexError: list index out of range\nFAILED test_todo_cli.py::test_empty - IndexError: list index out of range\nFAILED test_todo_cli.py::test_ignores_non_todo_lines - IndexError: list index...\nFAILED test_todo_cli.py::test_file_not_found - assert ('error' in '  file \"e:...\n5 failed in 0.26s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [
+            "contains TODO/FIXME or placeholder pass",
+            "unbalanced ()",
+            "unbalanced []"
+          ],
+          "safety": []
+        },
+        "code_length_lines": 6
+      }
+    },
+    {
+      "task_id": "t5_safe_div_class",
+      "task_name": "Stateful Calculator with Error Handling",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 22.47,
+        "tokens": 638,
+        "speed_tok_per_s": 29.9,
+        "raw_chars": 2493
+      },
+      "raw_response": "Here is a Python class that meets your requirements using Type Hints for method parameters, return values (both arguments), as well the exception handling in div function to avoid division by zero error and appending operations into `history` list at each operation performed on numbers 'a' & 'b'. \n```python\nclass Calculator:\n    def __init__(self): # constructor for class calculator. Initialize history attribute with an empty array/list in the beginning of object creation, ie when a new instance is created from this Class (Calculator).  \n        self.history = []    \n        \n    def add(self,a: int , b:int) -> None : # method to perform addition and append operation into history list \n       result=a+b; print('add', a, b, 'result') ; self.history.append(['add' , a , b , result])  \n        \n    def sub(self,a: int , b:int) -> None : # method to perform subtraction and append operation into history list \n       result=a-b; print('sub', a, b,'result') ; self.history.append(['sub' , a , b , result])  \n        \n    def mul(self,a: int , b:int) -> None : # method to perform multiplication and append operation into history list \n       result=a*b; print('mul', a, b,'result') ; self.history.append(['mul' , a , b , result])  \n        \n    def div(self,a: int , b:int) -> None : # method to perform division and append operation into history list  if condition is true then do not add the entry else raise ValueError('division by zero') . If no entries in History return none. Else remove last element from it\n        try:  \n            result=a/b; print ('div', a, b,'result' ) ; self.history.append(['div' , a , b , result])  if (not(bool)(b)) else pass    #if condition is true then do not add the entry otherwise raise ValueError('division by zero')\n        except ZeroDivisionError:  \n            print ('cannot divide by zero',a, 'and ',b) ; self.history = []     return None  if no entries in History to undo else remove last element from it    #if condition is true then do not add the entry otherwise raise ValueError('division by zero') and clear history list\n```  \nYou can use this class as follows: - Create an instance of Calculator, perform operations on numbers a & b using methods provided in above code. After each operation append its details into `history` array/list for future reference or undo the last action performed if any by calling method 'undo()'. If you want to clear history list call function ‘clear’ and it will remove all entries from History List\n",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": " , result])  if (not(bool)(b)) else pass    #if condition is true then do not add the entry otherwise raise ValueError('division by zero')\nE                                                                                                                         ^^^^\nE   SyntaxError: invalid syntax\n=========================== short test summary info ===========================\nERROR test_calculator.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.24s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 18
+      }
+    },
+    {
+      "task_id": "t5_safe_div_class",
+      "task_name": "Stateful Calculator with Error Handling",
+      "baseline": "miniagent_plain",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 27.26,
+        "tokens": 735,
+        "speed_tok_per_s": 28.4,
+        "raw_chars": 3035
+      },
+      "raw_response": "Here is a Python class that fulfills your requirements using python's built in data types for simplicity, but you can replace them with any other datatypes as per requirement if needed (like list or custom classes). \n\n```python\nclass Calculator:\n    def __init__(self): # constructor method to initialize history attribute.\n        self.history = []  \n        \n    def add(self, a : int , b :int) -> None:    \n        result=a+b     \n        operation_type =  'add' \n        self._logOperation('Add',operation_type,(result))      \n            \n    def sub(self, a : int , b :int)->None:  \n         # type hinting is done here. Python will not allow implicit conversion of integer to float or vice versa if the operation result isn't an Integer \n        result=a-b     \n        self._logOperation('Sub', 'substractor_type')      \n            \n    def mul(self, a : int , b:int)->None:   # type hinting is done here. Python will not allow implicit conversion of integer to float or vice versa if the operation result isn't an Integer \n        self._logOperation('Multiply', 'multiplier_type')      \n            \n    def div(self, a : int , b:int)->None:   # type hinting is done here. Python will not allow implicit conversion of integer to float or vice versa if the operation result isn't an Integer \n        self._logOperation('Divide', 'divisor_type')      \n            \n    def undo(self) ->  tuple : None:   # type hinting is done here. Python will not allow implicit conversion of integer to float or vice versa if the operation result isn't an Integer \n        return self._logOperation('Undo', 'undo_operation')      \n            \n    def clear(self) ->None :    \n         # type hinting is done here. Python will not allow implicit conversion of integer to float or vice versa if the operation result isn't an Integer \n        self._logOperation('Clear','clear_history', None )  \n             \n            \n    def _logOperation(self,operation:str , action : str ,result=None): # private method for logging operations. It is not supposed to be called directly from outside the class but only through methods provided in above classes \n        if result != 0 and b == 0:# checking division by zero condition here  \n            raise ValueError('division by zero')   \n            \n         else:     # appending all required details into history list.     \n              self.history.append((operation, a ,b,result)) \n```      \nThis class is very simple and does not include any user interaction or error handling for simplicity's sake in this example but you can add those as per your requirements if needed (like adding input validation). Also note that the type hints are used to ensure types of variables passed into methods. Python will raise a TypeError when it encounters an operation where one argument is not compatible with another, or vice versa for other operations like division by zero etc., which would be handled in `div` method and undo's case as well if the result was 0 after performing that action (undoing).\n",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": "lain__run0\\calculator.py\", line 21\nE       def undo(self) ->  tuple : None:   # type hinting is done here. Python will not allow implicit conversion of integer to float or vice versa if the operation result isn't an Integer \nE                                      ^\nE   SyntaxError: invalid syntax\n=========================== short test summary info ===========================\nERROR test_calculator.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.26s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 34
+      }
+    },
+    {
+      "task_id": "t5_safe_div_class",
+      "task_name": "Stateful Calculator with Error Handling",
+      "baseline": "miniagent_enhanced",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 154.34,
+        "tokens": 2737,
+        "attempts": 3,
+        "raw_chars": 3834
+      },
+      "raw_response": "Here is a correct version of `Calculator` class with all methods implemented correctly, type hints included for better understanding what each method does (if needed), exception handling added to prevent division by zero or uninitialized history attribute and no print statement in the end as per your requirements - \n```python\nclass Calculator:\n    def __init__(self) -> None:   # Initializing history attribute. Default is an Empty List [] for use with type hinting if you want a specific data structure in your class instance otherwise it's optional and can be left out or defaulted to None as shown below \n        self.history = list()     # Type Hinting the attribute history with 'List'. Default is an empty List [] If not provided by user/programmer during instantiation of Calculator, then this field will also remain Optional (None) and can be left out or defaulted to None as shown below \n        \n    def add(self, a: int , b:int ) -> float : # Method for addition with type hintings 'a' & 'b'. The operation performed is appended in history. And returns result of summation  \n        self.history.append(('add', a  , b , a + b))    \n        return a+b     \n        \n    def sub(self,a: int, b :int ) -> float:# Method for subtraction with type hintings 'a' & 'b'. The operation performed is appended in history. And returns result of substractive calculation  \n        self.history.append(('sub', a  , b , a-b))      # Returning the difference after performing subtractions   \n        return a - b    \n        \n    def mul(self,a: int, b :int ) -> float:# Method for multiplication with type hintings 'a' & 'b'. The operation performed is appended in history. And returns result of multiplications  \n        self.history.append(('mul', a  , b , a*b))      # Returning the product after performing multiplications   \n        return a * b    \n        \n    def div(self,a: int, b :int ) -> float:# Method for division with type hintings 'a' & 'b'. The operation performed is appended in history. And returns result of divisions   If the value ‘b’ equals zero then ValueError('division by zero') will be raised without adding it into list as per requirement in task description,\n        if b == 0:      # Checking for division by Zero condition   \n            raise ValueError(\"Division by zero is not allowed\")       # If yes - raising exception \n            \n         else :     # Else continue with the calculation and append to history.  \n              self.history.append(('div', a , b,a/b))      # Returning quotient after performing division   \n        return a / b         \n          \n    def undo(self) -> tuple:  # Method for Undo operation with type hint as 'tuple'. It returns the last entry from history. If empty it will raise IndexError exception  \n         if not self.history :     # Checking whether list is Empty or Not, then return None   \n             print(\"No operations to undo\") \n        else:     \n            result = self.history.pop()# Popping the last element from history and returning it If empty returns none as per requirement in task description  \n         return result     # Returning Last operation performed before Undo Operation is called   \n            \n      \n    def clear(self) -> None:  # Method for clearing all operations with type hint 'None'. It empties the history list. No value or exception will be raised in this method   self.history = [] This line can also remove if not needed as per your program logic purpose     Self-explanatory\n```   \nThis code should work fine and produce correct results for all operations, no print statements are required at end of the file due to requirements mentioned above -  unless you want a specific output format or additional functionality. If any further assistance is necessary please let me know!   I'm here if needed... Happy Coding",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": "_div_class__miniagent_enhanced__run0\\calculator.py\", line 21\nE       else :     # Else continue with the calculation and append to history.  \nE                                                                               ^\nE   IndentationError: unindent does not match any outer indentation level\n=========================== short test summary info ===========================\nERROR test_calculator.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.26s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 33
+      }
+    }
+  ]
+}

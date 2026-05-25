@@ -1,0 +1,47 @@
+{
+  "model": "deepseek-coder:1.3b",
+  "timestamp": "20260524-200919",
+  "baselines": [
+    "A"
+  ],
+  "tasks": [
+    "t1_fizzbuzz"
+  ],
+  "runs": 1,
+  "results": [
+    {
+      "task_id": "t1_fizzbuzz",
+      "task_name": "FizzBuzz (warm-up)",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 8.07,
+        "tokens": 317,
+        "speed_tok_per_s": 43.2,
+        "raw_chars": 1138
+      },
+      "raw_response": "Here is the Python code for your problem statement using list comprehension which makes our task easier to accomplish in a single line of python scripting language :-):\n```python\ndef fizzbuzz(n: int) -> list[str]:  # type hint, return as per requirement. Here it's returning str (list). You can change this according your need if you want the output to be different data types like integer or float etc..  \n    result = [f\"FizzBuzz\" if i % 3 == 0 and i%5==0 else \"Fizz\" if i % 3 ==0 else \"Buzz\" if i % 5==0 else str(i) for i in range(1, n+1)]\n    return result   # type hint is not required here as we are returning a list of strings. But it's good practice to include this so that the function signature matches with other functions and modules you might use later on your codebase! \n```    \nYou can test above python script using following way: -   `print(fizzbuzz(15)) `   or any number of n. For example, if we call fizzbuzz method as follows :-  ` print (fizzbuzz(20) ) it will return a list with 3 lines output for each numbers from 'FizzBuzz' and then the next two sets are in same format but different divisors like Fizz or Buzz.\n",
+      "score": {
+        "overall": 1.0,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 5,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": ".....                                                                    [100%]\n5 passed in 0.04s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 3
+      }
+    }
+  ]
+}

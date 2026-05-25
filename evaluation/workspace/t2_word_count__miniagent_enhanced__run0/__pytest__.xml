@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="6" time="0.095" timestamp="2026-05-24T21:05:36.961787+08:00" hostname="Administrator"><testcase classname="test_word_count" name="test_simple" time="0.001"><failure message="NameError: name 'string' is not defined">test_word_count.py:4: in test_simple
+    assert count_words('hello world hello') == {'hello': 2, 'world': 1}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+word_count.py:10: in count_words
+    words = re.sub('['+re.escape(string.punctuation)+']', '', text).lower().split()     # Removing punctuations (.,!?;:), converting all letters to lowercase, splitting string into individual characters ‘words’ and returning a dictionary with word frequencies count using defaultdict from collections module
+                               ^^^^^^
+E   NameError: name 'string' is not defined</failure></testcase><testcase classname="test_word_count" name="test_case_insensitive" time="0.001"><failure message="NameError: name 'string' is not defined">test_word_count.py:7: in test_case_insensitive
+    assert count_words('Hello HELLO hello') == {'hello': 3}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+word_count.py:10: in count_words
+    words = re.sub('['+re.escape(string.punctuation)+']', '', text).lower().split()     # Removing punctuations (.,!?;:), converting all letters to lowercase, splitting string into individual characters ‘words’ and returning a dictionary with word frequencies count using defaultdict from collections module
+                               ^^^^^^
+E   NameError: name 'string' is not defined</failure></testcase><testcase classname="test_word_count" name="test_punctuation" time="0.001"><failure message="NameError: name 'string' is not defined">test_word_count.py:10: in test_punctuation
+    assert count_words('hello, world! hello.') == {'hello': 2, 'world': 1}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+word_count.py:10: in count_words
+    words = re.sub('['+re.escape(string.punctuation)+']', '', text).lower().split()     # Removing punctuations (.,!?;:), converting all letters to lowercase, splitting string into individual characters ‘words’ and returning a dictionary with word frequencies count using defaultdict from collections module
+                               ^^^^^^
+E   NameError: name 'string' is not defined</failure></testcase><testcase classname="test_word_count" name="test_empty" time="0.000" /><testcase classname="test_word_count" name="test_whitespace_only" time="0.000" /><testcase classname="test_word_count" name="test_multi_punct" time="0.000"><failure message="NameError: name 'string' is not defined">test_word_count.py:19: in test_multi_punct
+    assert count_words('What?! What?!') == {'what': 2}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+word_count.py:10: in count_words
+    words = re.sub('['+re.escape(string.punctuation)+']', '', text).lower().split()     # Removing punctuations (.,!?;:), converting all letters to lowercase, splitting string into individual characters ‘words’ and returning a dictionary with word frequencies count using defaultdict from collections module
+                               ^^^^^^
+E   NameError: name 'string' is not defined</failure></testcase></testsuite></testsuites>

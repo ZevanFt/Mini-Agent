@@ -1,0 +1,388 @@
+{
+  "model": "qwen2.5-coder:3b",
+  "timestamp": "20260525-005015",
+  "baselines": [
+    "A",
+    "D"
+  ],
+  "tasks": [
+    "t1_fizzbuzz",
+    "t2_word_count",
+    "t3_json_flatten",
+    "t4_cli_todo",
+    "t5_safe_div_class"
+  ],
+  "runs": 1,
+  "results": [
+    {
+      "task_id": "t1_fizzbuzz",
+      "task_name": "FizzBuzz (warm-up)",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 7.7,
+        "tokens": 103,
+        "speed_tok_per_s": 15.9,
+        "raw_chars": 354
+      },
+      "raw_response": "```python\ndef fizzbuzz(n: int) -> list[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 3 == 0 and i % 5 == 0:\n            result.append('FizzBuzz')\n        elif i % 3 == 0:\n            result.append('Fizz')\n        elif i % 5 == 0:\n            result.append('Buzz')\n        else:\n            result.append(str(i))\n    return result\n```",
+      "score": {
+        "overall": 1.0,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 5,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": ".....                                                                    [100%]\n5 passed in 0.04s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 12
+      }
+    },
+    {
+      "task_id": "t1_fizzbuzz",
+      "task_name": "FizzBuzz (warm-up)",
+      "baseline": "miniagent_full",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 8.01,
+        "tokens": 108,
+        "attempts": 1,
+        "raw_chars": 379,
+        "postproc_steps": [
+          "strip_markdown_and_prose",
+          "fix_else_indentation"
+        ],
+        "snippet_hint_used": false
+      },
+      "raw_response": "```python\nfrom typing import List\n\ndef fizzbuzz(n: int) -> List[str]:\n    result = []\n    for i in range(1, n + 1):\n        if i % 3 == 0 and i % 5 == 0:\n            result.append('FizzBuzz')\n        elif i % 3 == 0:\n            result.append('Fizz')\n        elif i % 5 == 0:\n            result.append('Buzz')\n        else:\n            result.append(str(i))\n    return result\n```",
+      "score": {
+        "overall": 0.52,
+        "functional": 0.2,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 1,
+          "failed": 4,
+          "errors": 0,
+          "stdout_tail": "t contains 2 more items, first extra item: '4'\nE     Use -v to get more diff\n=========================== short test summary info ===========================\nFAILED test_fizzbuzz.py::test_basic - AssertionError: assert ['Fizz', 'Buz......\nFAILED test_fizzbuzz.py::test_length - AssertionError: assert 48 == 100\nFAILED test_fizzbuzz.py::test_n_three - AssertionError: assert ['Fizz', '3'] ...\nFAILED test_fizzbuzz.py::test_n_five - AssertionError: assert ['Fizz', 'Buzz'...\n4 failed, 1 passed in 0.17s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 14
+      }
+    },
+    {
+      "task_id": "t2_word_count",
+      "task_name": "Word Frequency Counter",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 15.21,
+        "tokens": 215,
+        "speed_tok_per_s": 15.4,
+        "raw_chars": 963
+      },
+      "raw_response": "```python\nimport string\n\ndef count_words(text: str) -> dict[str, int]:\n    # Remove punctuation and convert to lowercase\n    text = text.translate(str.maketrans('', '', string.punctuation)).lower()\n    \n    # Split the text into words\n    words = text.split()\n    \n    # Count word frequencies\n    word_count = {}\n    for word in words:\n        if word:\n            word_count[word] = word_count.get(word, 0) + 1\n    \n    return word_count\n\n# Example usage\nif __name__ == \"__main__\":\n    print(count_words(\"Hello, world! Hello Python.\"))\n```\n\nThis code defines a function `count_words` that takes a string `text` as input and returns a dictionary with the frequency of each word in the text. It first removes punctuation and converts all words to lowercase to ensure case-insensitivity. Then, it splits the text into words and counts their occurrences using a dictionary. The example usage at the bottom demonstrates how to call the function and print the result.",
+      "score": {
+        "overall": 1.0,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 6,
+          "passed": 6,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": "......                                                                   [100%]\n6 passed in 0.04s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 20
+      }
+    },
+    {
+      "task_id": "t2_word_count",
+      "task_name": "Word Frequency Counter",
+      "baseline": "miniagent_full",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 39.09,
+        "tokens": 543,
+        "attempts": 3,
+        "raw_chars": 709,
+        "postproc_steps": [
+          "strip_markdown_and_prose",
+          "strip_markdown_and_prose",
+          "strip_markdown_and_prose"
+        ],
+        "snippet_hint_used": false
+      },
+      "raw_response": "```python\nimport string\n\ndef count_words(text: str) -> dict[str, int]:\n    # Convert text to lowercase and remove punctuation\n    cleaned_text = ''.join(char.lower() for char in text if char.isalnum() or char.isspace())\n    \n    # Split the cleaned text into words\n    words = cleaned_text.split()\n    \n    # Count the frequency of each word\n    word_count = {}\n    for word in words:\n        if word:\n            word_count[word] = word_count.get(word, 0) + 1\n    \n    return word_count\n\n# Test cases\ndef test_empty():\n    assert count_words(\"\") == {}\n\ndef test_whitespace_only():\n    assert count_words(\"   \") == {}\n\ndef test_multi_punct():\n    assert count_words(\"Hello, world! Hello.\") == {\"hello\": 2}\n```",
+      "score": {
+        "overall": 1.0,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 6,
+          "passed": 6,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": "......                                                                   [100%]\n6 passed in 0.08s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 24
+      }
+    },
+    {
+      "task_id": "t3_json_flatten",
+      "task_name": "Nested JSON Flattener",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 15.06,
+        "tokens": 209,
+        "speed_tok_per_s": 15.2,
+        "raw_chars": 929
+      },
+      "raw_response": "```python\ndef flatten(obj: dict, sep: str = '.') -> dict:\n    def _flatten(d, parent_key='', result=None):\n        if result is None:\n            result = {}\n        \n        for key, value in d.items():\n            new_key = f\"{parent_key}{sep}{key}\" if parent_key else key\n            if isinstance(value, dict):\n                _flatten(value, new_key, result)\n            elif isinstance(value, list):\n                result[new_key] = value\n            else:\n                result[new_key] = value\n        \n        return result\n    \n    return _flatten(obj)\n\n# Example usage\nprint(flatten({'a': {'b': 1, 'c': {'d': 2}}}))\n```\n\nThis function uses recursion to traverse the dictionary. It constructs a new key by concatenating the parent key and the current key with the separator. If the value is another dictionary, it calls itself recursively. If the value is a list, it adds the list as a value in the result dictionary.",
+      "score": {
+        "overall": 1.0,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 6,
+          "passed": 6,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": "......                                                                   [100%]\n6 passed in 0.04s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 20
+      }
+    },
+    {
+      "task_id": "t3_json_flatten",
+      "task_name": "Nested JSON Flattener",
+      "baseline": "miniagent_full",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 72.4,
+        "tokens": 922,
+        "attempts": 3,
+        "raw_chars": 1097,
+        "postproc_steps": [
+          "strip_markdown_and_prose",
+          "fix_else_indentation",
+          "strip_markdown_and_prose",
+          "fix_else_indentation",
+          "strip_markdown_and_prose",
+          "fix_else_indentation"
+        ],
+        "snippet_hint_used": false
+      },
+      "raw_response": "```python\nfrom typing import Dict\n\ndef flatten(obj: dict, sep: str = '.') -> dict:\n    def _flatten(d: dict, parent_key: str = '') -> dict:\n        items = {}\n        for key, value in d.items():\n            new_key = f\"{parent_key}{sep}{key}\" if parent_key else key\n            if isinstance(value, dict):\n                items.update(_flatten(value, new_key))\n            elif isinstance(value, list):\n                items[new_key] = value\n            else:\n                items[new_key] = value\n        return items\n\n    return _flatten(obj)\n\n# Test cases\ndef test_custom_sep():\n    assert flatten({'a': {'b': 1, 'c': {'d': 2}}}, sep=':') == {'a:b': 1, 'a:c:d': 2}\n\ndef test_list_preserved():\n    assert flatten({'a': [1, 2, 3]}) == {'a': [1, 2, 3]}\n\ndef test_deep_nesting():\n    assert flatten({'a': {'b': {'c': {'d': 4}}}}) == {'a.b.c.d': 4}\n```\n\nThis code defines a `flatten` function that recursively flattens nested dictionaries using a specified separator. It also includes test cases to ensure the function works as expected for different inputs, including custom separators and lists.",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 6,
+          "passed": 0,
+          "failed": 6,
+          "errors": 0,
+          "stdout_tail": "ED test_flatten.py::test_simple_nested - AssertionError: assert {'a': {'b...\nFAILED test_flatten.py::test_flat - AssertionError: assert {'b': 2} == {'a': ...\nFAILED test_flatten.py::test_empty - UnboundLocalError: cannot access local v...\nFAILED test_flatten.py::test_custom_sep - AssertionError: assert {'a': {'b': ...\nFAILED test_flatten.py::test_list_preserved - AssertionError: assert {'a': [1...\nFAILED test_flatten.py::test_deep_nesting - AssertionError: assert {'a': {'b'...\n6 failed in 0.16s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 26
+      }
+    },
+    {
+      "task_id": "t4_cli_todo",
+      "task_name": "CLI TODO File Processor",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 17.83,
+        "tokens": 212,
+        "speed_tok_per_s": 13.9,
+        "raw_chars": 842
+      },
+      "raw_response": "```python\nimport sys\n\ndef count_todos(file_path):\n    try:\n        with open(file_path, 'r') as file:\n            lines = file.readlines()\n            open_count = sum(1 for line in lines if line.startswith('- [ ]'))\n            done_count = sum(1 for line in lines if line.startswith('- [x]'))\n            \n            total = open_count + done_count\n            percent_done = 0.0 if total == 0 else (done_count / total) * 100\n            \n            print(f\"open: {open_count}\")\n            print(f\"done: {done_count}\")\n            print(f\"percent: {percent_done:.1f}%\")\n    \n    except FileNotFoundError:\n        sys.stderr.write(\"error: file not found\\n\")\n        sys.exit(1)\n\nif __name__ == \"__main__\":\n    if len(sys.argv) != 2:\n        print(\"Usage: todo_cli.py <file_path>\")\n        sys.exit(1)\n    \n    count_todos(sys.argv[1])\n```",
+      "score": {
+        "overall": 1.0,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 5,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": ".....                                                                    [100%]\n5 passed in 0.18s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 26
+      }
+    },
+    {
+      "task_id": "t4_cli_todo",
+      "task_name": "CLI TODO File Processor",
+      "baseline": "miniagent_full",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 60.47,
+        "tokens": 696,
+        "attempts": 3,
+        "raw_chars": 972,
+        "postproc_steps": [
+          "strip_markdown_and_prose",
+          "strip_markdown_and_prose",
+          "strip_markdown_and_prose"
+        ],
+        "snippet_hint_used": true
+      },
+      "raw_response": "```python\nimport sys\n\ndef main(argv: list[str]) -> int:\n    if len(argv) < 2:\n        print('usage: todo_cli.py <file>', file=sys.stderr)\n        return 1\n    \n    path = argv[1]\n    \n    try:\n        with open(path, 'r') as file:\n            lines = file.readlines()\n            \n            open_count = sum(1 for line in lines if line.startswith('- [ ]'))\n            done_count = sum(1 for line in lines if line.startswith('- [x]'))\n            \n            total_count = open_count + done_count\n            \n            percent_done = 0.0\n            if total_count > 0:\n                percent_done = (done_count / total_count) * 100\n            \n            print(f'open: {open_count}')\n            print(f'done: {done_count}')\n            print(f'percent: {percent_done:.1f}%')\n    \n    except FileNotFoundError:\n        print('error: file not found', file=sys.stderr)\n        return 1\n    \n    return 0\n\nif __name__ == '__main__':\n    sys.exit(main(sys.argv))\n```",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 5,
+          "passed": 0,
+          "failed": 5,
+          "errors": 0,
+          "stdout_tail": "s\\' is not defined\\n').stderr\n=========================== short test summary info ===========================\nFAILED test_todo_cli.py::test_basic_counts - assert 1 == 0\nFAILED test_todo_cli.py::test_all_done - IndexError: list index out of range\nFAILED test_todo_cli.py::test_empty - IndexError: list index out of range\nFAILED test_todo_cli.py::test_ignores_non_todo_lines - IndexError: list index...\nFAILED test_todo_cli.py::test_file_not_found - assert ('error' in 'traceback ...\n5 failed in 0.23s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 32
+      }
+    },
+    {
+      "task_id": "t5_safe_div_class",
+      "task_name": "Stateful Calculator with Error Handling",
+      "baseline": "bare_ollama",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 21.43,
+        "tokens": 268,
+        "speed_tok_per_s": 13.9,
+        "raw_chars": 1015
+      },
+      "raw_response": "```python\nfrom typing import List, Tuple\n\nclass Calculator:\n    def __init__(self):\n        self.history: List[Tuple[str, int, int, int]] = []\n\n    def add(self, a: int, b: int) -> int:\n        result = a + b\n        self.history.append(('add', a, b, result))\n        return result\n\n    def sub(self, a: int, b: int) -> int:\n        result = a - b\n        self.history.append(('sub', a, b, result))\n        return result\n\n    def mul(self, a: int, b: int) -> int:\n        result = a * b\n        self.history.append(('mul', a, b, result))\n        return result\n\n    def div(self, a: int, b: int) -> float:\n        if b == 0:\n            raise ValueError('division by zero')\n        result = a / b\n        self.history.append(('div', a, b, result))\n        return result\n\n    def undo(self) -> Tuple[str, int, int, int] | None:\n        if not self.history:\n            return None\n        last_operation = self.history.pop()\n        return last_operation\n\n    def clear(self) -> None:\n        self.history.clear()\n```",
+      "score": {
+        "overall": 1.0,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 8,
+          "passed": 8,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": "........                                                                 [100%]\n8 passed in 0.05s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 36
+      }
+    },
+    {
+      "task_id": "t5_safe_div_class",
+      "task_name": "Stateful Calculator with Error Handling",
+      "baseline": "miniagent_full",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 22.54,
+        "tokens": 261,
+        "attempts": 1,
+        "raw_chars": 972,
+        "postproc_steps": [
+          "strip_markdown_and_prose"
+        ],
+        "snippet_hint_used": true
+      },
+      "raw_response": "```python\nclass Calculator:\n    def __init__(self):\n        self.history: list[tuple[str, int, int, int]] = []\n\n    def add(self, a: int, b: int) -> int:\n        result = a + b\n        self.history.append(('add', a, b, result))\n        return result\n\n    def sub(self, a: int, b: int) -> int:\n        result = a - b\n        self.history.append(('sub', a, b, result))\n        return result\n\n    def mul(self, a: int, b: int) -> int:\n        result = a * b\n        self.history.append(('mul', a, b, result))\n        return result\n\n    def div(self, a: int, b: int) -> float:\n        if b == 0:\n            raise ValueError('division by zero')\n        result = a / b\n        self.history.append(('div', a, b, result))\n        return result\n\n    def undo(self) -> tuple[str, int, int, int] | None:\n        if not self.history:\n            return None\n        last_entry = self.history.pop()\n        return last_entry\n\n    def clear(self) -> None:\n        self.history = []\n```",
+      "score": {
+        "overall": 1.0,
+        "functional": 1.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 8,
+          "passed": 8,
+          "failed": 0,
+          "errors": 0,
+          "stdout_tail": "........                                                                 [100%]\n8 passed in 0.14s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 34
+      }
+    }
+  ]
+}

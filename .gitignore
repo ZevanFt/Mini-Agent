@@ -1,0 +1,45 @@
+# .gitignore for MiniAgent
+
+# 敏感文件（绝不提交）
+.env
+.env.local
+.env.production
+*.key
+*.pem
+credentials.json
+
+# 用户级配置（不同机器不同）
+.miniagent/memory/
+.miniagent/config.local.json
+local_llm/configs/ollama.env
+local_llm/configs/ollama.env
+
+# 构建产物
+dist/
+*.tsbuildinfo
+
+# 依赖
+node_modules/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 测评临时文件
+evaluation/runners/__pycache__/
+evaluation/results/_smoke_tests/
+
+# Python 缓存
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# 公众号文章
+articles/
+
+# 日志文件
+*.log
+
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "t1_fizzbuzz",
+    "name": "FizzBuzz (warm-up)",
+    "difficulty": "easy",
+    "language": "python",
+    "target_file": "fizzbuzz.py",
+    "prompt": "Write a Python function `fizzbuzz(n: int) -> list[str]` that returns a list of length n. For each index i (1-indexed): return 'FizzBuzz' if i divisible by both 3 and 5, 'Fizz' if only by 3, 'Buzz' if only by 5, else str(i). Save it as fizzbuzz.py.",
+    "test_file": "test_fizzbuzz.py",
+    "test_code": "from fizzbuzz import fizzbuzz\n\ndef test_basic():\n    assert fizzbuzz(15) == ['1','2','Fizz','4','Buzz','Fizz','7','8','Fizz','Buzz','11','Fizz','13','14','FizzBuzz']\n\ndef test_length():\n    assert len(fizzbuzz(100)) == 100\n\ndef test_n_one():\n    assert fizzbuzz(1) == ['1']\n\ndef test_n_three():\n    assert fizzbuzz(3) == ['1','2','Fizz']\n\ndef test_n_five():\n    assert fizzbuzz(5) == ['1','2','Fizz','4','Buzz']\n"
+  },
+  {
+    "id": "t2_word_count",
+    "name": "Word Frequency Counter",
+    "difficulty": "easy",
+    "language": "python",
+    "target_file": "word_count.py",
+    "prompt": "Write a Python function `count_words(text: str) -> dict[str, int]` that returns word frequency counts. Words are case-insensitive, separated by whitespace. Strip punctuation (.,!?;:) from word boundaries. Empty/whitespace-only input returns {}. Save it as word_count.py.",
+    "test_file": "test_word_count.py",
+    "test_code": "from word_count import count_words\n\ndef test_simple():\n    assert count_words('hello world hello') == {'hello': 2, 'world': 1}\n\ndef test_case_insensitive():\n    assert count_words('Hello HELLO hello') == {'hello': 3}\n\ndef test_punctuation():\n    assert count_words('hello, world! hello.') == {'hello': 2, 'world': 1}\n\ndef test_empty():\n    assert count_words('') == {}\n\ndef test_whitespace_only():\n    assert count_words('   \\t\\n  ') == {}\n\ndef test_multi_punct():\n    assert count_words('What?! What?!') == {'what': 2}\n"
+  },
+  {
+    "id": "t3_json_flatten",
+    "name": "Nested JSON Flattener",
+    "difficulty": "medium",
+    "language": "python",
+    "target_file": "flatten.py",
+    "prompt": "Write a Python function `flatten(obj: dict, sep: str = '.') -> dict` that flattens nested dicts using a separator. Lists are kept as values (not flattened). Example: flatten({'a': {'b': 1, 'c': {'d': 2}}}) returns {'a.b': 1, 'a.c.d': 2}. Empty dict input returns {}. Save it as flatten.py.",
+    "test_file": "test_flatten.py",
+    "test_code": "from flatten import flatten\n\ndef test_simple_nested():\n    assert flatten({'a': {'b': 1, 'c': {'d': 2}}}) == {'a.b': 1, 'a.c.d': 2}\n\ndef test_flat():\n    assert flatten({'a': 1, 'b': 2}) == {'a': 1, 'b': 2}\n\ndef test_empty():\n    assert flatten({}) == {}\n\ndef test_custom_sep():\n    assert flatten({'a': {'b': 1}}, sep='/') == {'a/b': 1}\n\ndef test_list_preserved():\n    result = flatten({'a': [1, 2, 3], 'b': {'c': [4, 5]}})\n    assert result == {'a': [1, 2, 3], 'b.c': [4, 5]}\n\ndef test_deep_nesting():\n    assert flatten({'a': {'b': {'c': {'d': {'e': 'deep'}}}}}) == {'a.b.c.d.e': 'deep'}\n"
+  },
+  {
+    "id": "t4_cli_todo",
+    "name": "CLI TODO File Processor",
+    "difficulty": "medium",
+    "language": "python",
+    "target_file": "todo_cli.py",
+    "prompt": "Write a Python CLI script `todo_cli.py` that reads a text file (path passed as first argv) and prints to stdout: 1) total number of lines starting with '- [ ]' (open todos), 2) total starting with '- [x]' (done todos), 3) the percentage done. Exact output format (three lines):\nopen: <N>\ndone: <M>\npercent: <P>%\n\nWhere P is rounded to 1 decimal place. If total is 0, print 'percent: 0.0%'. If the file does not exist, print 'error: file not found' to stderr and exit with code 1.",
+    "test_file": "test_todo_cli.py",
+    "test_code": "import subprocess, sys, os, tempfile\n\nSCRIPT = os.path.join(os.path.dirname(__file__), 'todo_cli.py')\n\ndef run(content_or_path, is_path=False):\n    if is_path:\n        path = content_or_path\n    else:\n        f = tempfile.NamedTemporaryFile('w', suffix='.md', delete=False, encoding='utf-8')\n        f.write(content_or_path)\n        f.close()\n        path = f.name\n    r = subprocess.run([sys.executable, SCRIPT, path], capture_output=True, text=True)\n    if not is_path:\n        os.unlink(path)\n    return r\n\ndef test_basic_counts():\n    r = run('- [ ] a\\n- [x] b\\n- [ ] c\\n')\n    assert r.returncode == 0\n    out = r.stdout.strip().splitlines()\n    assert out[0] == 'open: 2'\n    assert out[1] == 'done: 1'\n    assert out[2] == 'percent: 33.3%'\n\ndef test_all_done():\n    r = run('- [x] a\\n- [x] b\\n')\n    out = r.stdout.strip().splitlines()\n    assert out[0] == 'open: 0'\n    assert out[1] == 'done: 2'\n    assert out[2] == 'percent: 100.0%'\n\ndef test_empty():\n    r = run('')\n    out = r.stdout.strip().splitlines()\n    assert out[0] == 'open: 0'\n    assert out[1] == 'done: 0'\n    assert out[2] == 'percent: 0.0%'\n\ndef test_ignores_non_todo_lines():\n    r = run('# Header\\nsome text\\n- [ ] task\\nrandom\\n- [x] done\\n')\n    out = r.stdout.strip().splitlines()\n    assert out[0] == 'open: 1'\n    assert out[1] == 'done: 1'\n    assert out[2] == 'percent: 50.0%'\n\ndef test_file_not_found():\n    r = run('/nonexistent_path_xyz_12345.txt', is_path=True)\n    assert r.returncode == 1\n    assert 'error' in r.stderr.lower() and 'not found' in r.stderr.lower()\n"
+  },
+  {
+    "id": "t5_safe_div_class",
+    "name": "Stateful Calculator with Error Handling",
+    "difficulty": "medium-hard",
+    "language": "python",
+    "target_file": "calculator.py",
+    "prompt": "Write a Python class `Calculator` in calculator.py with:\n- An attribute `history: list` initialized to empty list.\n- Method `add(a, b)`: returns a+b, appends ('add', a, b, result) to history.\n- Method `sub(a, b)`: returns a-b, appends ('sub', a, b, result).\n- Method `mul(a, b)`: returns a*b, appends ('mul', a, b, result).\n- Method `div(a, b)`: returns a/b. If b == 0, raise ValueError('division by zero') and do NOT append to history.\n- Method `undo()`: removes the last entry from history and returns it. Returns None if empty.\n- Method `clear()`: empties history.\n\nUse type hints. Do not print anything.",
+    "test_file": "test_calculator.py",
+    "test_code": "import pytest\nfrom calculator import Calculator\n\ndef test_add():\n    c = Calculator()\n    assert c.add(2, 3) == 5\n    assert c.history == [('add', 2, 3, 5)]\n\ndef test_all_ops():\n    c = Calculator()\n    c.add(1, 2)\n    c.sub(5, 3)\n    c.mul(4, 6)\n    assert c.history == [('add', 1, 2, 3), ('sub', 5, 3, 2), ('mul', 4, 6, 24)]\n\ndef test_div():\n    c = Calculator()\n    assert c.div(10, 2) == 5\n    assert c.history == [('div', 10, 2, 5.0)] or c.history == [('div', 10, 2, 5)]\n\ndef test_div_by_zero_raises():\n    c = Calculator()\n    with pytest.raises(ValueError, match='division by zero'):\n        c.div(10, 0)\n    assert c.history == []\n\ndef test_div_by_zero_after_ops_does_not_pollute():\n    c = Calculator()\n    c.add(1, 1)\n    with pytest.raises(ValueError):\n        c.div(5, 0)\n    assert len(c.history) == 1\n\ndef test_undo():\n    c = Calculator()\n    c.add(1, 1)\n    c.sub(5, 2)\n    last = c.undo()\n    assert last == ('sub', 5, 2, 3)\n    assert len(c.history) == 1\n\ndef test_undo_empty():\n    c = Calculator()\n    assert c.undo() is None\n\ndef test_clear():\n    c = Calculator()\n    c.add(1, 1); c.add(2, 2)\n    c.clear()\n    assert c.history == []\n"
+  }
+]

@@ -1,0 +1,207 @@
+# 编程语言文档索引
+
+## 配置选项
+default_region: china  # global, china, us, eu
+prefer_mirror: true   # 是否优先使用镜像源
+
+## 文档源
+
+### JavaScript/TypeScript
+javascript:
+  name: JavaScript
+  official:
+    - name: MDN Web Docs
+      url: https://developer.mozilla.org/docs/Web/JavaScript
+      region: global
+  mirrors:
+    - name: MDN 中文网
+      url: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript
+      region: china
+  quick_ref:
+    - name: ES6+ 语法速查
+      url: https://es6.ruanyifeng.com/
+      region: china
+
+typescript:
+  name: TypeScript
+  official:
+    - name: TypeScript 官方文档
+      url: https://www.typescriptlang.org/docs
+      region: global
+  mirrors:
+    - name: TypeScript 中文手册
+      url: https://typescript.bootcss.com/
+      region: china
+  quick_ref:
+    - name: TypeScript 类型速查
+      url: https://www.typescriptlang.org/cheatsheets/index
+
+react:
+  name: React
+  official:
+    - name: React 官方文档
+      url: https://react.dev
+      region: global
+  mirrors:
+    - name: React 中文文档
+      url: https://zh-hans.react.dev
+      region: china
+
+nodejs:
+  name: Node.js
+  official:
+    - name: Node.js 官方文档
+      url: https://nodejs.org/docs
+      region: global
+  mirrors:
+    - name: Node.js 中文网
+      url: https://nodejs.cn/
+      region: china
+
+express:
+  name: Express
+  official:
+    - name: Express 官方文档
+      url: https://expressjs.com
+      region: global
+  mirrors:
+    - name: Express 中文文档
+      url: https://www.expressjs.com.cn
+      region: china
+
+### Python
+python:
+  name: Python
+  official:
+    - name: Python 官方文档
+      url: https://docs.python.org
+      region: global
+  mirrors:
+    - name: Python 中文文档
+      url: https://www.python.org.cn/
+      region: china
+    - name: Python 教程 - 廖雪峰
+      url: https://www.liaoxuefeng.com/wiki/1016959663602400/1017063826246176
+      region: china
+
+fastapi:
+  name: FastAPI
+  official:
+    - name: FastAPI 官方文档
+      url: https://fastapi.tiangolo.com
+      region: global
+  mirrors:
+    - name: FastAPI 中文文档
+      url: https://fastapi.tiangolo.com/zh/
+      region: china
+
+pytest:
+  name: pytest
+  official:
+    - name: pytest 官方文档
+      url: https://docs.pytest.org
+      region: global
+
+sqlalchemy:
+  name: SQLAlchemy
+  official:
+    - name: SQLAlchemy 官方文档
+      url: https://docs.sqlalchemy.org
+      region: global
+
+django:
+  name: Django
+  official:
+    - name: Django 官方文档
+      url: https://docs.djangoproject.com
+      region: global
+  mirrors:
+    - name: Django 中文文档
+      url: https://docs.djangoproject.com/zh-hans/
+      region: china
+
+### Java
+java:
+  name: Java
+  official:
+    - name: Oracle Java Docs
+      url: https://docs.oracle.com/en/java
+      region: global
+  mirrors:
+    - name: Java 中文教程 - 廖雪峰
+      url: https://www.liaoxuefeng.com/wiki/1252599548343744
+      region: china
+
+spring:
+  name: Spring
+  official:
+    - name: Spring 官方文档
+      url: https://spring.io/docs
+      region: global
+  mirrors:
+    - name: Spring 中文文档
+      url: https://springdoc.cn
+      region: china
+
+### Go
+go:
+  name: Go
+  official:
+    - name: Go 官方文档
+      url: https://go.dev/doc
+      region: global
+  mirrors:
+    - name: Go 语言中文网
+      url: https://studygolang.com/pkgdoc
+      region: china
+    - name: Go 中文文档
+      url: https://docs.studygolang.com/
+      region: china
+
+gin:
+  name: Gin
+  official:
+    - name: Gin 官方文档
+      url: https://gin-gonic.com/docs/
+      region: global
+
+### Rust
+rust:
+  name: Rust
+  official:
+    - name: Rust 官方文档
+      url: https://doc.rust-lang.org/
+      region: global
+  mirrors:
+    - name: Rust 中文教程
+      url: https://kaisery.github.io/trpl-zh-cn/
+      region: china
+    - name: Rust 语言圣经
+      url: https://course.rs/
+      region: china
+
+### 通用工具
+git:
+  name: Git
+  official:
+    - name: Git 官方文档
+      url: https://git-scm.com/doc
+      region: global
+  mirrors:
+    - name: Git 中文手册
+      url: https://git-scm.com/docs/zh
+      region: china
+    - name: Git 教程 - 廖雪峰
+      url: https://www.liaoxuefeng.com/wiki/896043480210080
+      region: china
+
+docker:
+  name: Docker
+  official:
+    - name: Docker 官方文档
+      url: https://docs.docker.com/
+      region: global
+  mirrors:
+    - name: Docker 中文文档
+      url: https://yeasy.gitbook.io/docker_practice
+      region: china

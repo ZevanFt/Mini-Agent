@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="5" skipped="0" tests="6" time="0.097" timestamp="2026-05-24T21:06:55.094488+08:00" hostname="Administrator"><testcase classname="test_word_count" name="test_simple" time="0.001"><failure message="NameError: name 'collections' is not defined">test_word_count.py:4: in test_simple
+    assert count_words('hello world hello') == {'hello': 2, 'world': 1}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+word_count.py:9: in count_words
+    words_list  = list(collections.Counter(text.lower().translate(translator).split()))
+                      ^^^^^^^^^^^
+E   NameError: name 'collections' is not defined</failure></testcase><testcase classname="test_word_count" name="test_case_insensitive" time="0.001"><failure message="NameError: name 'collections' is not defined">test_word_count.py:7: in test_case_insensitive
+    assert count_words('Hello HELLO hello') == {'hello': 3}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+word_count.py:9: in count_words
+    words_list  = list(collections.Counter(text.lower().translate(translator).split()))
+                      ^^^^^^^^^^^
+E   NameError: name 'collections' is not defined</failure></testcase><testcase classname="test_word_count" name="test_punctuation" time="0.001"><failure message="NameError: name 'collections' is not defined">test_word_count.py:10: in test_punctuation
+    assert count_words('hello, world! hello.') == {'hello': 2, 'world': 1}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+word_count.py:9: in count_words
+    words_list  = list(collections.Counter(text.lower().translate(translator).split()))
+                      ^^^^^^^^^^^
+E   NameError: name 'collections' is not defined</failure></testcase><testcase classname="test_word_count" name="test_empty" time="0.000" /><testcase classname="test_word_count" name="test_whitespace_only" time="0.000"><failure message="NameError: name 'collections' is not defined">test_word_count.py:16: in test_whitespace_only
+    assert count_words('   \t\n  ') == {}
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+word_count.py:9: in count_words
+    words_list  = list(collections.Counter(text.lower().translate(translator).split()))
+                      ^^^^^^^^^^^
+E   NameError: name 'collections' is not defined</failure></testcase><testcase classname="test_word_count" name="test_multi_punct" time="0.001"><failure message="NameError: name 'collections' is not defined">test_word_count.py:19: in test_multi_punct
+    assert count_words('What?! What?!') == {'what': 2}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+word_count.py:9: in count_words
+    words_list  = list(collections.Counter(text.lower().translate(translator).split()))
+                      ^^^^^^^^^^^
+E   NameError: name 'collections' is not defined</failure></testcase></testsuite></testsuites>

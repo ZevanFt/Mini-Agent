@@ -1,0 +1,80 @@
+{
+  "model": "deepseek-coder:1.3b",
+  "timestamp": "20260524-205729",
+  "baselines": [
+    "E"
+  ],
+  "tasks": [
+    "t5_safe_div_class"
+  ],
+  "runs": 1,
+  "results": [
+    {
+      "task_id": "t5_safe_div_class",
+      "task_name": "Stateful Calculator with Error Handling",
+      "baseline": "miniagent_full_voting",
+      "run": 0,
+      "generation": {
+        "ok": true,
+        "elapsed_s": 169.7,
+        "tokens": 4093,
+        "samples": [
+          {
+            "score": 0,
+            "syntax_ok": false,
+            "len": 2160
+          },
+          {
+            "score": 0,
+            "syntax_ok": false,
+            "len": 1270
+          },
+          {
+            "score": 0,
+            "syntax_ok": false,
+            "len": 957
+          }
+        ],
+        "best_passed": 0,
+        "raw_chars": 3534,
+        "postproc_steps": [
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "normalize_indents",
+          "remove_orphan_returns",
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "fix_else_indentation",
+          "normalize_indents",
+          "remove_orphan_returns",
+          "strip_markdown_and_prose",
+          "strip_rambling_comments",
+          "normalize_indents",
+          "remove_orphan_returns"
+        ],
+        "snippet_hint_used": true
+      },
+      "raw_response": "Here is the Python code for your requirement using type hints and exception handling as per you've provided in task description :\n```python\nclass Calculator:\n    def __init__(self): # Initialize each attribute with a value of None Type hinted \n        self.history = []  \n    \n    def add(self,a: int , b:int) -> float:# Returns the sum and appends ('add', a, b, result to history as tuple type )     \n        return (a+b), 'add' # Appended value will be returned \n        \n    def sub(self,a: int , b:int)->  float :#Returns difference between two numbers after performing operation and appends ('sub', a, b,'result to history as tuple type )  \n        return (a-b), 'sub' # Appended value will be returned \n        \n    def mul(self,a: int , b:int)->  float :#Returns product of two numbers after performing operation and appends ('mul', a, b,'result to history as tuple type )  \n        return (a*b), 'mul' # Appended value will be returned \n        \n    def div(self,a: int , b:int)->  float :#Returns quotient of two numbers after performing operation and appends ('div', a, b,'result to history as tuple type )  \n        if not (b == 0): # Checking for division by zero \n            return (a/b), 'div' # Appended value will be returned   \n        else:             # If it is divisible then no append operation performed and exception raised.    \n           raise ValueError('division by zero')  \n        \n    def undo(self)-> tuple :# Returns last entry from history (last added/performed calculation)  if not empty, otherwise None . No print or return value assigned here as per requirement     \n        try:             # Try block to handle exception in case of no entries available.  \n            result = self.history[-1]    # -1 index used for getting the last entry from history list    \n            del self.history[-1:]  # Deleting only one element at a time (undo operation)     \n        except IndexError:         # Exception handling if no entries available in History  \n           return None             # Returns none as per requirement   \n         \n    def clear(self)->None :# Empties history list. No print or return value assigned here  . Just do self.history = [] OR call it using del operator to remove all elements from the object itself (clear operation)  \n       try:             # Try block for exception handling in case of no entries available   \n           del self.history[:]     # Deletes entire history list     \n       except NameError :         # Exception if there is not a attribute named 'self' and it can happen when object was created without attributes set  \n          return None             # Returns none as per requirement  . No print or no exception raised here   \n```       \nThis code will work perfectly fine. You just need to call these methods in your main program where you want the results of calculations, store them and perform undo operation if needed:\nExample :-  \n`calc = Calculator() # Creating an object for calculator class  . No print or return value assigned here   \nresult1 , op_type  = calc.add(5,3)      # Addition of numbers (6), 'Add' is stored in history and returned result    \nprint('Result:',result1,'Operation Type : ',op_type )  ```  This will print the operation type as well after performing addition . You can perform similar operations for subtraction , multiplication, division etc. And you have undo function to revert back previous calculations if needed in your program and clear method is used when all history list should be cleared from memory\n",
+      "score": {
+        "overall": 0.4,
+        "functional": 0.0,
+        "cleanliness": 1.0,
+        "completeness": 1.0,
+        "safety": 1.0,
+        "functional_detail": {
+          "total": 1,
+          "passed": 0,
+          "failed": 0,
+          "errors": 1,
+          "stdout_tail": "module>\n    from calculator import Calculator\nE     File \"E:\\practice\\paper_v1\\miniagent\\evaluation\\workspace\\t5_safe_div_class__miniagent_full_voting__run0\\calculator.py\", line 26\nE       def clear(self)->None :\nE   IndentationError: expected an indented block after 'except' statement on line 24\n=========================== short test summary info ===========================\nERROR test_calculator.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n1 error in 0.25s\n"
+        },
+        "issues": {
+          "cleanliness": [],
+          "completeness": [],
+          "safety": []
+        },
+        "code_length_lines": 29
+      }
+    }
+  ]
+}

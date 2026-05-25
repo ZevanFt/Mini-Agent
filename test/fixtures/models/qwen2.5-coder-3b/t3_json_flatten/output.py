@@ -1,0 +1,17 @@
+﻿from typing import Dict
+
+def flatten(obj: Dict, sep: str = '.') -> Dict:
+    def _flatten(d: Dict, path: str) -> Dict:
+        result = {}
+        for key, value in d.items():
+            new_path = f"{path}{sep}{key}" if path else key
+            if isinstance(value, dict):
+                result.update(_flatten(value, new_path))
+            elif isinstance(value, list):
+                result[new_path] = value
+            else:
+                result[new_path] = value
+        return result
+
+    return _flatten(obj, '')
+

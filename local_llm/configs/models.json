@@ -1,0 +1,46 @@
+{
+  "_comment": "MiniAgent 支持的本地模型配置",
+  "recommended": "qwen2.5-coder:3b",
+  "available": [
+    {
+      "name": "qwen2.5-coder:3b",
+      "size_gb": 1.9,
+      "speed_tok_per_s": 18.5,
+      "test_hw": "i5-11300H, 16GB, Iris Xe",
+      "qualitative": "excellent",
+      "recommendation": "推荐日常使用。裸模型即可通过全部 5 个编码任务测试。",
+      "eval_result": {
+        "bare_pass_rate": "100%",
+        "enhanced_pass_rate": "N/A (不需要增强)"
+      }
+    },
+    {
+      "name": "deepseek-coder:1.3b",
+      "size_gb": 0.78,
+      "speed_tok_per_s": 47,
+      "test_hw": "i5-11300H, 16GB, Iris Xe",
+      "qualitative": "poor_without_enhancement",
+      "recommendation": "仅限低配机器（≤8GB 内存）。裸模型不可用，必须搭配后处理器使用。",
+      "eval_result": {
+        "bare_pass_rate": "6.7%",
+        "enhanced_pass_rate": "42.5%"
+      }
+    }
+  ],
+  "model_strategy": {
+    "ds-coder:1.3b": {
+      "enable_postprocessor": true,
+      "enable_repair_loop": false,
+      "enable_voting": true,
+      "voting_samples": 3,
+      "snippet_hints": true
+    },
+    "qwen2.5-coder:3b": {
+      "enable_postprocessor": false,
+      "enable_repair_loop": false,
+      "enable_voting": false,
+      "voting_samples": 1,
+      "snippet_hints": false
+    }
+  }
+}

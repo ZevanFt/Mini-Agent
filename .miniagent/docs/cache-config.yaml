@@ -1,0 +1,22 @@
+# 文档缓存配置
+
+cache:
+  enabled: true
+  directory: ".miniagent/docs/cache"
+  
+  ttl:
+    official: 604800      # 7天
+    quick_ref: 259200     # 3天
+    mirror: 1209600       # 14天
+
+  max_size_mb: 100
+  offline_mode: false
+  auto_refresh: true
+  refresh_interval: 86400  # 24小时
+
+versioning:
+  track_version: true
+
+validation:
+  enable_checksum: true
+  algorithm: "sha256"

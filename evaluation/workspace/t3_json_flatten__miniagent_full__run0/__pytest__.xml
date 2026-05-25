@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="6" time="0.137" timestamp="2026-05-25T00:52:59.788374+08:00" hostname="Administrator"><testcase classname="test_flatten" name="test_simple_nested" time="0.001"><failure message="AssertionError: assert {'a': {'b': 1...}, 'a.c.d': 2} == {'a.b': 1, 'a.c.d': 2}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Left contains 2 more items:&#10;  {'a': {'b': 1, 'c': {'d': 2}}, 'a.c': {'d': 2}}&#10;  Right contains 1 more item:&#10;  {'a.b': 1}&#10;  Use -v to get more diff">test_flatten.py:4: in test_simple_nested
+    assert flatten({'a': {'b': 1, 'c': {'d': 2}}}) == {'a.b': 1, 'a.c.d': 2}
+E   AssertionError: assert {'a': {'b': 1...}, 'a.c.d': 2} == {'a.b': 1, 'a.c.d': 2}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 2 more items:
+E     {'a': {'b': 1, 'c': {'d': 2}}, 'a.c': {'d': 2}}
+E     Right contains 1 more item:
+E     {'a.b': 1}
+E     Use -v to get more diff</failure></testcase><testcase classname="test_flatten" name="test_flat" time="0.001"><failure message="AssertionError: assert {'b': 2} == {'a': 1, 'b': 2}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Right contains 1 more item:&#10;  {'a': 1}&#10;  Use -v to get more diff">test_flatten.py:7: in test_flat
+    assert flatten({'a': 1, 'b': 2}) == {'a': 1, 'b': 2}
+E   AssertionError: assert {'b': 2} == {'a': 1, 'b': 2}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Right contains 1 more item:
+E     {'a': 1}
+E     Use -v to get more diff</failure></testcase><testcase classname="test_flatten" name="test_empty" time="0.001"><failure message="UnboundLocalError: cannot access local variable 'value' where it is not associated with a value">test_flatten.py:10: in test_empty
+    assert flatten({}) == {}
+           ^^^^^^^^^^^
+flatten.py:16: in flatten
+    return _flatten(obj)
+           ^^^^^^^^^^^^^
+flatten.py:13: in _flatten
+    items[new_key] = value
+                     ^^^^^
+E   UnboundLocalError: cannot access local variable 'value' where it is not associated with a value</failure></testcase><testcase classname="test_flatten" name="test_custom_sep" time="0.001"><failure message="AssertionError: assert {'a': {'b': 1}, 'a/b': 1} == {'a/b': 1}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Left contains 1 more item:&#10;  {'a': {'b': 1}}&#10;  Use -v to get more diff">test_flatten.py:13: in test_custom_sep
+    assert flatten({'a': {'b': 1}}, sep='/') == {'a/b': 1}
+E   AssertionError: assert {'a': {'b': 1}, 'a/b': 1} == {'a/b': 1}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'a': {'b': 1}}
+E     Use -v to get more diff</failure></testcase><testcase classname="test_flatten" name="test_list_preserved" time="0.001"><failure message="AssertionError: assert {'a': [1, 2, ...'b.c': [4, 5]} == {'a': [1, 2, ...'b.c': [4, 5]}&#10;  &#10;  Omitting 2 identical items, use -vv to show&#10;  Left contains 1 more item:&#10;  {'b': {'c': [4, 5]}}&#10;  Use -v to get more diff">test_flatten.py:17: in test_list_preserved
+    assert result == {'a': [1, 2, 3], 'b.c': [4, 5]}
+E   AssertionError: assert {'a': [1, 2, ...'b.c': [4, 5]} == {'a': [1, 2, ...'b.c': [4, 5]}
+E     
+E     Omitting 2 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'b': {'c': [4, 5]}}
+E     Use -v to get more diff</failure></testcase><testcase classname="test_flatten" name="test_deep_nesting" time="0.001"><failure message="AssertionError: assert {'a': {'b': {... 'deep'}, ...} == {'a.b.c.d.e': 'deep'}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Left contains 4 more items:&#10;  {'a': {'b': {'c': {'d': {'e': 'deep'}}}},&#10;   'a.b': {'c': {'d': {'e': 'deep'}}},&#10;   'a.b.c': {'d': {'e': 'deep'}},&#10;   'a.b.c.d': {'e': 'deep'}}&#10;  Use -v to get more diff">test_flatten.py:20: in test_deep_nesting
+    assert flatten({'a': {'b': {'c': {'d': {'e': 'deep'}}}}}) == {'a.b.c.d.e': 'deep'}
+E   AssertionError: assert {'a': {'b': {... 'deep'}, ...} == {'a.b.c.d.e': 'deep'}
+E     
+E     Omitting 1 identical items, use -vv to show
+E     Left contains 4 more items:
+E     {'a': {'b': {'c': {'d': {'e': 'deep'}}}},
+E      'a.b': {'c': {'d': {'e': 'deep'}}},
+E      'a.b.c': {'d': {'e': 'deep'}},
+E      'a.b.c.d': {'e': 'deep'}}
+E     Use -v to get more diff</failure></testcase></testsuite></testsuites>

@@ -1,0 +1,3 @@
+def fizzbuzz(n: int) -> list[str]:  # type hinted function definition with input and output types as integer, return string List.  
+    result = [f'{i}' if i%3 != 0 or i%5 !=0 else 'FizzBuzz' for i in range(1, n+1)]     # list comprehension to generate the required sequence  (using f-string formatting) and assign it into a variable named result.
+    return result   # Returning our generated List from function call by returning statement of python script language as per requirement mentioned above for each index i in range(n). If condition is not satisfied then print 'FizzBuzz' else the number itself will be printed out using f-string formatting method and returned.
