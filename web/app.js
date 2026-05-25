@@ -1,4 +1,4 @@
-// MiniAgent Web UI - Complete App with Settings + i18n
+// MiniAgent Web UI — Redesigned v2
 const API_BASE = '/api';
 
 let currentSessionId = null;
@@ -8,11 +8,11 @@ let isLoading = false;
 // i18n translations
 const i18n = {
   en: {
-    logo_subtitle: 'Web Interface',
+    logo_subtitle: 'Local AI Dev',
     new_session: 'New Session',
     connected: 'Connected',
     settings: 'Settings',
-    welcome_subtitle: 'Your Local AI Coding Assistant',
+    welcome_subtitle: 'Your Local AI Coding Assistant — Ollama powered, zero cost',
     suggest_1: 'Explain the project structure',
     suggest_2: 'Help me write code',
     suggest_3: 'Setup development environment',
@@ -54,14 +54,16 @@ const i18n = {
     settings_saved: 'Settings saved!',
     settings_reset: 'Settings reset to defaults',
     no_sessions: 'No sessions yet',
-    messages_count: 'messages',
+    messages_count: 'msgs',
+    sessions_label: 'Sessions',
+    no_session: 'No session',
   },
   zh: {
-    logo_subtitle: 'Web 界面',
+    logo_subtitle: '本地 AI 开发',
     new_session: '新会话',
     connected: '已连接',
     settings: '设置',
-    welcome_subtitle: '你的本地 AI 编程助手',
+    welcome_subtitle: '你的本地 AI 编程助手 — Ollama 驱动，零成本',
     suggest_1: '解释项目结构',
     suggest_2: '帮我写代码',
     suggest_3: '配置开发环境',
@@ -104,6 +106,8 @@ const i18n = {
     settings_reset: '设置已恢复默认',
     no_sessions: '暂无会话',
     messages_count: '条消息',
+    sessions_label: '会话',
+    no_session: '无会话',
   }
 };
 
@@ -112,7 +116,7 @@ const DEFAULT_SETTINGS = {
   language: 'en',
   theme: 'dark',
   fontSize: 14,
-  model: 'qwen2.5:7b',
+  model: 'qwen2.5-coder:3b',
   ollamaUrl: 'http://localhost:11434',
   temperature: 0.7,
   maxTokens: 4096,
@@ -149,11 +153,13 @@ const messagesContainer = document.getElementById('messages');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 const newSessionBtn = document.getElementById('new-session-btn');
-const chatForm = document.getElementById('chat-form');
 const statusText = document.getElementById('status-text');
 const settingsOverlay = document.getElementById('settings-overlay');
 const settingsCloseBtn = document.getElementById('settings-close-btn');
 const settingsBtn = document.getElementById('settings-btn');
+const welcomeScreen = document.getElementById('welcome-screen');
+const modelNameEl = document.getElementById('model-name');
+const sessionTitleBar = document.getElementById('session-title-bar');
 
 // Initialize
 async function init() {
@@ -167,11 +173,9 @@ async function init() {
 function applySettings() {
   // Theme
   document.documentElement.setAttribute('data-theme', settings.theme);
-  document.getElementById('setting-theme').value = settings.theme;
 
   // Language
   document.documentElement.lang = settings.language;
-  document.getElementById('setting-language').value = settings.language;
   applyLanguage(settings.language);
 
   // Font size
@@ -182,6 +186,7 @@ function applySettings() {
   // Model
   document.getElementById('setting-model').value = settings.model;
   document.getElementById('setting-ollama-url').value = settings.ollamaUrl;
+  modelNameEl.textContent = settings.model;
 
   // Temperature
   document.getElementById('setting-temperature').value = settings.temperature;
@@ -204,28 +209,19 @@ function applySettings() {
 function applyLanguage(lang) {
   const t = i18n[lang] || i18n.en;
 
-  // data-i18n attributes
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    if (t[key]) {
-      el.textContent = t[key];
-    }
+    if (t[key]) el.textContent = t[key];
   });
 
-  // data-i18n-placeholder attributes
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
-    if (t[key]) {
-      el.setAttribute('placeholder', t[key]);
-    }
+    if (t[key]) el.setAttribute('placeholder', t[key]);
   });
 
-  // data-i18n-title attributes
   document.querySelectorAll('[data-i18n-title]').forEach(el => {
     const key = el.getAttribute('data-i18n-title');
-    if (t[key]) {
-      el.setAttribute('title', t[key]);
-    }
+    if (t[key]) el.setAttribute('title', t[key]);
   });
 }
 
@@ -267,11 +263,7 @@ function renderSessions() {
   const t = i18n[settings.language] || i18n.en;
 
   if (sessions.length === 0) {
-    sessionList.innerHTML = `
-      <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
-        ${t.no_sessions}
-      </div>
-    `;
+    sessionList.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">${t.no_sessions}</div>`;
     return;
   }
 
@@ -297,6 +289,7 @@ async function createSession() {
     });
     const session = await res.json();
     currentSessionId = session.id;
+    sessionTitleBar.textContent = session.title || 'New Session';
     await loadSessions();
     clearMessages();
     showWelcome();
@@ -309,6 +302,8 @@ async function createSession() {
 // Switch session
 async function switchSession(sessionId) {
   currentSessionId = sessionId;
+  const session = sessions.find(s => s.id === sessionId);
+  if (session) sessionTitleBar.textContent = session.title || 'New Session';
   renderSessions();
   await loadSessionMessages(sessionId);
 }
@@ -318,7 +313,6 @@ async function loadSessionMessages(sessionId) {
   try {
     const res = await fetch(`${API_BASE}/sessions/${sessionId}`);
     const session = await res.json();
-
     clearMessages();
 
     if (session.messages && session.messages.length > 0) {
@@ -335,9 +329,7 @@ async function loadSessionMessages(sessionId) {
 // Send message
 async function sendMessage(content) {
   if (!content.trim() || isLoading) return;
-  if (!currentSessionId) {
-    await createSession();
-  }
+  if (!currentSessionId) await createSession();
 
   isLoading = true;
   sendBtn.disabled = true;
@@ -363,7 +355,7 @@ async function sendMessage(content) {
     if (data.error) {
       addMessage('assistant', `Error: ${data.error}`);
     } else {
-      addMessage('assistant', data.content || '(No response - Ollama not running)');
+      addMessage('assistant', data.content || '(No response — Ollama not running)');
     }
 
     scrollToBottom();
@@ -381,19 +373,21 @@ async function sendMessage(content) {
 
 // Add message to chat
 function addMessage(role, content, animate = true) {
-  const div = document.createElement('div');
-  div.className = `message message-${role}`;
-  if (!animate) div.style.animation = 'none';
+  const msg = document.createElement('div');
+  msg.className = `message message-${role}`;
+  if (!animate) msg.style.animation = 'none';
 
   const roleLabel = role === 'user' ? (settings.language === 'zh' ? '你' : 'You') : 'MiniAgent';
 
-  div.innerHTML = `
-    <div class="message-role">${roleLabel}</div>
-    <div class="message-content">${formatContent(content)}</div>
+  msg.innerHTML = `
+    <div class="message-inner">
+      <div class="message-role">${roleLabel}</div>
+      <div class="message-content">${formatContent(content)}</div>
+    </div>
   `;
 
-  messagesContainer.appendChild(div);
-  return div;
+  messagesContainer.appendChild(msg);
+  return msg;
 }
 
 // Add loading indicator
@@ -403,11 +397,7 @@ function addLoading() {
   div.className = 'loading';
   div.innerHTML = `
     <span>${thinkingText}</span>
-    <div class="loading-dots">
-      <span></span>
-      <span></span>
-      <span></span>
-    </div>
+    <div class="loading-dots"><span></span><span></span><span></span></div>
   `;
   messagesContainer.appendChild(div);
   scrollToBottom();
@@ -421,30 +411,42 @@ function clearMessages() {
 
 // Show welcome screen
 function showWelcome() {
-  const t = i18n[settings.language] || i18n.en;
   if (!messagesContainer.querySelector('.welcome-screen')) {
-    messagesContainer.innerHTML = `
-      <div class="welcome-screen">
-        <div class="welcome-content">
-          <h1>MiniAgent</h1>
-          <p class="welcome-subtitle">${t.welcome_subtitle}</p>
-          <div class="suggestions">
-            <button class="suggestion-btn" data-prompt="Explain the project structure">
-              📂 ${t.suggest_1}
-            </button>
-            <button class="suggestion-btn" data-prompt="Help me write a TypeScript function">
-              💻 ${t.suggest_2}
-            </button>
-            <button class="suggestion-btn" data-prompt="How do I set up the development environment?">
-              🛠️ ${t.suggest_3}
-            </button>
-            <button class="suggestion-btn" data-prompt="Review my code and suggest improvements">
-              🔍 ${t.suggest_4}
-            </button>
-          </div>
+    const welcome = document.createElement('div');
+    welcome.className = 'welcome-screen';
+    welcome.id = 'welcome-screen';
+    welcome.innerHTML = `
+      <div class="welcome-content">
+        <div class="welcome-logo">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <rect x="4" y="4" width="40" height="40" rx="10" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M14 24h20M24 14v20M18 18l12 12M30 18L18 30" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+            <circle cx="24" cy="24" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <h1 class="welcome-title">MiniAgent</h1>
+        <p class="welcome-subtitle">${i18n[settings.language]?.welcome_subtitle || 'Your Local AI Coding Assistant — Ollama powered, zero cost'}</p>
+        <div class="suggestions">
+          <button class="suggestion-btn" data-prompt="Explain the project structure">
+            <span class="suggestion-icon">📂</span>
+            <span>${i18n[settings.language]?.suggest_1 || 'Explain the project structure'}</span>
+          </button>
+          <button class="suggestion-btn" data-prompt="Help me write a TypeScript function">
+            <span class="suggestion-icon">💻</span>
+            <span>${i18n[settings.language]?.suggest_2 || 'Help me write code'}</span>
+          </button>
+          <button class="suggestion-btn" data-prompt="How do I set up the development environment?">
+            <span class="suggestion-icon">🛠️</span>
+            <span>${i18n[settings.language]?.suggest_3 || 'Setup development environment'}</span>
+          </button>
+          <button class="suggestion-btn" data-prompt="Review my code and suggest improvements">
+            <span class="suggestion-icon">🔍</span>
+            <span>${i18n[settings.language]?.suggest_4 || 'Review my code'}</span>
+          </button>
         </div>
       </div>
     `;
+    messagesContainer.appendChild(welcome);
     attachSuggestionListeners();
   }
 }
@@ -480,76 +482,57 @@ function scrollToBottom() {
 
 // Setup event listeners
 function setupEventListeners() {
-  // New session button
+  // New session
   newSessionBtn.addEventListener('click', createSession);
 
-  // Chat form submission
-  chatForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const content = messageInput.value.trim();
-    if (content) {
-      await sendMessage(content);
+  // Send on Enter (not Shift+Enter)
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const content = messageInput.value.trim();
+      if (content) sendMessage(content);
     }
   });
 
-  // Message input handling
   messageInput.addEventListener('input', () => {
     sendBtn.disabled = !messageInput.value.trim();
     messageInput.style.height = 'auto';
     messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + 'px';
   });
 
-  messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      const content = messageInput.value.trim();
-      if (content) {
-        sendMessage(content);
-      }
-    }
+  sendBtn.addEventListener('click', () => {
+    const content = messageInput.value.trim();
+    if (content) sendMessage(content);
   });
 
-  // Settings open/close
-  settingsBtn.addEventListener('click', () => {
-    settingsOverlay.hidden = false;
-  });
-
-  settingsCloseBtn.addEventListener('click', () => {
-    settingsOverlay.hidden = true;
-  });
-
+  // Settings
+  settingsBtn.addEventListener('click', () => { settingsOverlay.hidden = false; });
+  settingsCloseBtn.addEventListener('click', () => { settingsOverlay.hidden = true; });
   settingsOverlay.addEventListener('click', (e) => {
-    if (e.target === settingsOverlay) {
-      settingsOverlay.hidden = true;
-    }
+    if (e.target === settingsOverlay) settingsOverlay.hidden = true;
   });
 
-  // Settings: Language change
   document.getElementById('setting-language').addEventListener('change', (e) => {
     settings.language = e.target.value;
     applyLanguage(settings.language);
   });
 
-  // Settings: Theme change
-  document.getElementById('setting-theme').addEventListener('change', (e) => {
-    settings.theme = e.target.value;
-    document.documentElement.setAttribute('data-theme', settings.theme);
-  });
-
-  // Settings: Font size change
   document.getElementById('setting-font-size').addEventListener('input', (e) => {
     settings.fontSize = parseInt(e.target.value, 10);
     document.documentElement.style.setProperty('--font-size-base', `${settings.fontSize}px`);
     document.getElementById('font-size-value').textContent = `${settings.fontSize}px`;
   });
 
-  // Settings: Temperature change
+  document.getElementById('setting-model').addEventListener('change', (e) => {
+    settings.model = e.target.value;
+    modelNameEl.textContent = settings.model;
+  });
+
   document.getElementById('setting-temperature').addEventListener('input', (e) => {
     settings.temperature = parseFloat(e.target.value);
     document.getElementById('temperature-value').textContent = settings.temperature;
   });
 
-  // Settings: Save
   document.getElementById('settings-save-btn').addEventListener('click', () => {
     settings.model = document.getElementById('setting-model').value;
     settings.ollamaUrl = document.getElementById('setting-ollama-url').value;
@@ -559,15 +542,13 @@ function setupEventListeners() {
     settings.tools.bash = document.getElementById('tool-bash').value;
     settings.tools.fileWrite = document.getElementById('tool-file-write').value;
     settings.tools.web = document.getElementById('tool-web').value;
-
     saveSettings(settings);
-
+    modelNameEl.textContent = settings.model;
     const t = i18n[settings.language] || i18n.en;
     alert(t.settings_saved);
     settingsOverlay.hidden = true;
   });
 
-  // Settings: Reset
   document.getElementById('settings-reset-btn').addEventListener('click', () => {
     if (confirm('Reset all settings to defaults?')) {
       settings = { ...DEFAULT_SETTINGS };
@@ -578,7 +559,6 @@ function setupEventListeners() {
     }
   });
 
-  // Suggestion buttons
   attachSuggestionListeners();
 }
 
@@ -587,9 +567,7 @@ function attachSuggestionListeners() {
   document.querySelectorAll('.suggestion-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const prompt = btn.dataset.prompt;
-      if (prompt) {
-        sendMessage(prompt);
-      }
+      if (prompt) sendMessage(prompt);
     });
   });
 }
