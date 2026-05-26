@@ -17,7 +17,6 @@ const LOGO = [
   '╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ═╝   ',
 ];
 
-// Slash commands reference (like OpenCode)
 interface SlashCommand {
   cmd: string;
   desc: string;
@@ -54,6 +53,10 @@ interface TUIColors {
   checkboxDone: string;
   checkboxPending: string;
   shortcut: string;
+  tabActive: string;
+  tabInactive: string;
+  slashMenuBg: string;
+  slashMenuHighlight: string;
 }
 
 interface TUILayout {
@@ -90,11 +93,21 @@ interface RightPanelData {
 
 type TUIMode = 'idle' | 'active';
 
+interface SlashMenuState {
+  visible: boolean;
+  filter: string;
+  selected: number;
+  col: number;
+  row: number;
+  width: number;
+  height: number;
+}
+
 class TUIManager {
   private agent: Agent;
   private model: string;
   private tuiMode: TUIMode = 'idle';
-  private appMode: AppMode = 'build'; // build = default (like OpenCode), plan = planning
+  private appMode: AppMode = 'build';
   private messages: ChatMessage[] = [];
   private cumulativeUsage: ChatUsage = { input: 0, output: 0, total: 0 };
   private inputHistory: string[] = [];
@@ -106,9 +119,21 @@ class TUIManager {
   private colors: TUIColors;
   private layout: TUILayout;
   private spinnerInterval: ReturnType<typeof setInterval> | null = null;
-  private slashMenuActive = false;
-  private slashFilter = '';
-  private slashSelected = 0;
+  private slashMenu: SlashMenuState = {
+    visible: false,
+    filter: '',
+    selected: 0,
+    col: 0,
+    row: 0,
+    width: 0,
+    height: 0,
+  };
+  private keyHandler: ((name: string, _matches: unknown, output: unknown[]) => void) | null = null;
+  private inputBuffer = '';
+  private inputCursor = 0;
+  private inputCol = 0;
+  private inputRow = 0;
+  private inputActive = false;
 
   constructor(config: TUIConfig) {
     this.agent = config.agent;
@@ -129,6 +154,10 @@ class TUIManager {
       checkboxDone: '\x1b[32m',
       checkboxPending: '\x1b[33m',
       shortcut: '\x1b[90m',
+      tabActive: '\x1b[1;36m',
+      tabInactive: '\x1b[90m',
+      slashMenuBg: '\x1b[48;5;235m',
+      slashMenuHighlight: '\x1b[38;5;208m',
       ...config.colors,
     };
 
@@ -146,18 +175,11 @@ class TUIManager {
     this.running = true;
 
     term.fullscreen(true);
-    term.grabInput({ mouse: 'button' });
+    term.grabInput(true);
 
-    term.on('terminal resize', () => {
+    this.keyHandler = (name: string) => {
       if (!this.running) return;
-      if (this.tuiMode === 'idle') {
-        this.renderIdle();
-      } else {
-        this.renderActiveLayout(this.getPanelData());
-      }
-    });
 
-    term.on('key', (name: string) => {
       if (name === 'CTRL_C') {
         if (!this.exitConfirmed) {
           this.exitConfirmed = true;
@@ -165,6 +187,30 @@ class TUIManager {
         } else {
           this.destroy();
         }
+        return;
+      }
+
+      if (this.slashMenu.visible) {
+        this.handleSlashMenuKey(name);
+        return;
+      }
+
+      if (this.inputActive) {
+        this.handleInputKey(name);
+      }
+    };
+
+    term.on('key', this.keyHandler);
+
+    term.on('terminal resize', () => {
+      if (!this.running) return;
+      if (this.slashMenu.visible) {
+        this.slashMenu.visible = false;
+      }
+      if (this.tuiMode === 'idle') {
+        this.renderIdle();
+      } else {
+        this.renderActiveLayout(this.getPanelData());
       }
     });
 
@@ -184,10 +230,16 @@ class TUIManager {
     if (this.destroyed) return;
     this.destroyed = true;
     this.running = false;
+    this.inputActive = false;
 
     if (this.spinnerInterval) {
       clearInterval(this.spinnerInterval);
       this.spinnerInterval = null;
+    }
+
+    if (this.keyHandler) {
+      term.removeListener('key', this.keyHandler);
+      this.keyHandler = null;
     }
 
     try {
@@ -224,6 +276,298 @@ class TUIManager {
     term(`${this.colors.thought}Confirm exit? Press Ctrl+C again${this.reset()}`);
   }
 
+  // ====================  INPUT HANDLING  ====================
+
+  private handleInputKey(name: string): void {
+    if (name === 'ENTER') {
+      this.submitInput();
+      return;
+    }
+
+    if (name === 'BACKSPACE') {
+      if (this.inputCursor > 0) {
+        this.inputBuffer = this.inputBuffer.slice(0, this.inputCursor - 1) + this.inputBuffer.slice(this.inputCursor);
+        this.inputCursor--;
+        this.redrawInput();
+      }
+      return;
+    }
+
+    if (name === 'DELETE') {
+      if (this.inputCursor < this.inputBuffer.length) {
+        this.inputBuffer = this.inputBuffer.slice(0, this.inputCursor) + this.inputBuffer.slice(this.inputCursor + 1);
+        this.redrawInput();
+      }
+      return;
+    }
+
+    if (name === 'LEFT') {
+      if (this.inputCursor > 0) {
+        this.inputCursor--;
+        this.moveCursor();
+      }
+      return;
+    }
+
+    if (name === 'RIGHT') {
+      if (this.inputCursor < this.inputBuffer.length) {
+        this.inputCursor++;
+        this.moveCursor();
+      }
+      return;
+    }
+
+    if (name === 'UP') {
+      if (this.inputHistory.length > 0) {
+        this.inputBuffer = this.inputHistory[0] || '';
+        this.inputCursor = this.inputBuffer.length;
+        this.redrawInput();
+      }
+      return;
+    }
+
+    if (name === 'TAB') {
+      this.appMode = this.appMode === 'plan' ? 'build' : 'plan';
+      this.renderTabBar();
+      return;
+    }
+
+    if (name === 'ESCAPE') {
+      this.inputActive = false;
+      if (this.tuiMode === 'idle') {
+        this.renderIdle();
+      } else {
+        this.waitForNextInput();
+      }
+      return;
+    }
+
+    if (name === 'CTRL_L') {
+      if (this.tuiMode === 'idle') {
+        this.renderIdle();
+      } else {
+        this.renderActiveLayout(this.getPanelData());
+      }
+      return;
+    }
+
+    if (name.length === 1) {
+      this.inputBuffer = this.inputBuffer.slice(0, this.inputCursor) + name + this.inputBuffer.slice(this.inputCursor);
+      this.inputCursor++;
+
+      // Check for slash command trigger
+      if (this.inputBuffer === '/') {
+        this.openSlashMenu();
+      }
+
+      this.redrawInput();
+    }
+  }
+
+  private submitInput(): void {
+    const text = this.inputBuffer;
+    this.inputActive = false;
+    this.inputBuffer = '';
+    this.inputCursor = 0;
+
+    if (!text.trim()) {
+      if (this.tuiMode === 'idle') {
+        this.renderIdle();
+      } else {
+        this.waitForNextInput();
+      }
+      return;
+    }
+
+    this.pushHistory(text);
+
+    if (text.trim().startsWith('/')) {
+      const handled = this.handleSlashCommand(text.trim());
+      if (handled) {
+        if (this.tuiMode === 'idle') {
+          this.renderIdle();
+        } else {
+          this.renderActiveLayout(this.getPanelData());
+          this.waitForNextInput();
+        }
+        return;
+      }
+    }
+
+    if (this.tuiMode === 'idle') {
+      this.tuiMode = 'active';
+      this.processMessage(text);
+    } else {
+      this.processMessage(text);
+    }
+  }
+
+  private redrawInput(): void {
+    if (!this.inputActive) return;
+    term.moveTo(this.inputCol, this.inputRow);
+    const display = this.inputBuffer || '';
+    const remaining = this.termWidth() - this.inputCol + 1;
+    const displayText = display.length > remaining ? display.substring(0, remaining - 1) : display;
+    term(`${this.colors.accent}${displayText}${this.reset()}`);
+    term.eraseLineEnd();
+    term.moveTo(this.inputCol + this.inputCursor, this.inputRow);
+  }
+
+  private moveCursor(): void {
+    term.moveTo(this.inputCol + this.inputCursor, this.inputRow);
+  }
+
+  private startInput(col: number, row: number): void {
+    this.inputActive = true;
+    this.inputCol = col;
+    this.inputRow = row;
+    this.inputBuffer = '';
+    this.inputCursor = 0;
+    term.moveTo(col, row);
+    term(' ');
+    term.moveTo(col, row);
+  }
+
+  // ====================  SLASH MENU  ====================
+
+  private openSlashMenu(): void {
+    const w = this.termWidth();
+    const h = this.termHeight();
+
+    const menuWidth = Math.min(50, w - 4);
+    const menuHeight = Math.min(SLASH_COMMANDS.length, h - 10);
+    const menuCol = Math.max(2, Math.floor((w - menuWidth) / 2));
+    const menuRow = Math.max(2, Math.floor((h - menuHeight - 2) / 2));
+
+    this.slashMenu = {
+      visible: true,
+      filter: '',
+      selected: 0,
+      col: menuCol,
+      row: menuRow,
+      width: menuWidth,
+      height: menuHeight,
+    };
+
+    this.renderSlashMenu();
+  }
+
+  private closeSlashMenu(): void {
+    this.slashMenu.visible = false;
+    this.slashMenu.filter = '';
+    this.slashMenu.selected = 0;
+  }
+
+  private handleSlashMenuKey(name: string): void {
+    if (name === 'ESCAPE' || name === 'CTRL_C') {
+      this.closeSlashMenu();
+      this.redrawInput();
+      return;
+    }
+
+    if (name === 'ENTER') {
+      const filtered = this.getFilteredCommands();
+      if (filtered.length > 0 && this.slashMenu.selected < filtered.length) {
+        const cmd = filtered[this.slashMenu.selected].cmd;
+        this.closeSlashMenu();
+        this.inputBuffer = cmd;
+        this.inputCursor = cmd.length;
+        this.redrawInput();
+      } else {
+        this.closeSlashMenu();
+        this.redrawInput();
+      }
+      return;
+    }
+
+    if (name === 'UP') {
+      if (this.slashMenu.selected > 0) {
+        this.slashMenu.selected--;
+        this.renderSlashMenu();
+      }
+      return;
+    }
+
+    if (name === 'DOWN') {
+      const filtered = this.getFilteredCommands();
+      if (this.slashMenu.selected < filtered.length - 1) {
+        this.slashMenu.selected++;
+        this.renderSlashMenu();
+      }
+      return;
+    }
+
+    if (name === 'TAB') {
+      const filtered = this.getFilteredCommands();
+      if (filtered.length > 0) {
+        this.slashMenu.selected = (this.slashMenu.selected + 1) % filtered.length;
+        this.renderSlashMenu();
+      }
+      return;
+    }
+
+    if (name === 'BACKSPACE') {
+      if (this.slashMenu.filter.length > 0) {
+        this.slashMenu.filter = this.slashMenu.filter.slice(0, -1);
+        this.slashMenu.selected = 0;
+        this.renderSlashMenu();
+        this.inputBuffer = '/' + this.slashMenu.filter;
+        this.inputCursor = this.inputBuffer.length;
+        this.redrawInput();
+      }
+      return;
+    }
+
+    if (name.length === 1) {
+      this.slashMenu.filter += name;
+      this.slashMenu.selected = 0;
+      this.renderSlashMenu();
+      this.inputBuffer = '/' + this.slashMenu.filter;
+      this.inputCursor = this.inputBuffer.length;
+      this.redrawInput();
+    }
+  }
+
+  private getFilteredCommands(): SlashCommand[] {
+    if (!this.slashMenu.filter) return SLASH_COMMANDS;
+    return SLASH_COMMANDS.filter(c => c.cmd.toLowerCase().includes(this.slashMenu.filter.toLowerCase()));
+  }
+
+  private renderSlashMenu(): void {
+    const { col, row, width, height } = this.slashMenu;
+    const filtered = this.getFilteredCommands();
+    const visible = filtered.slice(0, height);
+
+    // Background box
+    const bgFill = ' '.repeat(width);
+    for (let r = 0; r <= visible.length + 1; r++) {
+      term.moveTo(col, row + r);
+      term(`${this.colors.slashMenuBg}${bgFill}${this.reset()}`);
+    }
+
+    // Border
+    const borderFill = '─'.repeat(width);
+    term.moveTo(col, row);
+    term(`${this.colors.border}${borderFill}${this.reset()}`);
+    term.moveTo(col, row + visible.length + 1);
+    term(`${this.colors.border}${borderFill}${this.reset()}`);
+
+    // Commands
+    visible.forEach((cmd, i) => {
+      const isSel = i === this.slashMenu.selected;
+      const line = ` ${cmd.cmd.padEnd(15)} ${cmd.desc}`.substring(0, width - 2);
+      term.moveTo(col + 1, row + 1 + i);
+      if (isSel) {
+        term(`${this.colors.slashMenuHighlight}${line}${this.reset()}`);
+      } else {
+        term(`${this.colors.dim}${line}${this.reset()}`);
+      }
+    });
+
+    // Redraw input line to clear any leftover characters
+    this.redrawInput();
+  }
+
   // ====================  IDLE MODE  ====================
 
   private renderIdle(): void {
@@ -235,11 +579,10 @@ class TUIManager {
     const logoH = LOGO.length;
     const logoW = w >= 90 ? 84 : Math.min(84, w - 2);
 
-    // Content layout: logo(6) + gap(1) + subtitle(1) + gap(2) + input_box(4)
-    const contentH = logoH + 1 + 1 + 2 + 4;
+    const contentH = logoH + 1 + 1 + 2 + 4 + 2;
     const startRow = Math.max(1, Math.floor((h - contentH) / 2));
 
-    // ---- Logo ----
+    // Logo
     for (let i = 0; i < logoH; i++) {
       const line = LOGO[i];
       const col = Math.max(1, Math.floor((w - line.length) / 2));
@@ -247,71 +590,104 @@ class TUIManager {
       term(`${this.colors.accent}${line.substring(0, logoW)}${this.reset()}`);
     }
 
-    // ---- Subtitle ----
+    // Subtitle
     const subtitle = 'A local AI Agent framework  |  Built by Zevan';
     const subRow = startRow + logoH + 1;
     const subCol = Math.max(1, Math.floor((w - subtitle.length) / 2));
     term.moveTo(subCol, subRow);
     term(`${this.colors.dim}${subtitle}${this.reset()}`);
 
-    // ---- Input box (4 rows tall like OpenCode) ----
+    // Tab bar
+    const tabRow = subRow + 2;
+    this.renderTabBarAt(tabRow, w);
+
+    // Input box (4 rows)
     const boxWidth = Math.min(76, w - 4);
     const boxCol = Math.max(1, Math.floor((w - boxWidth) / 2));
-    const boxRow = subRow + 2;
+    const boxRow = tabRow + 2;
 
-    // Dark background (4 rows)
     const boxFill = ' '.repeat(boxWidth);
     for (let r = 0; r < 4; r++) {
       term.moveTo(boxCol, boxRow + r);
       term(`\x1b[48;5;236m${boxFill}\x1b[0m`);
     }
 
-    // Left accent — blue background block (1 char wide)
-    term.moveTo(boxCol, boxRow);
-    term(`\x1b[48;5;24m \x1b[0m`);
-    term.moveTo(boxCol, boxRow + 1);
-    term(`\x1b[48;5;24m \x1b[0m`);
-    term.moveTo(boxCol, boxRow + 2);
-    term(`\x1b[48;5;24m \x1b[0m`);
-    term.moveTo(boxCol, boxRow + 3);
-    term(`\x1b[48;5;24m \x1b[0m`);
+    // Left accent
+    for (let r = 0; r < 4; r++) {
+      term.moveTo(boxCol, boxRow + r);
+      term(`\x1b[48;5;24m \x1b[0m`);
+    }
 
-    // Row 1: placeholder text with dark bg
+    // Row 1: placeholder
     const placeholder = 'Ask anything...  "What is the tech stack of this project?"';
     term.moveTo(boxCol + 2, boxRow);
     term(`\x1b[38;5;102;48;5;236m${placeholder}\x1b[0m`);
-
-    // Row 2: empty spacer
 
     // Row 3: mode + model
     const modeLabel = this.appMode === 'plan' ? 'Plan' : 'Build';
     term.moveTo(boxCol + 2, boxRow + 2);
     term(`${this.colors.accent}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model}${this.reset()}`);
 
-    // Row 4: thin bottom border line (like OpenCode)
+    // Row 4: bottom border
     const borderCh = '─';
     term.moveTo(boxCol + 2, boxRow + 3);
     term(`\x1b[48;5;236m${this.colors.border}${borderCh.repeat(boxWidth - 3)}${this.reset()}`);
 
-    // Tips: BELOW the box, right-aligned
-    const tipsText = 'tab agents  ctrl+p commands';
+    // Tips below box
+    const tipsText = 'tab: switch mode  /: commands  ctrl+p: commands';
     const tipsRow = boxRow + 4;
-    const tipsCol = boxCol + boxWidth - tipsText.length;
-    term.moveTo(Math.max(boxCol, tipsCol), tipsRow);
+    const tipsCol = Math.max(1, Math.floor((w - tipsText.length) / 2));
+    term.moveTo(tipsCol, tipsRow);
     term(`${this.colors.dim}${tipsText}${this.reset()}`);
 
-    // Tip line below tips (centered, with orange dot)
-    const tipRow = tipsRow + 1;
-    const tipText = 'Press ctrl+alt+g, end to jump to the most recent message';
-    const tipCol = Math.max(1, Math.floor((w - tipText.length) / 2));
-    term.moveTo(tipCol, tipRow);
-    term(`\x1b[38;5;208m●${this.reset()} ${this.colors.dim}Tip${this.reset()}${this.colors.placeholder}${tipText}${this.reset()}`);
-
-    // ---- Bottom bar ----
+    // Bottom bar
     this.renderBottomBar();
 
-    // Start input: cursor on row 1, col+2 inside dark box
-    this.startIdleInput(boxCol + 2, boxRow);
+    // Start input
+    this.startInput(boxCol + 2, boxRow);
+  }
+
+  private renderTabBar(): void {
+    if (this.tuiMode === 'idle') {
+      const h = this.termHeight();
+      const contentH = LOGO.length + 1 + 1 + 2 + 4 + 2;
+      const startRow = Math.max(1, Math.floor((h - contentH) / 2));
+      const subRow = startRow + LOGO.length + 1;
+      const tabRow = subRow + 2;
+      this.renderTabBarAt(tabRow, this.termWidth());
+    }
+  }
+
+  private renderTabBarAt(row: number, w: number): void {
+    term.moveTo(1, row);
+    term.eraseLine();
+
+    const buildActive = this.appMode === 'build';
+    const buildLabel = ` ${buildActive ? 'Build' : 'Build'} `;
+    const planLabel = ` ${!buildActive ? 'Plan' : 'Plan'} `;
+    const sep = ' │ ';
+
+    const totalWidth = buildLabel.length + sep.length + planLabel.length;
+    const startCol = Math.max(1, Math.floor((w - totalWidth) / 2));
+
+    term.moveTo(startCol, row);
+
+    // Build tab
+    if (buildActive) {
+      term(`${this.colors.tabActive}${buildLabel}${this.reset()}`);
+    } else {
+      term(`${this.colors.tabInactive}${buildLabel}${this.reset()}`);
+    }
+
+    // Separator
+    term(`${this.colors.dim}${sep}${this.reset()}`);
+
+    // Plan tab
+    if (!buildActive) {
+      term(`${this.colors.tabActive}${planLabel}${this.reset()}`);
+    } else {
+      term(`${this.colors.tabInactive}${planLabel}${this.reset()}`);
+    }
   }
 
   private clearScreen(): void {
@@ -335,29 +711,7 @@ class TUIManager {
     term(`${this.colors.dim}${right}${this.reset()}`);
   }
 
-  private async startIdleInput(col: number, row: number): Promise<void> {
-    const text = await this.readInput({ col, row });
-
-    if (!this.running || this.destroyed) return;
-    if (text === null) { this.destroy(); return; }
-    if (!text.trim()) {
-      this.renderIdle();
-      return;
-    }
-
-    // Handle slash commands
-    if (text.trim().startsWith('/')) {
-      const handled = this.handleSlashCommand(text.trim());
-      if (handled) {
-        this.renderIdle();
-        return;
-      }
-    }
-
-    this.pushHistory(text);
-    this.tuiMode = 'active';
-    await this.processMessage(text);
-  }
+  // ====================  SLASH COMMANDS  ====================
 
   private handleSlashCommand(cmd: string): boolean {
     const trimmed = cmd.toLowerCase();
@@ -367,17 +721,32 @@ class TUIManager {
     }
     if (trimmed === '/plan') {
       this.appMode = this.appMode === 'plan' ? 'build' : 'plan';
+      process.stderr.write(`[TUI] Switched to ${this.appMode} mode\n`);
       return true;
     }
     if (trimmed === '/model') {
-      // cycle models (placeholder)
+      process.stderr.write('[TUI] /model: cycle models (not yet implemented)\n');
       return true;
     }
     if (trimmed === '/help') {
-      // show help (placeholder)
+      process.stderr.write('[TUI] /help: Available commands: ' + SLASH_COMMANDS.map(c => c.cmd).join(', ') + '\n');
       return true;
     }
-    return false; // unknown command, send to agent
+    if (trimmed === '/clear') {
+      this.messages = [];
+      this.cumulativeUsage = { input: 0, output: 0, total: 0 };
+      process.stderr.write('[TUI] /clear: Conversation cleared\n');
+      return true;
+    }
+    if (trimmed === '/compact') {
+      process.stderr.write('[TUI] /compact: Context compression (not yet implemented)\n');
+      return true;
+    }
+    if (trimmed === '/config') {
+      process.stderr.write(`[TUI] /config: Model=${this.model}, Mode=${this.appMode}\n`);
+      return true;
+    }
+    return false;
   }
 
   // ====================  ACTIVE MODE  ====================
@@ -419,34 +788,18 @@ class TUIManager {
     this.waitForNextInput();
   }
 
-  private async waitForNextInput(): Promise<void> {
-    const text = await this.readInput({});
+  private waitForNextInput(): void {
+    const h = this.termHeight();
+    const leftW = this.leftWidth();
+    const inputRow = h - 2;
 
-    if (!this.running || this.destroyed) return;
-    if (text === null) { this.destroy(); return; }
-    if (!text.trim()) {
-      this.waitForNextInput();
-      return;
-    }
-
-    // Handle slash commands
-    if (text.trim().startsWith('/')) {
-      const handled = this.handleSlashCommand(text.trim());
-      if (handled) {
-        this.renderActiveLayout(this.getPanelData());
-        this.waitForNextInput();
-        return;
-      }
-    }
-
-    this.pushHistory(text);
-    await this.processMessage(text);
+    this.startInput(2, inputRow);
   }
 
   private startSpinner(): void {
     let idx = 0;
     const leftW = this.leftWidth();
-    const spinnerRow = this.termHeight() - 2;
+    const spinnerRow = this.termHeight() - 3;
 
     this.spinnerInterval = setInterval(() => {
       if (!this.running) return;
@@ -463,7 +816,7 @@ class TUIManager {
       this.spinnerInterval = null;
     }
     const leftW = this.leftWidth();
-    const spinnerRow = this.termHeight() - 2;
+    const spinnerRow = this.termHeight() - 3;
     term.moveTo(leftW + 1, spinnerRow);
     term(' ');
   }
@@ -475,27 +828,31 @@ class TUIManager {
 
     this.clearScreen();
 
+    // Vertical divider
     term.moveTo(leftW + 1, 1);
     term(`${this.colors.border}|${this.reset()}`);
-    for (let row = 2; row < h; row++) {
+    for (let row = 2; row < h - 1; row++) {
       term.moveTo(leftW + 1, row);
       term(`${this.colors.border}|${this.reset()}`);
     }
 
+    // Tab bar at top
+    this.renderTabBarAt(1, leftW);
+
     this.renderRightPanel(panelData, h);
 
     const title = panelData.taskTitle || 'New Chat';
-    term.moveTo(1, 1);
+    term.moveTo(2, 2);
     term(`${this.colors.accent}+ ${title}${this.reset()}`);
 
-    this.renderMessageArea(1, 2, leftW, h - 4);
+    this.renderMessageArea(2, 3, leftW - 2, h - 6);
 
     this.renderBottomInput(leftW, h, panelData);
   }
 
   private renderRightPanel(data: RightPanelData, height: number): void {
     const leftW = this.leftWidth();
-    let row = 1;
+    let row = 2;
 
     row = this.renderPanelSection(
       leftW + 2, row,
@@ -514,13 +871,13 @@ class TUIManager {
     row = this.renderPanelSection(leftW + 2, row, 'Model', modelLines);
 
     const shortcutLines = [
-      `${this.colors.shortcut}tab: agents${this.reset()}`,
-      `${this.colors.shortcut}ctrl+p: commands${this.reset()}`,
+      `${this.colors.shortcut}tab: switch mode${this.reset()}`,
+      `${this.colors.shortcut}/: commands${this.reset()}`,
     ];
     row = this.renderPanelSection(leftW + 2, row, 'Shortcuts', shortcutLines);
 
     const todos = getTodos();
-    const remainingRows = Math.max(1, height - row - 1);
+    const remainingRows = Math.max(1, height - row - 3);
     this.renderTodoSection(leftW + 2, row, remainingRows, todos);
   }
 
@@ -612,16 +969,12 @@ class TUIManager {
     const statusRow = height;
     const inputRow = height - 1;
 
-    term.moveTo(1, inputRow);
-    term(`${this.colors.accent}> ${this.reset()}${this.colors.placeholder}Ask anything...${this.reset()}`);
-
-    const shortcuts = `${this.colors.shortcut}ctrl+p commands${this.reset()}`;
-    const scCol = Math.max(1, leftW - shortcuts.length - 2);
-    term.moveTo(scCol, inputRow);
-    term(shortcuts);
+    // Input prompt
+    term.moveTo(2, inputRow);
+    term(`${this.colors.accent}> ${this.reset()}`);
 
     const modeLabel = panelData.appMode === 'plan' ? 'Plan' : 'Build';
-    term.moveTo(1, statusRow);
+    term.moveTo(2, statusRow);
     term(`${this.colors.accent}${modeLabel}${this.reset()} ${this.colors.dim}| ${this.model}${this.reset()}`);
 
     const usageText = `${this.cumulativeUsage.total.toLocaleString()} tokens`;
@@ -639,42 +992,17 @@ class TUIManager {
   private streamContentToActiveArea(content: string, _panelData: RightPanelData): void {
     const h = this.termHeight();
     const leftW = this.leftWidth();
-    const headerRows = 1;
+    const headerRows = 3;
     const inputRows = 2;
     const maxRows = h - headerRows - inputRows - 1;
 
     const lines = content.split('\n').slice(-maxRows);
-    const startRow = headerRows + 1;
+    const startRow = headerRows;
 
     for (let i = 0; i < Math.min(lines.length, maxRows); i++) {
-      term.moveTo(2, startRow + i);
-      term(`${this.colors.assistant}${this.truncate(lines[i], leftW - 4)}${this.reset()}`);
+      term.moveTo(3, startRow + i);
+      term(`${this.colors.assistant}${this.truncate(lines[i], leftW - 5)}${this.reset()}`);
     }
-  }
-
-  private async readInput(options: { col?: number; row?: number }): Promise<string | null> {
-    return new Promise((resolve) => {
-      const opts: Record<string, unknown> = {
-        cancelable: true,
-        history: this.inputHistory,
-        historyFilter: (input: string) => input.trim().length > 0,
-        // Set text color and background for the input field
-        style: (str: string) => term.colorRgb(200, 200, 200).bgColorRgb(45, 45, 45)(str),
-      };
-
-      if (options.col !== undefined && options.row !== undefined) {
-        term.moveTo(options.col, options.row);
-      }
-
-      term.inputField(opts, (err: unknown, input?: string) => {
-        if (err) {
-          process.stderr.write(`[TUI] inputField error: ${String(err)}\n`);
-          resolve(null);
-          return;
-        }
-        resolve(input === undefined ? null : (input || ''));
-      });
-    });
   }
 
   private pushHistory(text: string): void {
