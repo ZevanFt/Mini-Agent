@@ -228,43 +228,46 @@ class TUIManager {
     term.moveTo(subCol, subRow);
     term(`${this.colors.dim}${subtitle}${this.reset()}`);
 
-    // ---- Input box ----
-    const boxWidth = Math.min(52, w - 6);
+    // ---- Input box (dark background like OpenCode) ----
+    const boxWidth = Math.min(68, w - 4);
     const boxCol = Math.max(1, Math.floor((w - boxWidth) / 2));
     const boxRow = subRow + 2;
 
-    // Top border
-    term.moveTo(boxCol, boxRow);
-    term(`${this.colors.border}+${'-'.repeat(boxWidth - 2)}+${this.reset()}`);
+    // Dark background fill
+    const boxFill = ' '.repeat(boxWidth);
+    for (let r = 0; r < 3; r++) {
+      term.moveTo(boxCol, boxRow + r);
+      term(`\x1b[48;5;236m${boxFill}\x1b[0m`);
+    }
 
-    // Input line
-    const prompt = '> Type to start chatting...';
-    term.moveTo(boxCol + 2, boxRow + 1);
-    term(`${this.colors.placeholder}${prompt}${this.reset()}`);
+    // Input placeholder text
+    const prompt = 'Ask anything...';
+    const placeholder = `"What is the tech stack of this project?"`;
+    term.moveTo(boxCol + 1, boxRow);
+    term(`${this.colors.placeholder}${prompt}${this.reset()}  ${this.colors.dim}${placeholder}${this.reset()}`);
 
-    // Bottom border
-    term.moveTo(boxCol, boxRow + 2);
-    term(`${this.colors.border}+${'-'.repeat(boxWidth - 2)}+${this.reset()}`);
+    // Mode line inside box
+    const modeLine = 'Plan';
+    const modelDisplay = this.model;
+    term.moveTo(boxCol + 1, boxRow + 2);
+    term(`${this.colors.accent}${modeLine}${this.reset()} ${this.colors.dim}· ${modelDisplay}${this.reset()}`);
 
-    // ---- Tips ----
+    // Tips - right aligned below box
     const tipsRow = boxRow + 3;
     const tips = [
-      '/model  switch model',
-      '/plan-mode  toggle plan mode',
+      'tab agents',
+      'ctrl+p commands',
     ];
-    let maxTipW = 0;
-    for (const t of tips) maxTipW = Math.max(maxTipW, t.length);
-    const tipsCol = Math.max(1, Math.floor((w - maxTipW) / 2));
-    for (let i = 0; i < tips.length; i++) {
-      term.moveTo(tipsCol, tipsRow + i);
-      term(`${this.colors.dim}${tips[i]}${this.reset()}`);
-    }
+    const tipsText = tips.join('  ');
+    const tipsCol = Math.max(1, w - tipsText.length - 2);
+    term.moveTo(tipsCol, tipsRow);
+    term(`${this.colors.dim}${tipsText}${this.reset()}`);
 
     // ---- Bottom bar ----
     this.renderBottomBar();
 
-    // ---- Start input ----
-    this.startIdleInput(boxCol + 2, boxRow + 1);
+    // ---- Start input (row 1 inside box) ----
+    this.startIdleInput(boxCol + 1, boxRow);
   }
 
   private clearScreen(): void {
@@ -278,14 +281,13 @@ class TUIManager {
   private renderBottomBar(): void {
     const h = this.termHeight();
     const w = this.termWidth();
-    const cwd = process.cwd().split('\\').pop() || '';
-    const left = `${cwd}  ${this.model}`;
+    const cwd = process.cwd();
     const right = `v${VERSION}`;
 
     term.moveTo(1, h);
-    term(`${this.colors.dim}${left}${this.reset()}`);
+    term(`${this.colors.dim}${cwd}${this.reset()}`);
 
-    term.moveTo(w - right.length, h);
+    term.moveTo(w - right.length - 1, h);
     term(`${this.colors.dim}${right}${this.reset()}`);
   }
 
