@@ -1,6 +1,6 @@
 import type { Tool } from '../tools/types.js';
 
-interface TodoItem {
+export interface TodoItem {
   id: number;
   content: string;
   status: 'pending' | 'completed';
@@ -9,6 +9,10 @@ interface TodoItem {
 
 const todos: TodoItem[] = [];
 let nextId = 1;
+
+export function getTodos(): TodoItem[] {
+  return [...todos];
+}
 
 interface TodoParams {
   todos: Array<{ content: string; status?: 'pending' | 'completed' }>;

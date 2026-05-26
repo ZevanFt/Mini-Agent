@@ -1,5 +1,6 @@
-import type { LLMAdapter, ChatParams, Message, ChatChunk } from './base.js';
+import type { LLMAdapter, ChatParams, Message, ChatChunk, ChatUsage } from './base.js';
 import ollama from 'ollama';
+import { logger } from '../utils/logger.js';
 
 /**
  * Extract tool calls from free-form text content.
@@ -141,9 +142,18 @@ export class OllamaAdapter implements LLMAdapter {
       }
 
       if (chunk.done) {
-        // Fallback: if no native tool_calls but content contains JSON tool calls,
-        // extract them. Small models (e.g. qwen2.5-coder:3b) often emit tool calls
-        // as ```json blocks instead of using Ollama's native tool API.
+        let usage: ChatUsage | undefined;
+        const inputTokens = (chunk as any).prompt_eval_count ?? 0;
+        const outputTokens = (chunk as any).eval_count ?? 0;
+        if (inputTokens || outputTokens) {
+          usage = {
+            input: inputTokens,
+            output: outputTokens,
+            total: inputTokens + outputTokens,
+          };
+          logger.info('[OllamaAdapter] Token usage:', { input: inputTokens, output: outputTokens, total: usage.total });
+        }
+
         if (currentToolCalls.length === 0 && params.tools && params.tools.length > 0) {
           const extracted = extractToolCallsFromText(buffer, params.tools);
           if (extracted.length > 0) {
@@ -163,7 +173,7 @@ export class OllamaAdapter implements LLMAdapter {
           }
         }
 
-        yield { type: 'done' };
+        yield { type: 'done', usage };
       }
     }
   }

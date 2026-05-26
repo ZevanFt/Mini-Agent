@@ -5,6 +5,12 @@ export interface Message {
   tool_call_id?: string;
 }
 
+export interface ChatUsage {
+  input: number;
+  output: number;
+  total: number;
+}
+
 export interface ChatChunk {
   type: 'content' | 'tool_call' | 'done' | 'error';
   content?: string;
@@ -13,6 +19,7 @@ export interface ChatChunk {
     arguments: Record<string, unknown>;
   };
   error?: string;
+  usage?: ChatUsage;
 }
 
 export interface ChatParams {
