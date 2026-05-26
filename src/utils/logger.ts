@@ -7,12 +7,13 @@ function log(level: LogLevel, ...args: unknown[]) {
   if (LOG_LEVELS[level] >= LOG_LEVELS[currentLevel]) {
     const timestamp = new Date().toISOString();
     const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
+    // Always use stderr to avoid polluting TUI output
     if (level === 'error') {
-      console.error(prefix, ...args);
+      process.stderr.write(`${prefix} ${args.join(' ')}\n`);
     } else if (level === 'warn') {
-      console.warn(prefix, ...args);
+      process.stderr.write(`${prefix} ${args.join(' ')}\n`);
     } else {
-      console.log(prefix, ...args);
+      process.stderr.write(`${prefix} ${args.join(' ')}\n`);
     }
   }
 }

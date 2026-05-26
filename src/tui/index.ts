@@ -1,22 +1,21 @@
 import type { Agent } from '../core/agent.js';
-import type { ChatChunk, ChatUsage } from '../llm/base.js';
+import type { ChatUsage } from '../llm/base.js';
 import termkit from 'terminal-kit';
 import { getTodos, type TodoItem as TodoItemType } from '../tools/todo.js';
-import { logger } from '../utils/logger.js';
 
 const term = termkit.terminal;
 const VERSION = '0.2.0';
 
-const ASCII_LOGO = [
-  ' ███╗   ███╗██╗███╗   ██╗██╗████████╗ ██████╗  █████╗ ███╗   ██╗',
-  ' ████╗ ████║██║████╗  ██║██║╚══██╔══╝██╔═══██╗██╔══██╗████╗  ██║',
-  ' ██╔████╔██║██║██╔██╗ ██║██║   ██║   ██║   ██║███████║██╔██╗ ██║',
-  ' ██║╚██╔╝██║██║██║╚██╗██║██║   ██║   ██║   ██║██══██║██║╚██╗██║',
-  ' ██║ ╚═╝ ██║██║██║ ╚████║██║   ██║   ╚██████╔╝██║  ██║██║ ╚████║',
-  ' ╚═╝     ═╝╚═╝╚═╝  ╚═══╝╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝',
-];
+const SPINNER_CHARS = '-\\|/';
 
-const SPINNER_CHARS = '⠋⠙⠸⠼⠴⠧⠇⠏';
+const LOGO = [
+  '███╗   ███╗██╗███╗   ██╗██╗ █████╗  ██████╗ ███████╗███╗   ██╗████████╗',
+  '████╗ ████║██║████╗  ██║██║██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝',
+  '██╔████╔██║██║██╔██╗ ██║██║███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ',
+  '██║╚██╔╝██║██║██║╚██╗██║██║██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ',
+  '██║ ╚═╝ ██║██║██║ ╚████║██║██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ',
+  '╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ',
+];
 
 interface TUIColors {
   user: string;
@@ -59,13 +58,6 @@ interface ChatMessage {
   timestamp?: number;
 }
 
-interface ToolCallRecord {
-  name: string;
-  args: Record<string, unknown>;
-  result: string;
-  success: boolean;
-}
-
 interface RightPanelData {
   taskTitle: string;
   contextUsage: ChatUsage;
@@ -81,7 +73,6 @@ class TUIManager {
   private model: string;
   private mode: TUIMode = 'idle';
   private messages: ChatMessage[] = [];
-  private toolCalls: ToolCallRecord[] = [];
   private cumulativeUsage: ChatUsage = { input: 0, output: 0, total: 0 };
   private inputHistory: string[] = [];
   private running = false;
@@ -122,9 +113,6 @@ class TUIManager {
     };
 
     this.exitPromise = new Promise((resolve) => { this.resolveExit = resolve; });
-
-    logger.info('[TUI] Initialized with model:', this.model);
-    logger.info('[TUI] Layout:', this.layout);
   }
 
   start(): void {
@@ -133,6 +121,15 @@ class TUIManager {
 
     term.fullscreen(true);
     term.grabInput({ mouse: 'button' });
+
+    term.on('terminal resize', () => {
+      if (!this.running) return;
+      if (this.mode === 'idle') {
+        this.renderIdle();
+      } else {
+        this.renderActiveLayout(this.getPanelData());
+      }
+    });
 
     term.on('key', (name: string) => {
       if (name === 'CTRL_C') {
@@ -145,14 +142,12 @@ class TUIManager {
       }
     });
 
-    logger.info('[TUI] Started, mode:', this.mode);
     this.mode = 'idle';
     this.renderIdle();
   }
 
   async waitForExit(): Promise<void> {
     await this.exitPromise;
-    logger.info('[TUI] Exited');
   }
 
   stop(): void {
@@ -173,15 +168,11 @@ class TUIManager {
       term.grabInput(false);
       term.fullscreen(false);
       term('\n');
-    } catch (e) {
-      logger.warn('[TUI] Cleanup warning:', e);
+    } catch {
+      // ignore
     }
 
     this.resolveExit?.();
-  }
-
-  private getColor(code: string): string {
-    return code;
   }
 
   private reset(): string {
@@ -202,80 +193,104 @@ class TUIManager {
 
   private showExitConfirm(): void {
     const row = this.termHeight() - 1;
-    const col = 1;
-    term.moveTo(col, row);
-    term.eraseLine();
-    term(`${this.colors.thought}确定退出吗？再按一次 Ctrl+C 确认 (y/n): ${this.reset()}`);
-  }
-
-  private hideExitConfirm(): void {
-    const row = this.termHeight() - 1;
     term.moveTo(1, row);
     term.eraseLine();
+    term(`${this.colors.thought}Confirm exit? Press Ctrl+C again${this.reset()}`);
   }
 
-  /* ── Idle Mode (起始页) ──────────────────────────── */
+  // ====================  IDLE MODE  ====================
 
   private renderIdle(): void {
-    term.clear();
     const w = this.termWidth();
     const h = this.termHeight();
 
-    const logoWidth = ASCII_LOGO[0].length;
-    const logoStartCol = Math.max(1, Math.floor((w - logoWidth) / 2));
-    const logoStartRow = Math.max(1, Math.floor(h / 2) - 6);
+    this.clearScreen();
 
-    term.moveTo(1, 1);
-    for (let i = 0; i < ASCII_LOGO.length; i++) {
-      term.moveTo(logoStartCol, logoStartRow + i);
-      term(`${this.colors.accent}${ASCII_LOGO[i]}${this.reset()}`);
+    const logoH = LOGO.length;
+    const logoW = w >= 90 ? 84 : Math.min(84, w - 2);
+
+    // Content layout: logo(6) + gap(1) + subtitle(1) + gap(1) + input_box(3) + tips(2)
+    const contentH = logoH + 1 + 1 + 1 + 3 + 2;
+    const startRow = Math.max(1, Math.floor((h - contentH) / 2));
+
+    // ---- Logo ----
+    for (let i = 0; i < logoH; i++) {
+      const line = LOGO[i];
+      const col = Math.max(1, Math.floor((w - line.length) / 2));
+      term.moveTo(col, startRow + i);
+      term(`${this.colors.accent}${line.substring(0, logoW)}${this.reset()}`);
     }
 
-    const subtitle = `面向个人开发者的极简本地 Agent 框架`;
+    // ---- Subtitle ----
+    const subtitle = 'A local AI Agent framework  |  Built by Zevan';
+    const subRow = startRow + logoH + 1;
     const subCol = Math.max(1, Math.floor((w - subtitle.length) / 2));
-    term.moveTo(subCol, logoStartRow + ASCII_LOGO.length + 1);
+    term.moveTo(subCol, subRow);
     term(`${this.colors.dim}${subtitle}${this.reset()}`);
 
-    const inputRow = logoStartRow + ASCII_LOGO.length + 4;
-    term.moveTo(1, inputRow);
-    const inputPrompt = `${this.colors.placeholder}Ask anything... "What is the tech stack of this project?"${this.reset()}`;
-    term(inputPrompt);
+    // ---- Input box ----
+    const boxWidth = Math.min(52, w - 6);
+    const boxCol = Math.max(1, Math.floor((w - boxWidth) / 2));
+    const boxRow = subRow + 2;
 
-    const modelRow = inputRow + 2;
-    term.moveTo(1, modelRow);
-    term(`${this.colors.accent}Plan${this.reset()} ${this.colors.dim}• ${this.model}${this.reset()}`);
+    // Top border
+    term.moveTo(boxCol, boxRow);
+    term(`${this.colors.border}+${'-'.repeat(boxWidth - 2)}+${this.reset()}`);
 
-    const tipsRow = modelRow + 3;
+    // Input line
+    const prompt = '> Type to start chatting...';
+    term.moveTo(boxCol + 2, boxRow + 1);
+    term(`${this.colors.placeholder}${prompt}${this.reset()}`);
+
+    // Bottom border
+    term.moveTo(boxCol, boxRow + 2);
+    term(`${this.colors.border}+${'-'.repeat(boxWidth - 2)}+${this.reset()}`);
+
+    // ---- Tips ----
+    const tipsRow = boxRow + 3;
     const tips = [
-      `${this.colors.accent}💡 Tips:${this.reset()}`,
-      `  输入问题开始对话`,
-      `  使用 /model 切换模型`,
-      `  使用 /plan-mode 切换规划模式`,
+      '/model  switch model',
+      '/plan-mode  toggle plan mode',
     ];
-    tips.forEach((tip, i) => {
-      term.moveTo(1, tipsRow + i);
-      term(tip);
-    });
+    let maxTipW = 0;
+    for (const t of tips) maxTipW = Math.max(maxTipW, t.length);
+    const tipsCol = Math.max(1, Math.floor((w - maxTipW) / 2));
+    for (let i = 0; i < tips.length; i++) {
+      term.moveTo(tipsCol, tipsRow + i);
+      term(`${this.colors.dim}${tips[i]}${this.reset()}`);
+    }
 
+    // ---- Bottom bar ----
     this.renderBottomBar();
-    term('\n');
 
-    this.startIdleInput(inputRow, logoStartRow, modelRow, tipsRow);
+    // ---- Start input ----
+    this.startIdleInput(boxCol + 2, boxRow + 1);
   }
 
-  private async startIdleInput(inputRow: number, logoRow: number, modelRow: number, tipsRow: number): Promise<void> {
+  private clearScreen(): void {
+    const h = this.termHeight();
+    for (let r = 1; r <= h; r++) {
+      term.moveTo(1, r);
+      term.eraseLine();
+    }
+  }
+
+  private renderBottomBar(): void {
+    const h = this.termHeight();
     const w = this.termWidth();
-    const inputCol = 1;
+    const cwd = process.cwd().split('\\').pop() || '';
+    const left = `${cwd}  ${this.model}`;
+    const right = `v${VERSION}`;
 
-    logger.info('[TUI] Idle mode waiting for input');
+    term.moveTo(1, h);
+    term(`${this.colors.dim}${left}${this.reset()}`);
 
-    const text = await this.readInput({
-      placeholder: 'Ask anything... ',
-      style: {
-        prefix: `${this.colors.accent}› ${this.reset()}`,
-        suffix: '',
-      },
-    });
+    term.moveTo(w - right.length, h);
+    term(`${this.colors.dim}${right}${this.reset()}`);
+  }
+
+  private async startIdleInput(col: number, row: number): Promise<void> {
+    const text = await this.readInput({ col, row });
 
     if (!this.running || this.destroyed) return;
     if (text === null) { this.destroy(); return; }
@@ -286,17 +301,13 @@ class TUIManager {
 
     this.pushHistory(text);
     this.mode = 'active';
-    logger.info('[TUI] Switched to active mode');
     await this.processMessage(text);
   }
 
-  /* ── Active Mode (对话模式) ───────────────────────── */
+  // ====================  ACTIVE MODE  ====================
 
   private async processMessage(text: string): Promise<void> {
     this.messages.push({ role: 'user', content: text, timestamp: Date.now() });
-    this.toolCalls = [];
-
-    logger.info('[TUI] User message:', text.substring(0, 80));
 
     const panelData = this.getPanelData();
     this.renderActiveLayout(panelData);
@@ -319,7 +330,6 @@ class TUIManager {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      logger.error('[TUI] Agent error:', msg);
       response += `\n${this.colors.error}Error: ${msg}${this.reset()}`;
     } finally {
       this.stopSpinner();
@@ -334,15 +344,7 @@ class TUIManager {
   }
 
   private async waitForNextInput(): Promise<void> {
-    const panelData = this.getPanelData();
-
-    const text = await this.readInput({
-      placeholder: 'Ask anything... ',
-      style: {
-        prefix: `${this.colors.accent}› ${this.reset()}`,
-        suffix: '',
-      },
-    });
+    const text = await this.readInput({ placeholder: 'Ask anything... ' });
 
     if (!this.running || this.destroyed) return;
     if (text === null) { this.destroy(); return; }
@@ -355,19 +357,17 @@ class TUIManager {
     await this.processMessage(text);
   }
 
-  /* ── Spinner ─────────────────────────────────────── */
-
   private startSpinner(): void {
     let idx = 0;
     const leftW = this.leftWidth();
-    const bottomInputRow = this.termHeight() - 2;
+    const spinnerRow = this.termHeight() - 2;
 
     this.spinnerInterval = setInterval(() => {
       if (!this.running) return;
-      const char = SPINNER_CHARS[idx % SPINNER_CHARS.length];
+      const ch = SPINNER_CHARS[idx % SPINNER_CHARS.length];
       idx++;
-      term.moveTo(leftW + 1, bottomInputRow);
-      term(`${this.colors.thought}${char}${this.reset()}`);
+      term.moveTo(leftW + 1, spinnerRow);
+      term(`${this.colors.thought}${ch}${this.reset()}`);
     }, 100);
   }
 
@@ -377,55 +377,42 @@ class TUIManager {
       this.spinnerInterval = null;
     }
     const leftW = this.leftWidth();
-    const bottomInputRow = this.termHeight() - 2;
-    term.moveTo(leftW + 1, bottomInputRow);
+    const spinnerRow = this.termHeight() - 2;
+    term.moveTo(leftW + 1, spinnerRow);
     term(' ');
   }
 
-  /* ── Rendering ───────────────────────────────────── */
-
   private renderActiveLayout(panelData: RightPanelData): void {
-    term.clear();
-
     const w = this.termWidth();
     const h = this.termHeight();
     const leftW = this.leftWidth();
-    const rightW = this.layout.rightPanelWidth;
 
-    const headerRows = 1;
-    const inputRows = 2;
-    const bottomRow = h;
-    const messageAreaRows = h - headerRows - inputRows - 1;
-
-    for (let row = 1; row <= h; row++) {
-      term.moveTo(1, row);
-      term.eraseLine();
-    }
+    this.clearScreen();
 
     term.moveTo(leftW + 1, 1);
-    term(`${this.colors.border}│${this.reset()}`);
+    term(`${this.colors.border}|${this.reset()}`);
     for (let row = 2; row < h; row++) {
       term.moveTo(leftW + 1, row);
-      term(`${this.colors.border}│${this.reset()}`);
+      term(`${this.colors.border}|${this.reset()}`);
     }
 
-    this.renderRightPanel(panelData, rightW, h);
+    this.renderRightPanel(panelData, h);
 
     const title = panelData.taskTitle || 'New Chat';
     term.moveTo(1, 1);
     term(`${this.colors.accent}+ ${title}${this.reset()}`);
 
-    this.renderMessageArea(1, headerRows + 1, leftW, messageAreaRows);
+    this.renderMessageArea(1, 2, leftW, h - 4);
 
     this.renderBottomInput(leftW, h, panelData);
   }
 
-  private renderRightPanel(data: RightPanelData, width: number, height: number): void {
+  private renderRightPanel(data: RightPanelData, height: number): void {
     const leftW = this.leftWidth();
     let row = 1;
 
     row = this.renderPanelSection(
-      leftW + 2, row, width - 1,
+      leftW + 2, row,
       'Task',
       [data.taskTitle || 'New Chat'],
     );
@@ -434,81 +421,73 @@ class TUIManager {
       `${this.cumulativeUsage.total.toLocaleString()} tokens`,
       `${this.cumulativeUsage.total > 0 ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total + this.cumulativeUsage.input)) * 100) : 0}% used`,
     ];
-    row = this.renderPanelSection(leftW + 2, row, width - 1, 'Context', contextLines);
+    row = this.renderPanelSection(leftW + 2, row, 'Context', contextLines);
 
-    const modelLines = [
-      this.model,
-      'Plan mode',
-    ];
-    row = this.renderPanelSection(leftW + 2, row, width - 1, 'Model', modelLines);
+    const modelLines = [this.model, 'Plan mode'];
+    row = this.renderPanelSection(leftW + 2, row, 'Model', modelLines);
 
     const shortcutLines = [
       `${this.colors.shortcut}tab: agents${this.reset()}`,
       `${this.colors.shortcut}ctrl+p: commands${this.reset()}`,
     ];
-    row = this.renderPanelSection(leftW + 2, row, width - 1, 'Shortcuts', shortcutLines);
+    row = this.renderPanelSection(leftW + 2, row, 'Shortcuts', shortcutLines);
 
     const todos = getTodos();
     const remainingRows = Math.max(1, height - row - 1);
-    this.renderTodoSection(leftW + 2, row, width - 1, remainingRows, todos);
+    this.renderTodoSection(leftW + 2, row, remainingRows, todos);
   }
 
-  private renderPanelSection(col: number, startRow: number, width: number, title: string, lines: string[]): number {
+  private renderPanelSection(col: number, startRow: number, title: string, lines: string[]): number {
     term.moveTo(col, startRow);
-    term(`${this.colors.panelTitle} ${title}${this.reset()}`);
+    term(`${this.colors.panelTitle}${title}${this.reset()}`);
 
     lines.forEach((line, i) => {
-      term.moveTo(col + 1, startRow + 1 + i);
-      term(`${this.colors.dim}${this.truncate(line, width - 2)}${this.reset()}`);
+      term.moveTo(col, startRow + 1 + i);
+      term(`${this.colors.dim}  ${line}${this.reset()}`);
     });
 
-    const totalRows = 1 + lines.length + 1;
-    return startRow + totalRows;
+    return startRow + 1 + lines.length + 1;
   }
 
-  private renderTodoSection(col: number, startRow: number, width: number, maxRows: number, todos: TodoItemType[]): void {
+  private renderTodoSection(col: number, startRow: number, maxRows: number, todos: TodoItemType[]): void {
     term.moveTo(col, startRow);
-    term(`${this.colors.panelTitle} Todo List${this.reset()}`);
+    term(`${this.colors.panelTitle}Todo List${this.reset()}`);
 
     if (todos.length === 0) {
-      term.moveTo(col + 1, startRow + 1);
-      term(`${this.colors.dim}(none)${this.reset()}`);
+      term.moveTo(col, startRow + 1);
+      term(`${this.colors.dim}  (none)${this.reset()}`);
       return;
     }
 
     let row = startRow + 1;
     for (const todo of todos) {
       if (row >= startRow + maxRows) break;
-      term.moveTo(col + 1, row);
+      term.moveTo(col, row);
       const checked = todo.status === 'completed';
       const mark = checked
-        ? `${this.colors.checkboxDone}☑${this.reset()}`
-        : `${this.colors.checkboxPending}☐${this.reset()}`;
-      const text = this.truncate(`${mark} ${todo.content}`, width - 2);
-      term(text);
+        ? `${this.colors.checkboxDone}[x]${this.reset()}`
+        : `${this.colors.checkboxPending}[ ]${this.reset()}`;
+      term(`${mark} ${todo.content}`);
       row++;
     }
 
     if (todos.length > maxRows - 1) {
-      term.moveTo(col + 1, startRow + maxRows - 1);
-      term(`${this.colors.dim}... +${todos.length - maxRows + 1} more${this.reset()}`);
+      term.moveTo(col, startRow + maxRows - 1);
+      term(`${this.colors.dim}  ... +${todos.length - maxRows + 1} more${this.reset()}`);
     }
   }
 
   private renderMessageArea(col: number, startRow: number, width: number, height: number): void {
-    const maxRows = height;
     let row = startRow;
-    const visibleMessages = this.messages.slice(-maxRows);
+    const maxRows = height;
+    const visible = this.messages.slice(-maxRows);
 
-    for (const msg of visibleMessages) {
+    for (const msg of visible) {
       if (row > startRow + maxRows - 3) break;
-      const formatted = this.formatMessage(msg, width);
-      const msgLines = formatted.split('\n');
-      const msgRowHeight = msgLines.length;
+      const lines = this.formatMessage(msg, width).split('\n');
+      if (row + lines.length > startRow + maxRows - 2) break;
 
-      if (row + msgRowHeight > startRow + maxRows - 2) break;
-
-      for (const line of msgLines) {
+      for (const line of lines) {
         term.moveTo(col, row);
         term(line);
         row++;
@@ -518,124 +497,89 @@ class TUIManager {
   }
 
   private formatMessage(msg: ChatMessage, width: number): string {
-    const reset = this.reset();
+    const R = this.reset();
     switch (msg.role) {
       case 'user':
-        return `${this.colors.user}You: ${msg.content}${reset}`;
-      case 'assistant': {
-        const processed = this.processAssistantContent(msg.content, width);
-        return `${this.colors.assistant}${processed}${reset}`;
-      }
+        return `${this.colors.user}You: ${msg.content}${R}`;
+      case 'assistant':
+        return `${this.colors.assistant}${this.processAssistantContent(msg.content, width)}${R}`;
       case 'thought':
-        return `${this.colors.thought}Thought: ${msg.content}${reset}`;
+        return `${this.colors.thought}Thought: ${msg.content}${R}`;
       case 'tool':
-        return `${this.colors.tool}[${msg.content}]${reset}`;
+        return `${this.colors.tool}[${msg.content}]${R}`;
       default:
         return msg.content;
     }
   }
 
   private processAssistantContent(content: string, width: number): string {
-    const lines = content.split('\n');
-    const processed: string[] = [];
-
-    for (const line of lines) {
+    return content.split('\n').map(line => {
       if (line.startsWith('+ Thought:')) {
-        processed.push(`${this.colors.thought}${this.truncate(line, width - 2)}${this.reset()}`);
-      } else if (line.startsWith('```')) {
-        processed.push(line);
-      } else {
-        processed.push(line);
+        return `${this.colors.thought}${this.truncate(line, width - 2)}${this.reset()}`;
       }
-    }
-
-    return processed.join('\n');
+      return line;
+    }).join('\n');
   }
 
-  private renderBottomInput(leftW: number, height: number, panelData: RightPanelData): void {
+  private renderBottomInput(leftW: number, height: number, _panelData: RightPanelData): void {
     const statusRow = height;
     const inputRow = height - 1;
 
     term.moveTo(1, inputRow);
-    term(`${this.colors.accent}› ${this.reset()}${this.colors.placeholder}Ask anything...${this.reset()}`);
-
-    const modeLabel = 'Plan';
-    term.moveTo(1, statusRow);
-    term(`${this.colors.accent}${modeLabel}${this.reset()} ${this.colors.dim}• ${this.model}${this.reset()}`);
+    term(`${this.colors.accent}> ${this.reset()}${this.colors.placeholder}Ask anything...${this.reset()}`);
 
     const shortcuts = `${this.colors.shortcut}ctrl+p commands${this.reset()}`;
-    const shortcutCol = leftW - shortcuts.length - 2;
-    if (shortcutCol > 1) {
-      term.moveTo(shortcutCol, inputRow);
-      term(shortcuts);
-    }
+    const scCol = Math.max(1, leftW - shortcuts.length - 2);
+    term.moveTo(scCol, inputRow);
+    term(shortcuts);
+
+    const modeLabel = `${this.colors.accent}Plan${this.reset()} ${this.colors.dim}| ${this.model}${this.reset()}`;
+    term.moveTo(1, statusRow);
+    term(modeLabel);
 
     const usageText = `${this.cumulativeUsage.total.toLocaleString()} tokens`;
-    const usageCol = leftW - usageText.length - 2;
-    if (usageCol > 1 && statusRow) {
-      term.moveTo(Math.max(1, usageCol), statusRow);
-      term(`${this.colors.dim}${usageText}${this.reset()}`);
-    }
+    term.moveTo(leftW - usageText.length - 2, statusRow);
+    term(`${this.colors.dim}${usageText}${this.reset()}`);
 
-    term.moveTo(1, statusRow);
-    term(`${this.colors.accent}${modeLabel}${this.reset()} ${this.colors.dim}• ${this.model}${this.reset()}`);
-
-    const cwd = process.cwd().split('\\').pop() || process.cwd();
-    const cwdCol = Math.max(1, leftW - cwd.length - 10);
-    term.moveTo(cwdCol, statusRow);
+    const cwd = process.cwd().split('\\').pop() || '';
+    term.moveTo(leftW - cwd.length - usageText.length - 12, statusRow);
     term(`${this.colors.dim}${cwd}${this.reset()}`);
 
-    const verCol = Math.max(1, leftW - 6);
-    term.moveTo(verCol, statusRow);
+    term.moveTo(Math.max(1, leftW - 6), statusRow);
     term(`${this.colors.dim}v${VERSION}${this.reset()}`);
   }
 
-  private renderBottomBar(): void {
-    const h = this.termHeight();
-    const w = this.termWidth();
-    const cwd = process.cwd().split('\\').pop() || process.cwd();
-
-    term.moveTo(1, h);
-    term(`${this.colors.dim}${cwd}:${this.model}${this.reset()}`);
-
-    const verCol = Math.max(1, w - 6);
-    term.moveTo(verCol, h);
-    term(`${this.colors.dim}v${VERSION}${this.reset()}`);
-  }
-
-  private streamContentToActiveArea(content: string, panelData: RightPanelData): void {
-    const w = this.termWidth();
+  private streamContentToActiveArea(content: string, _panelData: RightPanelData): void {
     const h = this.termHeight();
     const leftW = this.leftWidth();
     const headerRows = 1;
     const inputRows = 2;
     const maxRows = h - headerRows - inputRows - 1;
 
-    const allLines = content.split('\n');
-    const visibleLines = allLines.slice(-maxRows);
-
+    const lines = content.split('\n').slice(-maxRows);
     const startRow = headerRows + 1;
-    for (let i = 0; i < Math.min(visibleLines.length, maxRows); i++) {
+
+    for (let i = 0; i < Math.min(lines.length, maxRows); i++) {
       term.moveTo(2, startRow + i);
-      term(`${this.colors.assistant}${this.truncate(visibleLines[i], leftW - 4)}${this.reset()}`);
+      term(`${this.colors.assistant}${this.truncate(lines[i], leftW - 4)}${this.reset()}`);
     }
   }
 
-  /* ── Input ───────────────────────────────────────── */
-
-  private async readInput(options: { placeholder?: string; style?: Record<string, string> }): Promise<string | null> {
+  private async readInput(options: { col?: number; row?: number; placeholder?: string }): Promise<string | null> {
     return new Promise((resolve) => {
-      const inputOptions: Record<string, unknown> = {
+      const opts: Record<string, unknown> = {
         cancelable: true,
         history: this.inputHistory,
         historyFilter: (input: string) => input.trim().length > 0,
+        placeholder: options.placeholder || '',
+        style: this.colors.accent,
       };
 
-      if (options.placeholder) {
-        inputOptions.echo = false;
+      if (options.col !== undefined && options.row !== undefined) {
+        term.moveTo(options.col, options.row);
       }
 
-      term.inputField(inputOptions, (_err: unknown, input?: string) => {
+      term.inputField(opts, (_err: unknown, input?: string) => {
         resolve(input === undefined ? null : (input || ''));
       });
     });
@@ -650,11 +594,29 @@ class TUIManager {
     }
   }
 
-  /* ─ Helpers ─────────────────────────────────────── */
-
   private truncate(text: string, maxLen: number): string {
-    if (text.length <= maxLen) return text;
-    return text.substring(0, maxLen - 1) + '…';
+    const plainLen = text.replace(/\x1b\[[0-9;]*m/g, '').length;
+    if (plainLen <= maxLen) return text;
+
+    let result = '';
+    let visualLen = 0;
+    let inEscape = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '\x1b') inEscape = true;
+      if (inEscape) {
+        result += ch;
+        if (ch === 'm') inEscape = false;
+        continue;
+      }
+      if (visualLen >= maxLen - 1) {
+        result += '...';
+        break;
+      }
+      result += ch;
+      visualLen++;
+    }
+    return result;
   }
 
   private getPanelData(): RightPanelData {
