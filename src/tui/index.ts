@@ -13,9 +13,31 @@ const LOGO = [
   '████╗ ████║██║████╗  ██║██║██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝',
   '██╔████╔██║██║██╔██╗ ██║██║███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ',
   '██║╚██╔╝██║██║██║╚██╗██║██║██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ',
-  '██║ ╚═╝ ██║██║██║ ╚████║██║██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   ',
-  '╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   ',
+  '██║ ╚═╝ ██║██║██║ ╚████║██║██║  ██║██████╔╝███████╗██║ ╚████║   ██║   ',
+  '╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ═╝   ',
 ];
+
+// Slash commands reference (like OpenCode)
+interface SlashCommand {
+  cmd: string;
+  desc: string;
+}
+
+const SLASH_COMMANDS: SlashCommand[] = [
+  { cmd: '/help',     desc: 'Show help' },
+  { cmd: '/compact',  desc: 'Compress context' },
+  { cmd: '/clear',    desc: 'Clear conversation' },
+  { cmd: '/plan',     desc: 'Toggle plan mode' },
+  { cmd: '/model',    desc: 'Switch model' },
+  { cmd: '/session',  desc: 'Manage sessions' },
+  { cmd: '/review',   desc: 'Review changes' },
+  { cmd: '/commit',   desc: 'Generate commit message' },
+  { cmd: '/config',   desc: 'Show configuration' },
+  { cmd: '/thinking', desc: 'Toggle verbose thinking' },
+  { cmd: '/quit',     desc: 'Exit' },
+];
+
+type AppMode = 'plan' | 'build';
 
 interface TUIColors {
   user: string;
@@ -63,7 +85,7 @@ interface RightPanelData {
   contextUsage: ChatUsage;
   todos: TodoItemType[];
   model: string;
-  mode: string;
+  appMode: AppMode;
 }
 
 type TUIMode = 'idle' | 'active';
@@ -71,7 +93,8 @@ type TUIMode = 'idle' | 'active';
 class TUIManager {
   private agent: Agent;
   private model: string;
-  private mode: TUIMode = 'idle';
+  private tuiMode: TUIMode = 'idle';
+  private appMode: AppMode = 'build'; // build = default (like OpenCode), plan = planning
   private messages: ChatMessage[] = [];
   private cumulativeUsage: ChatUsage = { input: 0, output: 0, total: 0 };
   private inputHistory: string[] = [];
@@ -83,6 +106,9 @@ class TUIManager {
   private colors: TUIColors;
   private layout: TUILayout;
   private spinnerInterval: ReturnType<typeof setInterval> | null = null;
+  private slashMenuActive = false;
+  private slashFilter = '';
+  private slashSelected = 0;
 
   constructor(config: TUIConfig) {
     this.agent = config.agent;
@@ -124,7 +150,7 @@ class TUIManager {
 
     term.on('terminal resize', () => {
       if (!this.running) return;
-      if (this.mode === 'idle') {
+      if (this.tuiMode === 'idle') {
         this.renderIdle();
       } else {
         this.renderActiveLayout(this.getPanelData());
@@ -142,7 +168,7 @@ class TUIManager {
       }
     });
 
-    this.mode = 'idle';
+    this.tuiMode = 'idle';
     this.renderIdle();
   }
 
@@ -209,8 +235,8 @@ class TUIManager {
     const logoH = LOGO.length;
     const logoW = w >= 90 ? 84 : Math.min(84, w - 2);
 
-    // Content layout: logo(6) + gap(1) + subtitle(1) + gap(2) + input_box(3)
-    const contentH = logoH + 1 + 1 + 2 + 3;
+    // Content layout: logo(6) + gap(1) + subtitle(1) + gap(2) + input_box(4)
+    const contentH = logoH + 1 + 1 + 2 + 4;
     const startRow = Math.max(1, Math.floor((h - contentH) / 2));
 
     // ---- Logo ----
@@ -228,14 +254,14 @@ class TUIManager {
     term.moveTo(subCol, subRow);
     term(`${this.colors.dim}${subtitle}${this.reset()}`);
 
-    // ---- Input box (3 rows tall like OpenCode) ----
+    // ---- Input box (4 rows tall like OpenCode) ----
     const boxWidth = Math.min(76, w - 4);
     const boxCol = Math.max(1, Math.floor((w - boxWidth) / 2));
     const boxRow = subRow + 2;
 
-    // Dark background (3 rows)
+    // Dark background (4 rows)
     const boxFill = ' '.repeat(boxWidth);
-    for (let r = 0; r < 3; r++) {
+    for (let r = 0; r < 4; r++) {
       term.moveTo(boxCol, boxRow + r);
       term(`\x1b[48;5;236m${boxFill}\x1b[0m`);
     }
@@ -247,23 +273,29 @@ class TUIManager {
     term(`\x1b[48;5;24m \x1b[0m`);
     term.moveTo(boxCol, boxRow + 2);
     term(`\x1b[48;5;24m \x1b[0m`);
+    term.moveTo(boxCol, boxRow + 3);
+    term(`\x1b[48;5;24m \x1b[0m`);
 
     // Row 1: placeholder text with dark bg
     const placeholder = 'Ask anything...  "What is the tech stack of this project?"';
     term.moveTo(boxCol + 2, boxRow);
     term(`\x1b[38;5;102;48;5;236m${placeholder}\x1b[0m`);
 
-    // Row 2: empty spacer (gives taller feel like OpenCode)
+    // Row 2: empty spacer
 
-    // Row 3: mode + model (bottom of box)
-    const modeLine = 'Plan';
-    const modelDisplay = this.model;
+    // Row 3: mode + model
+    const modeLabel = this.appMode === 'plan' ? 'Plan' : 'Build';
     term.moveTo(boxCol + 2, boxRow + 2);
-    term(`${this.colors.accent}${modeLine}${this.reset()} ${this.colors.dim}· ${modelDisplay}${this.reset()}`);
+    term(`${this.colors.accent}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model}${this.reset()}`);
 
-    // Tips: BELOW the box, right-aligned (outside dark bg)
+    // Row 4: thin bottom border line (like OpenCode)
+    const borderCh = '─';
+    term.moveTo(boxCol + 2, boxRow + 3);
+    term(`\x1b[48;5;236m${this.colors.border}${borderCh.repeat(boxWidth - 3)}${this.reset()}`);
+
+    // Tips: BELOW the box, right-aligned
     const tipsText = 'tab agents  ctrl+p commands';
-    const tipsRow = boxRow + 3;
+    const tipsRow = boxRow + 4;
     const tipsCol = boxCol + boxWidth - tipsText.length;
     term.moveTo(Math.max(boxCol, tipsCol), tipsRow);
     term(`${this.colors.dim}${tipsText}${this.reset()}`);
@@ -313,9 +345,39 @@ class TUIManager {
       return;
     }
 
+    // Handle slash commands
+    if (text.trim().startsWith('/')) {
+      const handled = this.handleSlashCommand(text.trim());
+      if (handled) {
+        this.renderIdle();
+        return;
+      }
+    }
+
     this.pushHistory(text);
-    this.mode = 'active';
+    this.tuiMode = 'active';
     await this.processMessage(text);
+  }
+
+  private handleSlashCommand(cmd: string): boolean {
+    const trimmed = cmd.toLowerCase();
+    if (trimmed === '/quit' || trimmed === '/exit') {
+      this.destroy();
+      return true;
+    }
+    if (trimmed === '/plan') {
+      this.appMode = this.appMode === 'plan' ? 'build' : 'plan';
+      return true;
+    }
+    if (trimmed === '/model') {
+      // cycle models (placeholder)
+      return true;
+    }
+    if (trimmed === '/help') {
+      // show help (placeholder)
+      return true;
+    }
+    return false; // unknown command, send to agent
   }
 
   // ====================  ACTIVE MODE  ====================
@@ -358,13 +420,23 @@ class TUIManager {
   }
 
   private async waitForNextInput(): Promise<void> {
-    const text = await this.readInput({ placeholder: 'Ask anything... ' });
+    const text = await this.readInput({});
 
     if (!this.running || this.destroyed) return;
     if (text === null) { this.destroy(); return; }
     if (!text.trim()) {
       this.waitForNextInput();
       return;
+    }
+
+    // Handle slash commands
+    if (text.trim().startsWith('/')) {
+      const handled = this.handleSlashCommand(text.trim());
+      if (handled) {
+        this.renderActiveLayout(this.getPanelData());
+        this.waitForNextInput();
+        return;
+      }
     }
 
     this.pushHistory(text);
@@ -437,7 +509,8 @@ class TUIManager {
     ];
     row = this.renderPanelSection(leftW + 2, row, 'Context', contextLines);
 
-    const modelLines = [this.model, 'Plan mode'];
+    const modeLabel = data.appMode === 'plan' ? 'Plan mode' : 'Build mode';
+    const modelLines = [this.model, modeLabel];
     row = this.renderPanelSection(leftW + 2, row, 'Model', modelLines);
 
     const shortcutLines = [
@@ -535,7 +608,7 @@ class TUIManager {
     }).join('\n');
   }
 
-  private renderBottomInput(leftW: number, height: number, _panelData: RightPanelData): void {
+  private renderBottomInput(leftW: number, height: number, panelData: RightPanelData): void {
     const statusRow = height;
     const inputRow = height - 1;
 
@@ -547,9 +620,9 @@ class TUIManager {
     term.moveTo(scCol, inputRow);
     term(shortcuts);
 
-    const modeLabel = `${this.colors.accent}Plan${this.reset()} ${this.colors.dim}| ${this.model}${this.reset()}`;
+    const modeLabel = panelData.appMode === 'plan' ? 'Plan' : 'Build';
     term.moveTo(1, statusRow);
-    term(modeLabel);
+    term(`${this.colors.accent}${modeLabel}${this.reset()} ${this.colors.dim}| ${this.model}${this.reset()}`);
 
     const usageText = `${this.cumulativeUsage.total.toLocaleString()} tokens`;
     term.moveTo(leftW - usageText.length - 2, statusRow);
@@ -646,7 +719,7 @@ class TUIManager {
       contextUsage: this.cumulativeUsage,
       todos: getTodos(),
       model: this.model,
-      mode: 'Plan',
+      appMode: this.appMode,
     };
   }
 }
