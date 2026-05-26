@@ -327,10 +327,11 @@ async function main(): Promise<void> {
           tui.start();
           await tui.waitForExit();
         } catch (err) {
+          destroyTUI();
           teeCrash('TUI_INIT', err);
-          console.error(chalk.red(`\n❌ TUI failed to start:`), err instanceof Error ? err.message : String(err));
+          process.stderr.write(`\n❌ TUI failed to start: ${err instanceof Error ? err.message : String(err)}\n`);
           if (err instanceof Error && err.stack) {
-            console.error(chalk.dim(err.stack.split('\n').slice(1, 4).join('\n')));
+            process.stderr.write(`${err.stack.split('\n').slice(1, 4).join('\n')}\n`);
           }
           process.exit(1);
         }

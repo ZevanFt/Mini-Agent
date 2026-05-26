@@ -571,15 +571,22 @@ class TUIManager {
         cancelable: true,
         history: this.inputHistory,
         historyFilter: (input: string) => input.trim().length > 0,
-        placeholder: options.placeholder || '',
-        style: this.colors.accent,
       };
+
+      if (options.placeholder) {
+        opts.placeholder = options.placeholder;
+      }
 
       if (options.col !== undefined && options.row !== undefined) {
         term.moveTo(options.col, options.row);
       }
 
-      term.inputField(opts, (_err: unknown, input?: string) => {
+      term.inputField(opts, (err: unknown, input?: string) => {
+        if (err) {
+          process.stderr.write(`[TUI] inputField error: ${String(err)}\n`);
+          resolve(null);
+          return;
+        }
         resolve(input === undefined ? null : (input || ''));
       });
     });
