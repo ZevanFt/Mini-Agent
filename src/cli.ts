@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'path';
+import fs from 'fs';
 import { Agent } from './core/agent.js';
 import { ThinkingMode } from './core/thinking-mode.js';
 import { HookDispatcher, createToolLogHook, createSecurityAuditHook, createSessionTimerHook } from './core/hooks.js';
@@ -27,6 +28,7 @@ import { AutoUpdateChecker } from './core/autoupdate.js';
 import { PluginManager } from './core/plugins.js';
 import { BackgroundTaskManager } from './core/background-tasks.js';
 import { SkillRegistry } from './skills/skill-registry.js';
+import { initTUI, destroyTUI } from './tui/index.js';
 import { EnhancedPermissionSystem } from './core/permissions.js';
 import { MiniAgentServer } from './web/server.js';
 import { createMCPTools } from './tools/mcp.js';
@@ -124,6 +126,7 @@ async function main(): Promise<void> {
     .option('-v, --verbose', 'Verbose output', false)
     .option('-s, --session <id>', 'Session ID')
     .option('--list-sessions', 'List all sessions')
+    .option('--tui', 'Use terminal UI mode (TUI)', false)
     .option('--no-tui', 'Disable banner and status')
     .option('--mcp-sse-port <number>', 'Start MCP SSE server on given port')
     .action(async (options) => {
@@ -142,13 +145,44 @@ async function main(): Promise<void> {
         return;
       }
 
+      // Global error catchers — registered early so the user always sees
+      // the real error instead of a silent crash + terminal clear.
+      const crashLog = path.join(process.cwd(), '.miniagent', 'crash.log');
+      const teeCrash = (label: string, err: unknown) => {
+        try {
+          const dir = path.dirname(crashLog);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          const ts = new Date().toISOString();
+          const msg = err instanceof Error ? `${err.stack || err.message}` : String(err);
+          fs.appendFileSync(crashLog, `[${ts}] ${label}: ${msg}\n\n`);
+        } catch {}
+      };
+
+      process.on('uncaughtException', (err) => {
+        teeCrash('UNCAUGHT_EXCEPTION', err);
+        process.stderr.write('\n=== ❌ FATAL ERROR (see .miniagent/crash.log) ===\n');
+        process.stderr.write((err.stack || err.message || String(err)) + '\n');
+        process.stderr.write('===================================================\n');
+        destroyTUI();
+        process.exit(1);
+      });
+
+      process.on('unhandledRejection', (reason) => {
+        teeCrash('UNHANDLED_REJECTION', reason);
+        process.stderr.write('\n=== ❌ UNHANDLED REJECTION (see .miniagent/crash.log) ===\n');
+        process.stderr.write((reason instanceof Error ? (reason.stack || reason.message) : String(reason)) + '\n');
+        process.stderr.write('=========================================================\n');
+        destroyTUI();
+        process.exit(1);
+      });
+
       printBanner();
       console.log();
 
       const sessionId = options.session || `session_${Date.now()}`;
       const sessions = SessionMemory.listSessions(SESSIONS_DIR);
 
-      if (sessions.length > 0 && !options.session) {
+      if (sessions.length > 0 && !options.session && !options.tui) {
         const readline = await import('readline');
         const rl = readline.createInterface({
           input: process.stdin,
@@ -272,6 +306,36 @@ async function main(): Promise<void> {
       }
 
       console.log(chalk.green('💬 Ready! Type /help for commands, or just start chatting\n'));
+
+      // ── TUI Mode ──
+      if (options.tui) {
+        if (!process.stdin.isTTY) {
+          console.error(chalk.red('TUI mode requires a terminal (TTY). Use non-TUI mode instead.'));
+          process.exit(1);
+        }
+        if (typeof process.stdin.setRawMode !== 'function') {
+          console.error(chalk.red('TUI mode not supported in this runtime (setRawMode unavailable).'));
+          process.exit(1);
+        }
+
+        // terminal-kit handles uncaughtException itself; the global catchers
+        // above stay registered as a safety net.  No need for local handlers.
+
+        console.log(chalk.cyan('🖥️  Starting Terminal UI...'));
+        try {
+          const tui = await initTUI({ agent, model: currentModel });
+          tui.start();
+          await tui.waitForExit();
+        } catch (err) {
+          teeCrash('TUI_INIT', err);
+          console.error(chalk.red(`\n❌ TUI failed to start:`), err instanceof Error ? err.message : String(err));
+          if (err instanceof Error && err.stack) {
+            console.error(chalk.dim(err.stack.split('\n').slice(1, 4).join('\n')));
+          }
+          process.exit(1);
+        }
+        return;
+      }
 
       const readline = await import('readline');
       const rl = readline.createInterface({
