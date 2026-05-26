@@ -209,8 +209,8 @@ class TUIManager {
     const logoH = LOGO.length;
     const logoW = w >= 90 ? 84 : Math.min(84, w - 2);
 
-    // Content layout: logo(6) + gap(1) + subtitle(1) + gap(1) + input_box(3) + tips(2)
-    const contentH = logoH + 1 + 1 + 1 + 3 + 2;
+    // Content layout: logo(6) + gap(1) + subtitle(1) + gap(2) + input_box(3)
+    const contentH = logoH + 1 + 1 + 2 + 3;
     const startRow = Math.max(1, Math.floor((h - contentH) / 2));
 
     // ---- Logo ----
@@ -228,46 +228,54 @@ class TUIManager {
     term.moveTo(subCol, subRow);
     term(`${this.colors.dim}${subtitle}${this.reset()}`);
 
-    // ---- Input box (dark background like OpenCode) ----
-    const boxWidth = Math.min(68, w - 4);
+    // ---- Input box ----
+    const boxWidth = Math.min(72, w - 4);
     const boxCol = Math.max(1, Math.floor((w - boxWidth) / 2));
     const boxRow = subRow + 2;
 
-    // Dark background fill
+    // Dark background (2 rows): input line + mode line
     const boxFill = ' '.repeat(boxWidth);
-    for (let r = 0; r < 3; r++) {
+    for (let r = 0; r < 2; r++) {
       term.moveTo(boxCol, boxRow + r);
       term(`\x1b[48;5;236m${boxFill}\x1b[0m`);
     }
 
-    // Input placeholder text
-    const prompt = 'Ask anything...';
-    const placeholder = `"What is the tech stack of this project?"`;
-    term.moveTo(boxCol + 1, boxRow);
-    term(`${this.colors.placeholder}${prompt}${this.reset()}  ${this.colors.dim}${placeholder}${this.reset()}`);
+    // Left accent — blue background block (1 char wide, like OpenCode)
+    term.moveTo(boxCol, boxRow);
+    term(`\x1b[48;5;24m \x1b[0m`);
+    term.moveTo(boxCol, boxRow + 1);
+    term(`\x1b[48;5;24m \x1b[0m`);
 
-    // Mode line inside box
+    // Row 1: placeholder text (cursor from inputField will blink here)
+    const placeholder = 'Ask anything...  "What is the tech stack of this project?"';
+    term.moveTo(boxCol + 2, boxRow);
+    term(`${this.colors.placeholder}${placeholder}${this.reset()}`);
+
+    // Row 2: mode + model (bottom of box)
     const modeLine = 'Plan';
     const modelDisplay = this.model;
-    term.moveTo(boxCol + 1, boxRow + 2);
+    term.moveTo(boxCol + 2, boxRow + 1);
     term(`${this.colors.accent}${modeLine}${this.reset()} ${this.colors.dim}· ${modelDisplay}${this.reset()}`);
 
-    // Tips - right aligned below box
-    const tipsRow = boxRow + 3;
-    const tips = [
-      'tab agents',
-      'ctrl+p commands',
-    ];
-    const tipsText = tips.join('  ');
-    const tipsCol = Math.max(1, w - tipsText.length - 2);
-    term.moveTo(tipsCol, tipsRow);
+    // Tips: BELOW the box, right-aligned (outside dark bg)
+    const tipsText = 'tab agents  ctrl+p commands';
+    const tipsRow = boxRow + 2;
+    const tipsCol = boxCol + boxWidth - tipsText.length;
+    term.moveTo(Math.max(boxCol, tipsCol), tipsRow);
     term(`${this.colors.dim}${tipsText}${this.reset()}`);
+
+    // Tip line below tips (centered, with orange dot)
+    const tipRow = tipsRow + 1;
+    const tipText = 'Press ctrl+alt+g, end to jump to the most recent message';
+    const tipCol = Math.max(1, Math.floor((w - tipText.length) / 2));
+    term.moveTo(tipCol, tipRow);
+    term(`\x1b[38;5;208m●${this.reset()} ${this.colors.dim}Tip${this.reset()}${this.colors.placeholder}${tipText}${this.reset()}`);
 
     // ---- Bottom bar ----
     this.renderBottomBar();
 
-    // ---- Start input (row 1 inside box) ----
-    this.startIdleInput(boxCol + 1, boxRow);
+    // Start input: cursor on row 1, col+2 inside dark box
+    this.startIdleInput(boxCol + 2, boxRow);
   }
 
   private clearScreen(): void {
@@ -567,17 +575,13 @@ class TUIManager {
     }
   }
 
-  private async readInput(options: { col?: number; row?: number; placeholder?: string }): Promise<string | null> {
+  private async readInput(options: { col?: number; row?: number }): Promise<string | null> {
     return new Promise((resolve) => {
       const opts: Record<string, unknown> = {
         cancelable: true,
         history: this.inputHistory,
         historyFilter: (input: string) => input.trim().length > 0,
       };
-
-      if (options.placeholder) {
-        opts.placeholder = options.placeholder;
-      }
 
       if (options.col !== undefined && options.row !== undefined) {
         term.moveTo(options.col, options.row);
