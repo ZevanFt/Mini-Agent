@@ -228,38 +228,42 @@ class TUIManager {
     term.moveTo(subCol, subRow);
     term(`${this.colors.dim}${subtitle}${this.reset()}`);
 
-    // ---- Input box ----
-    const boxWidth = Math.min(72, w - 4);
+    // ---- Input box (3 rows tall like OpenCode) ----
+    const boxWidth = Math.min(76, w - 4);
     const boxCol = Math.max(1, Math.floor((w - boxWidth) / 2));
     const boxRow = subRow + 2;
 
-    // Dark background (2 rows): input line + mode line
+    // Dark background (3 rows)
     const boxFill = ' '.repeat(boxWidth);
-    for (let r = 0; r < 2; r++) {
+    for (let r = 0; r < 3; r++) {
       term.moveTo(boxCol, boxRow + r);
       term(`\x1b[48;5;236m${boxFill}\x1b[0m`);
     }
 
-    // Left accent — blue background block (1 char wide, like OpenCode)
+    // Left accent — blue background block (1 char wide)
     term.moveTo(boxCol, boxRow);
     term(`\x1b[48;5;24m \x1b[0m`);
     term.moveTo(boxCol, boxRow + 1);
     term(`\x1b[48;5;24m \x1b[0m`);
+    term.moveTo(boxCol, boxRow + 2);
+    term(`\x1b[48;5;24m \x1b[0m`);
 
-    // Row 1: placeholder text (cursor from inputField will blink here)
+    // Row 1: placeholder text with dark bg
     const placeholder = 'Ask anything...  "What is the tech stack of this project?"';
     term.moveTo(boxCol + 2, boxRow);
-    term(`${this.colors.placeholder}${placeholder}${this.reset()}`);
+    term(`\x1b[38;5;102;48;5;236m${placeholder}\x1b[0m`);
 
-    // Row 2: mode + model (bottom of box)
+    // Row 2: empty spacer (gives taller feel like OpenCode)
+
+    // Row 3: mode + model (bottom of box)
     const modeLine = 'Plan';
     const modelDisplay = this.model;
-    term.moveTo(boxCol + 2, boxRow + 1);
+    term.moveTo(boxCol + 2, boxRow + 2);
     term(`${this.colors.accent}${modeLine}${this.reset()} ${this.colors.dim}· ${modelDisplay}${this.reset()}`);
 
     // Tips: BELOW the box, right-aligned (outside dark bg)
     const tipsText = 'tab agents  ctrl+p commands';
-    const tipsRow = boxRow + 2;
+    const tipsRow = boxRow + 3;
     const tipsCol = boxCol + boxWidth - tipsText.length;
     term.moveTo(Math.max(boxCol, tipsCol), tipsRow);
     term(`${this.colors.dim}${tipsText}${this.reset()}`);
@@ -581,6 +585,8 @@ class TUIManager {
         cancelable: true,
         history: this.inputHistory,
         historyFilter: (input: string) => input.trim().length > 0,
+        // Set text color and background for the input field
+        style: (str: string) => term.colorRgb(200, 200, 200).bgColorRgb(45, 45, 45)(str),
       };
 
       if (options.col !== undefined && options.row !== undefined) {
