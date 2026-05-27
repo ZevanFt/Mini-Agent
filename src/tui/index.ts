@@ -921,29 +921,37 @@ class TUIManager {
     const leftW = this.leftWidth();
     let row = 1;
 
-    // Context section (3 lines like OpenCode)
+    // Context section (OpenCode 风格：无标题，3行 dim 内容)
     const inputPct = this.cumulativeUsage.total > 0
       ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
       : 0;
-    const contextLines = [
-      `${this.cumulativeUsage.total.toLocaleString()} tokens`,
-      `${inputPct}% used`,
-      `$0.00 spent`,
-    ];
-    row = this.renderPanelSection(leftW + 2, row, 'Context', contextLines);
+    
+    term.moveTo(leftW + 3, row);
+    term(`${this.colors.dim}${this.cumulativeUsage.total.toLocaleString()} tokens${this.reset()}`);
+    row++;
+    
+    term.moveTo(leftW + 3, row);
+    term(`${this.colors.dim}${inputPct}% used${this.reset()}`);
+    row++;
+    
+    term.moveTo(leftW + 3, row);
+    term(`${this.colors.dim}$0.00 spent${this.reset()}`);
+    row += 2;
 
-    // LSP section
-    row = this.renderPanelSection(leftW + 2, row, 'LSP', ['LSPs are disabled']);
+    // LSP section (无标题，一行内容)
+    term.moveTo(leftW + 3, row);
+    term(`${this.colors.dim}LSPs are disabled${this.reset()}`);
+    row += 2;
 
     // Bottom info: path and version
     const cwd = process.cwd();
     const cwdShort = cwd.split('\\').pop() || '';
 
-    term.moveTo(leftW + 2, height - 1);
+    term.moveTo(leftW + 3, height - 1);
     term(`${this.colors.dim}/${cwdShort}:main${this.reset()}`);
 
     const ver = `OpenCode ${VERSION}`;
-    term.moveTo(leftW + 2, height);
+    term.moveTo(leftW + 3, height);
     term(`${this.colors.dim}${ver}${this.reset()}`);
   }
 
@@ -964,8 +972,8 @@ class TUIManager {
     term.moveTo(2, inputRow);
     term(`${this.colors.dim}> ${this.reset()}`);
 
-    // Shortcuts
-    const shortcuts = `tab agents  ctrl+p commands`;
+    // Shortcuts on right side (OpenCode 风格：分开的快捷键提示)
+    const shortcuts = `tab`;
     const scCol = leftW - shortcuts.length;
     term.moveTo(scCol, inputRow);
     term(`${this.colors.shortcut}${shortcuts}${this.reset()}`);
@@ -983,15 +991,18 @@ class TUIManager {
     term.moveTo(2, statusRow);
     term(`${this.colors.modeLabel}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model}${this.reset()}`);
 
-    // Right side info
+    // Right side info (OpenCode 风格)
     const inputPct = this.cumulativeUsage.total > 0
       ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
       : 0;
     const usageText = `${(this.cumulativeUsage.total / 1000).toFixed(1)}K (${inputPct}%)`;
     const ver = `OpenCode ${VERSION}`;
-    const rightCol = leftW - usageText.length - ver.length - 6;
+    
+    // Right side: tokens + shortcuts + version
+    const rightText = `${usageText}  ctrl+p    ${ver}`;
+    const rightCol = leftW - rightText.length;
     term.moveTo(rightCol, statusRow);
-    term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
+    term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
   }
 
   private renderPanelSection(col: number, startRow: number, title: string, lines: string[]): number {
