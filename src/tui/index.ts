@@ -899,7 +899,7 @@ class TUIManager {
     // Vertical divider
     term.moveTo(leftW + 1, 1);
     term(`${this.colors.border}|${this.reset()}`);
-    for (let row = 2; row < h; row++) {
+    for (let row = 2; row < h - 2; row++) {
       term.moveTo(leftW + 1, row);
       term(`${this.colors.border}|${this.reset()}`);
     }
@@ -907,8 +907,8 @@ class TUIManager {
     this.renderRightPanel(panelData, h);
 
     const title = panelData.taskTitle || 'New Chat';
-    term.moveTo(1, 1);
-    term(`${this.colors.accent}+ ${title}${this.reset()}`);
+    term.moveTo(2, 1);
+    term(`${this.colors.accent}${title}${this.reset()}`);
 
     this.renderMessageArea(1, 2, leftW, h - 4);
 
@@ -917,32 +917,24 @@ class TUIManager {
 
   private renderRightPanel(data: RightPanelData, height: number): void {
     const leftW = this.leftWidth();
-    let row = 1;
+    let row = 2;
 
-    row = this.renderPanelSection(
-      leftW + 2, row,
-      'Task',
-      [data.taskTitle || 'New Chat'],
-    );
-
+    // Context section
+    const inputPct = this.cumulativeUsage.total > 0
+      ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
+      : 0;
     const contextLines = [
       `${this.cumulativeUsage.total.toLocaleString()} tokens`,
-      `${this.cumulativeUsage.total > 0 ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total + this.cumulativeUsage.input)) * 100) : 0}% used`,
+      `${inputPct}% used`,
     ];
     row = this.renderPanelSection(leftW + 2, row, 'Context', contextLines);
 
-    const modeLabel = data.appMode === 'plan' ? 'Plan mode' : 'Build mode';
-    const modelLines = [this.model, modeLabel];
-    row = this.renderPanelSection(leftW + 2, row, 'Model', modelLines);
+    // LSP section
+    row = this.renderPanelSection(leftW + 2, row, 'LSP', ['LSPs are disabled']);
 
-    const shortcutLines = [
-      `${this.colors.shortcut}tab: switch mode${this.reset()}`,
-      `${this.colors.shortcut}/: commands${this.reset()}`,
-    ];
-    row = this.renderPanelSection(leftW + 2, row, 'Shortcuts', shortcutLines);
-
+    // Todo section (bottom)
     const todos = getTodos();
-    const remainingRows = Math.max(1, height - row - 1);
+    const remainingRows = Math.max(1, height - row - 4);
     this.renderTodoSection(leftW + 2, row, remainingRows, todos);
   }
 
@@ -952,7 +944,7 @@ class TUIManager {
 
     lines.forEach((line, i) => {
       term.moveTo(col, startRow + 1 + i);
-      term(`${this.colors.dim}  ${line}${this.reset()}`);
+      term(`${this.colors.dim}${line}${this.reset()}`);
     });
 
     return startRow + 1 + lines.length + 1;
@@ -964,7 +956,7 @@ class TUIManager {
 
     if (todos.length === 0) {
       term.moveTo(col, startRow + 1);
-      term(`${this.colors.dim}  (none)${this.reset()}`);
+      term(`${this.colors.dim}(none)${this.reset()}`);
       return;
     }
 
@@ -974,15 +966,15 @@ class TUIManager {
       term.moveTo(col, row);
       const checked = todo.status === 'completed';
       const mark = checked
-        ? `${this.colors.checkboxDone}[x]${this.reset()}`
-        : `${this.colors.checkboxPending}[ ]${this.reset()}`;
+        ? `${this.colors.checkboxDone}✓${this.reset()}`
+        : `${this.colors.checkboxPending}○${this.reset()}`;
       term(`${mark} ${todo.content}`);
       row++;
     }
 
     if (todos.length > maxRows - 1) {
       term.moveTo(col, startRow + maxRows - 1);
-      term(`${this.colors.dim}  ... +${todos.length - maxRows + 1} more${this.reset()}`);
+      term(`${this.colors.dim}... +${todos.length - maxRows + 1} more${this.reset()}`);
     }
   }
 
@@ -997,7 +989,7 @@ class TUIManager {
       if (row + lines.length > startRow + maxRows - 2) break;
 
       for (const line of lines) {
-        term.moveTo(col, row);
+        term.moveTo(col + 1, row);
         term(line);
         row++;
       }
@@ -1009,13 +1001,13 @@ class TUIManager {
     const R = this.reset();
     switch (msg.role) {
       case 'user':
-        return `${this.colors.user}You: ${msg.content}${R}`;
+        return `${this.colors.accent}│ ${msg.content}${R}`;
       case 'assistant':
-        return `${this.colors.assistant}${this.processAssistantContent(msg.content, width)}${R}`;
+        return `${this.processAssistantContent(msg.content, width)}${R}`;
       case 'thought':
-        return `${this.colors.thought}Thought: ${msg.content}${R}`;
+        return `${this.colors.thought}+ ${msg.content}${R}`;
       case 'tool':
-        return `${this.colors.tool}[${msg.content}]${R}`;
+        return `${this.colors.dim}% ${msg.content}${R}`;
       default:
         return msg.content;
     }
@@ -1024,7 +1016,10 @@ class TUIManager {
   private processAssistantContent(content: string, width: number): string {
     return content.split('\n').map(line => {
       if (line.startsWith('+ Thought:')) {
-        return `${this.colors.thought}${this.truncate(line, width - 2)}${this.reset()}`;
+        return `${this.colors.thought}${line}${this.reset()}`;
+      }
+      if (line.startsWith('% ')) {
+        return `${this.colors.dim}${line}${this.reset()}`;
       }
       return line;
     }).join('\n');
@@ -1033,29 +1028,33 @@ class TUIManager {
   private renderBottomInput(leftW: number, height: number, panelData: RightPanelData): void {
     const statusRow = height;
     const inputRow = height - 1;
+    const w = this.termWidth();
 
+    // Input row
     term.moveTo(1, inputRow);
     term(`${this.colors.accent}> ${this.reset()}${this.colors.placeholder}Ask anything...${this.reset()}`);
 
-    const shortcuts = `${this.colors.shortcut}tab: switch mode${this.reset()}`;
+    const shortcuts = `${this.colors.shortcut}tab agents${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}`;
     const scCol = Math.max(1, leftW - shortcuts.length - 2);
     term.moveTo(scCol, inputRow);
     term(shortcuts);
 
+    // Status row (bottom)
     const modeLabel = panelData.appMode === 'plan' ? 'Plan' : 'Build';
     term.moveTo(1, statusRow);
-    term(`${this.colors.modeLabel}${modeLabel}${this.reset()} ${this.colors.dim}| ${this.model}${this.reset()}`);
+    term(`${this.colors.modeLabel}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model}${this.reset()}`);
 
-    const usageText = `${this.cumulativeUsage.total.toLocaleString()} tokens`;
-    term.moveTo(leftW - usageText.length - 2, statusRow);
+    // Right side: tokens + version
+    const inputPct = this.cumulativeUsage.total > 0
+      ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
+      : 0;
+    const usageText = `${(this.cumulativeUsage.total / 1000).toFixed(1)}K (${inputPct}%)`;
+    term.moveTo(w - usageText.length - 2, statusRow);
     term(`${this.colors.dim}${usageText}${this.reset()}`);
 
-    const cwd = process.cwd().split('\\').pop() || '';
-    term.moveTo(leftW - cwd.length - usageText.length - 12, statusRow);
-    term(`${this.colors.dim}${cwd}${this.reset()}`);
-
-    term.moveTo(Math.max(1, leftW - 6), statusRow);
-    term(`${this.colors.dim}v${VERSION}${this.reset()}`);
+    const ver = `v${VERSION}`;
+    term.moveTo(w - ver.length - 1, statusRow);
+    term(`${this.colors.dim}${ver}${this.reset()}`);
   }
 
   private streamContentToActiveArea(content: string, _panelData: RightPanelData): void {
