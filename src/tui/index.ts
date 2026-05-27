@@ -141,6 +141,7 @@ class TUIManager {
   private colors: TUIColors;
   private layout: TUILayout;
   private spinnerInterval: ReturnType<typeof setInterval> | null = null;
+  private spinnerIdx = 0;
   private slashMenu: SlashMenuState = {
     visible: false,
     filter: '',
@@ -189,7 +190,7 @@ class TUIManager {
     };
 
     this.layout = {
-      rightPanelWidth: 30,
+      rightPanelWidth: 60,
       maxHistoryRows: 50,
       ...config.layout,
     };
@@ -887,18 +888,35 @@ class TUIManager {
   }
 
   private startSpinner(): void {
-    let idx = 0;
-    const leftW = this.leftWidth();
-    const h = this.termHeight();
-    const spinnerRow = h - 3;
-
+    this.spinnerIdx = 0;
     this.spinnerInterval = setInterval(() => {
       if (!this.running) return;
-      const ch = SPINNER_CHARS[idx % SPINNER_CHARS.length];
-      idx++;
-      term.moveTo(2, spinnerRow);
-      term(`${this.colors.thought}${ch} Thinking...${this.reset()}`);
-    }, 100);
+      // 脉冲效果：- \ | / 来回扫描
+      const pulseChars = '-\\|/';
+      const ch = pulseChars[this.spinnerIdx % pulseChars.length];
+      this.spinnerIdx++;
+
+      // 在 Build 后面显示脉冲效果
+      const modeLabel = this.appMode === 'plan' ? 'Plan' : 'Build';
+      const statusRow = this.termHeight();
+      
+      // 左侧 Build 区域 + 脉冲效果
+      term.moveTo(2, statusRow);
+      term(`${this.colors.modeLabel}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model} ${this.colors.thought}· ${ch}${this.reset()}`);
+
+      // 右侧状态栏
+      const inputPct = this.cumulativeUsage.total > 0
+        ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
+        : 0;
+      const usageText = `${(this.cumulativeUsage.total / 1000).toFixed(1)}K (${inputPct}%)`;
+      const ver = `OpenCode ${VERSION}`;
+      const rightInfo = `${usageText}  ctrl+p commands    ${ver}`;
+      term.moveTo(this.termWidth() - rightInfo.length, statusRow);
+      term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
+
+      // 光标保持在输入框位置（不阻塞输入）
+      term.moveTo(this.inputCol + this.inputCursor, this.inputRow);
+    }, 200);
   }
 
   private stopSpinner(): void {
@@ -906,11 +924,21 @@ class TUIManager {
       clearInterval(this.spinnerInterval);
       this.spinnerInterval = null;
     }
-    const leftW = this.leftWidth();
-    const h = this.termHeight();
-    const spinnerRow = h - 3;
-    term.moveTo(2, spinnerRow);
-    term(' '.repeat(20));
+    // 恢复正常的状态栏
+    const statusRow = this.termHeight();
+    const modeLabel = this.appMode === 'plan' ? 'Plan' : 'Build';
+    term.moveTo(2, statusRow);
+    term(`${this.colors.modeLabel}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model}${this.reset()}`);
+    
+    // 右侧状态栏
+    const inputPct = this.cumulativeUsage.total > 0
+      ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
+      : 0;
+    const usageText = `${(this.cumulativeUsage.total / 1000).toFixed(1)}K (${inputPct}%)`;
+    const ver = `OpenCode ${VERSION}`;
+    const rightInfo = `${usageText}  ctrl+p commands    ${ver}`;
+    term.moveTo(this.termWidth() - rightInfo.length, statusRow);
+    term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
   }
 
   private renderActiveLayout(panelData: RightPanelData): void {
@@ -920,35 +948,40 @@ class TUIManager {
 
     this.clearScreen();
 
-    // Vertical divider - full height (更淡更细，OpenCode 风格)
+    // Vertical divider - full height
     for (let row = 1; row <= h; row++) {
       term.moveTo(leftW + 1, row);
       term(`\x1b[2m│${this.reset()}`);
     }
 
-    // Title at top left
-    const title = panelData.taskTitle || 'New Chat';
-    term.moveTo(2, 1);
-    term(`${this.colors.accent}${title}${this.reset()}`);
-
-    // Render right panel (full height)
+    // Render right panel (full height, title at top)
     this.renderRightPanel(panelData, h, w);
 
-    // Render messages area (leave 2 rows for input box)
+    // Render messages area (leave 2 rows for input box, NO left margin)
     this.renderMessageArea(1, 2, leftW, h - 4);
 
-    // Input box (2 rows at bottom, left side only)
-    this.renderInputBox(leftW, h, w, panelData);
+    // Input box (2 rows at bottom, FULL width)
+    this.renderInputBox(w, h, panelData);
   }
 
   private renderRightPanel(data: RightPanelData, height: number, w: number): void {
     const leftW = this.leftWidth();
     let row = 1;
 
-    // Context section (OpenCode 风格：无标题，3行 dim 内容)
+    // 对话标题在右侧边栏顶部（OpenCode 风格）
+    const title = data.taskTitle || 'New Chat';
+    term.moveTo(leftW + 3, row);
+    term(`${this.colors.accent}${title}${this.reset()}`);
+    row += 2;
+
+    // Context section
     const inputPct = this.cumulativeUsage.total > 0
       ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
       : 0;
+    
+    term.moveTo(leftW + 3, row);
+    term(`${this.colors.panelTitle}Context${this.reset()}`);
+    row++;
     
     term.moveTo(leftW + 3, row);
     term(`${this.colors.dim}${this.cumulativeUsage.total.toLocaleString()} tokens${this.reset()}`);
@@ -962,7 +995,10 @@ class TUIManager {
     term(`${this.colors.dim}$0.00 spent${this.reset()}`);
     row += 2;
 
-    // LSP section (无标题，一行内容)
+    // LSP section
+    term.moveTo(leftW + 3, row);
+    term(`${this.colors.panelTitle}LSP${this.reset()}`);
+    row++;
     term.moveTo(leftW + 3, row);
     term(`${this.colors.dim}LSPs are disabled${this.reset()}`);
     row += 2;
@@ -979,12 +1015,12 @@ class TUIManager {
     term(`${this.colors.dim}${ver}${this.reset()}`);
   }
 
-  private renderInputBox(leftW: number, height: number, w: number, _panelData: RightPanelData): void {
+  private renderInputBox(fullWidth: number, height: number, _panelData: RightPanelData): void {
     const inputRow = height - 1;
     const statusRow = height;
 
-    // Input row: dark bg, left accent, prompt, shortcuts
-    const bgFill = ' '.repeat(leftW);
+    // Input row: dark bg spanning full width
+    const bgFill = ' '.repeat(fullWidth);
     term.moveTo(1, inputRow);
     term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
 
@@ -996,13 +1032,12 @@ class TUIManager {
     term.moveTo(2, inputRow);
     term(`${this.colors.dim}> ${this.reset()}`);
 
-    // Shortcuts on right side (OpenCode 风格：输入行右上角只有 tab)
-    const inputShortcuts = `tab`;
-    const inputScCol = leftW - inputShortcuts.length;
-    term.moveTo(inputScCol, inputRow);
-    term(`${this.colors.shortcut}${inputShortcuts}${this.reset()}`);
+    // Shortcuts on right side
+    const shortcuts = `tab`;
+    term.moveTo(fullWidth - shortcuts.length, inputRow);
+    term(`${this.colors.shortcut}${shortcuts}${this.reset()}`);
 
-    // Status row
+    // Status row: dark bg spanning full width
     term.moveTo(1, statusRow);
     term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
 
@@ -1012,39 +1047,21 @@ class TUIManager {
 
     // Model on left
     const modeLabel = this.appMode === 'plan' ? 'Plan' : 'Build';
+    this.modeLabelCol = 2;
+    this.modeLabelRow = statusRow;
     term.moveTo(2, statusRow);
     term(`${this.colors.modeLabel}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model}${this.reset()}`);
 
-    // Right side info (严格右对齐：tokens + ctrl+p commands + version)
+    // Right side info
     const inputPct = this.cumulativeUsage.total > 0
       ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
       : 0;
     const usageText = `${(this.cumulativeUsage.total / 1000).toFixed(1)}K (${inputPct}%)`;
     const ver = `OpenCode ${VERSION}`;
     
-    // 构建右对齐文本：tokens dim + ctrl+p shortcut + version dim
-    const statusShortcuts = `ctrl+p`;
-    const rightInfoParts = [
-      { text: usageText, color: this.colors.dim },
-      { text: '  ', color: '' },
-      { text: statusShortcuts, color: this.colors.shortcut },
-      { text: '    ', color: '' },
-      { text: ver, color: this.colors.dim },
-    ];
-    
-    // 计算总长度用于右对齐
-    let totalLen = 0;
-    for (const part of rightInfoParts) {
-      totalLen += part.text.length;
-    }
-    
-    const startCol = leftW - totalLen;
-    let col = startCol;
-    for (const part of rightInfoParts) {
-      term.moveTo(col, statusRow);
-      term(`${part.color}${part.text}${this.reset()}`);
-      col += part.text.length;
-    }
+    const rightInfo = `${usageText}  ctrl+p commands    ${ver}`;
+    term.moveTo(fullWidth - rightInfo.length, statusRow);
+    term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
   }
 
   private renderPanelSection(col: number, startRow: number, title: string, lines: string[]): number {
@@ -1082,7 +1099,8 @@ class TUIManager {
     const R = this.reset();
     switch (msg.role) {
       case 'user':
-        return `${this.colors.accent}│ ${msg.content}${R}`;
+        // OpenCode 风格：用户消息深色背景条，左对齐
+        return ` ${this.colors.accent}${msg.content}${R}`;
       case 'assistant':
         return `${this.processAssistantContent(msg.content, width)}${R}`;
       case 'thought':
