@@ -474,20 +474,19 @@ class TUIManager {
   // ====================  SLASH MENU  ====================
 
   private openSlashMenu(): void {
-    const w = this.termWidth();
-    const h = this.termHeight();
-
-    const menuWidth = Math.min(50, w - 4);
-    const menuHeight = Math.min(SLASH_COMMANDS.length, h - 10);
-    const menuCol = Math.max(2, Math.floor((w - menuWidth) / 2));
-    const menuRow = Math.max(2, Math.floor((h - menuHeight - 2) / 2));
+    const filtered = SLASH_COMMANDS;
+    const menuWidth = this.inputBoxWidth;
+    const menuHeight = Math.min(filtered.length, 12);
+    const menuCol = this.inputBoxCol;
+    // 菜单在输入框正上方
+    const menuRow = this.inputBoxRow - menuHeight - 1;
 
     this.slashMenu = {
       visible: true,
       filter: '',
       selected: 0,
       col: menuCol,
-      row: menuRow,
+      row: Math.max(1, menuRow),
       width: menuWidth,
       height: menuHeight,
     };
@@ -580,26 +579,29 @@ class TUIManager {
     const filtered = this.getFilteredCommands();
     const visible = filtered.slice(0, height);
 
+    // 暗色背景（无边框，类似 OpenCode）
     const bgFill = ' '.repeat(width);
-    for (let r = 0; r <= visible.length + 1; r++) {
+    for (let r = 0; r < visible.length; r++) {
       term.moveTo(col, row + r);
-      term(`${this.colors.slashMenuBg}${bgFill}${this.reset()}`);
+      term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
     }
 
-    const borderFill = '─'.repeat(width);
-    term.moveTo(col, row);
-    term(`${this.colors.border}${borderFill}${this.reset()}`);
-    term.moveTo(col, row + visible.length + 1);
-    term(`${this.colors.border}${borderFill}${this.reset()}`);
-
+    // 命令列表
     visible.forEach((cmd, i) => {
       const isSel = i === this.slashMenu.selected;
-      const line = ` ${cmd.cmd.padEnd(15)} ${cmd.desc}`.substring(0, width - 2);
-      term.moveTo(col + 1, row + 1 + i);
+      const cmdStr = cmd.cmd;
+      const descStr = cmd.desc;
+      const maxCmdLen = 15;
+      const paddedCmd = cmdStr.padEnd(maxCmdLen);
+      const maxDescLen = width - maxCmdLen - 2;
+      const displayDesc = descStr.length > maxDescLen ? descStr.substring(0, maxDescLen - 1) + '…' : descStr;
+
+      term.moveTo(col + 1, row + i);
       if (isSel) {
-        term(`${this.colors.slashMenuHighlight}${line}${this.reset()}`);
+        // 整行橙色背景（OpenCode 风格）
+        term(`\x1b[48;5;208m\x1b[38;5;235m ${paddedCmd} ${displayDesc}${' '.repeat(Math.max(0, width - paddedCmd.length - displayDesc.length - 3))}\x1b[0m`);
       } else {
-        term(`${this.colors.dim}${line}${this.reset()}`);
+        term(`\x1b[48;5;236m\x1b[38;5;208m ${paddedCmd} \x1b[38;5;248m${displayDesc}${' '.repeat(Math.max(0, width - paddedCmd.length - displayDesc.length - 3))}\x1b[0m`);
       }
     });
   }
