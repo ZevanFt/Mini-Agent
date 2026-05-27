@@ -23,17 +23,36 @@ interface SlashCommand {
 }
 
 const SLASH_COMMANDS: SlashCommand[] = [
+  // Core
   { cmd: '/help',     desc: 'Show help' },
-  { cmd: '/compact',  desc: 'Compress context' },
+  { cmd: '/quit',     desc: 'Exit' },
   { cmd: '/clear',    desc: 'Clear conversation' },
+  { cmd: '/compact',  desc: 'Compress context' },
+  { cmd: '/thinking', desc: 'Toggle verbose thinking' },
+  // Mode
   { cmd: '/plan',     desc: 'Toggle plan mode' },
+  { cmd: '/build',    desc: 'Toggle build mode' },
   { cmd: '/model',    desc: 'Switch model' },
+  // Session
   { cmd: '/session',  desc: 'Manage sessions' },
+  { cmd: '/new',      desc: 'New session' },
+  // Code
   { cmd: '/review',   desc: 'Review changes' },
   { cmd: '/commit',   desc: 'Generate commit message' },
+  { cmd: '/diff',     desc: 'Show diff' },
+  { cmd: '/search',   desc: 'Search codebase' },
+  // Tools
+  { cmd: '/mcp',      desc: 'Manage MCP servers' },
+  { cmd: '/agents',   desc: 'Manage agents' },
+  { cmd: '/tools',    desc: 'List available tools' },
+  { cmd: '/hooks',    desc: 'Manage hooks' },
+  { cmd: '/skills',   desc: 'Manage skills' },
+  { cmd: '/plugins',  desc: 'Manage plugins' },
+  // Info
   { cmd: '/config',   desc: 'Show configuration' },
-  { cmd: '/thinking', desc: 'Toggle verbose thinking' },
-  { cmd: '/quit',     desc: 'Exit' },
+  { cmd: '/status',   desc: 'Show system status' },
+  { cmd: '/health',   desc: 'Health check' },
+  { cmd: '/about',    desc: 'About MiniAgent' },
 ];
 
 type AppMode = 'plan' | 'build';
@@ -598,8 +617,8 @@ class TUIManager {
 
       term.moveTo(col + 1, row + i);
       if (isSel) {
-        // 整行橙色背景（OpenCode 风格）
-        term(`\x1b[48;5;208m\x1b[38;5;235m ${paddedCmd} ${displayDesc}${' '.repeat(Math.max(0, width - paddedCmd.length - displayDesc.length - 3))}\x1b[0m`);
+        // 整行品牌蓝色背景（OpenCode 风格）
+        term(`\x1b[48;5;24m\x1b[38;5;255m ${paddedCmd} ${displayDesc}${' '.repeat(Math.max(0, width - paddedCmd.length - displayDesc.length - 3))}\x1b[0m`);
       } else {
         term(`\x1b[48;5;236m\x1b[38;5;208m ${paddedCmd} \x1b[38;5;248m${displayDesc}${' '.repeat(Math.max(0, width - paddedCmd.length - displayDesc.length - 3))}\x1b[0m`);
       }
@@ -610,6 +629,11 @@ class TUIManager {
 
   private handleSlashCommand(cmd: string): boolean {
     const trimmed = cmd.toLowerCase();
+    if (trimmed === '/build') {
+      this.appMode = 'build';
+      process.stderr.write(`[TUI] Switched to build mode\n`);
+      return true;
+    }
     if (trimmed === '/quit' || trimmed === '/exit') {
       this.destroy();
       return true;
@@ -617,6 +641,12 @@ class TUIManager {
     if (trimmed === '/plan') {
       this.appMode = this.appMode === 'plan' ? 'build' : 'plan';
       process.stderr.write(`[TUI] Switched to ${this.appMode} mode\n`);
+      return true;
+    }
+    if (trimmed === '/new') {
+      this.messages = [];
+      this.cumulativeUsage = { input: 0, output: 0, total: 0 };
+      process.stderr.write('[TUI] /new: New session started\n');
       return true;
     }
     if (trimmed === '/model') {
@@ -639,6 +669,33 @@ class TUIManager {
     }
     if (trimmed === '/config') {
       process.stderr.write(`[TUI] /config: Model=${this.model}, Mode=${this.appMode}\n`);
+      return true;
+    }
+    if (trimmed === '/status') {
+      process.stderr.write(`[TUI] /status: Model=${this.model}, Mode=${this.appMode}, Messages=${this.messages.length}, Tokens=${this.cumulativeUsage.total}\n`);
+      return true;
+    }
+    if (trimmed === '/tools') {
+      process.stderr.write('[TUI] /tools: Bash, FileRead, FileWrite, FileEdit, Glob, Grep, WebFetch, WebSearch, TodoWrite, Config, Github, Task, AskUser, SubAgent, PlanMode, MCP, Memory, Format, MultiEdit, LSP, Question, ApplyPatch, ReadImage, Share, Notebook, Worktree\n');
+      return true;
+    }
+    if (trimmed === '/about') {
+      process.stderr.write('[TUI] MiniAgent v' + VERSION + ' - A local AI Agent framework\n');
+      return true;
+    }
+    // /diff, /search, /mcp, /agents, /hooks, /skills, /plugins, /health
+    const mapCommands: Record<string, string> = {
+      '/diff': 'diff viewer',
+      '/search': 'codebase search',
+      '/mcp': 'MCP server manager',
+      '/agents': 'agent manager',
+      '/hooks': 'hook manager',
+      '/skills': 'skill manager',
+      '/plugins': 'plugin manager',
+      '/health': 'health check',
+    };
+    if (mapCommands[trimmed]) {
+      process.stderr.write(`[TUI] ${trimmed}: ${mapCommands[trimmed]} (not yet implemented)\n`);
       return true;
     }
     return false;
