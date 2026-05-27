@@ -834,15 +834,11 @@ class TUIManager {
     const panelData = this.getPanelData();
     this.renderActiveLayout(panelData);
 
-    // 清空输入框区域，防止等待时按键残留
+    // 设置输入框光标位置（底部输入框）
     const h = this.termHeight();
-    const inputRow = h - 1;
-    const statusRow = h;
-    const bgFill = ' '.repeat(this.leftWidth());
-    for (let r = inputRow; r <= statusRow; r++) {
-      term.moveTo(1, r);
-      term(`${this.colors.dim}${bgFill}${this.reset()}`);
-    }
+    const w = this.termWidth();
+    this.inputRow = h - 3;  // 输入框在第 h-3 行（4行高度：h-3, h-2, h-1, h）
+    this.inputCol = 3;      // 输入光标在提示符后
 
     this.startSpinner();
 
@@ -854,8 +850,12 @@ class TUIManager {
         if (!this.running) break;
 
         if (chunk.type === 'content' && chunk.content) {
-          response += chunk.content;
-          this.streamContentToActiveArea(response, panelData);
+          // 过滤掉 JSON 格式的内容（tool_call 泄露）
+          const filtered = this.filterJsonContent(chunk.content);
+          if (filtered) {
+            response += filtered;
+            this.streamContentToActiveArea(response, panelData);
+          }
         }
 
         if (chunk.type === 'tool_call' && chunk.toolCall) {
@@ -887,8 +887,37 @@ class TUIManager {
     this.startInput();
   }
 
+  // 过滤掉 JSON 格式的内容（防止 tool_call 泄露）
+  private filterJsonContent(content: string): string {
+    // 如果是纯 JSON 对象，过滤掉
+    const trimmed = content.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed.name && parsed.arguments) {
+          // 这是 tool_call JSON，过滤掉
+          return '';
+        }
+      } catch {
+        // 不是有效 JSON，保留
+      }
+    }
+    // 过滤掉 markdown JSON 代码块
+    if (trimmed.startsWith('```json') || trimmed.startsWith('```JSON')) {
+      return '';
+    }
+    return content;
+  }
+
   private startSpinner(): void {
     this.spinnerIdx = 0;
+    const h = this.termHeight();
+    // 设置输入框光标位置（底部）
+    if (!this.inputRow) {
+      this.inputRow = h - 1;
+      this.inputCol = 2;
+    }
+
     this.spinnerInterval = setInterval(() => {
       if (!this.running) return;
       // 脉冲效果：- \ | / 来回扫描
@@ -914,8 +943,8 @@ class TUIManager {
       term.moveTo(this.termWidth() - rightInfo.length, statusRow);
       term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
 
-      // 光标保持在输入框位置（不阻塞输入）
-      term.moveTo(this.inputCol + this.inputCursor, this.inputRow);
+      // 光标始终保持在底部输入框位置（不阻塞输入）
+      term.moveTo(this.inputCol, this.inputRow);
     }, 200);
   }
 
@@ -957,11 +986,14 @@ class TUIManager {
     // Render right panel (full height, title at top)
     this.renderRightPanel(panelData, h, w);
 
-    // Render messages area (leave 2 rows for input box, NO left margin)
-    this.renderMessageArea(1, 2, leftW, h - 4);
+    // Render messages area (leave 4 rows for input box + 1 spacer)
+    this.renderMessageArea(1, 2, leftW, h - 5);
 
-    // Input box (2 rows at bottom, FULL width)
+    // Input box (4 rows at bottom, FULL width)
     this.renderInputBox(w, h, panelData);
+
+    // Ensure cursor is in input box
+    term.moveTo(this.inputCol, this.inputRow);
   }
 
   private renderRightPanel(data: RightPanelData, height: number, w: number): void {
@@ -1016,43 +1048,41 @@ class TUIManager {
   }
 
   private renderInputBox(fullWidth: number, height: number, _panelData: RightPanelData): void {
-    const inputRow = height - 1;
+    const inputRow = height - 3;  // 输入框起始行（4行高度）
     const statusRow = height;
 
-    // Input row: dark bg spanning full width
+    // Store input position for cursor during spinner
+    this.inputRow = inputRow;
+    this.inputCol = 3;
+
+    // Input box: 4 rows (OpenCode style)
     const bgFill = ' '.repeat(fullWidth);
-    term.moveTo(1, inputRow);
-    term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
+    for (let r = 0; r < 4; r++) {
+      term.moveTo(1, inputRow + r);
+      term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
+      // Left blue accent
+      term.moveTo(1, inputRow + r);
+      term(`\x1b[48;5;24m \x1b[0m`);
+    }
 
-    // Left blue accent
-    term.moveTo(1, inputRow);
-    term(`\x1b[48;5;24m \x1b[0m`);
-
-    // Prompt
+    // Row 1: Prompt
     term.moveTo(2, inputRow);
     term(`${this.colors.dim}> ${this.reset()}`);
 
-    // Shortcuts on right side
+    // Shortcuts on right side (input row)
     const shortcuts = `tab`;
     term.moveTo(fullWidth - shortcuts.length, inputRow);
     term(`${this.colors.shortcut}${shortcuts}${this.reset()}`);
 
-    // Status row: dark bg spanning full width
-    term.moveTo(1, statusRow);
-    term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
-
-    // Left blue accent
-    term.moveTo(1, statusRow);
-    term(`\x1b[48;5;24m \x1b[0m`);
-
-    // Model on left
+    // Row 2: empty (for cursor/input)
+    // Row 3: Model on left
     const modeLabel = this.appMode === 'plan' ? 'Plan' : 'Build';
     this.modeLabelCol = 2;
-    this.modeLabelRow = statusRow;
-    term.moveTo(2, statusRow);
+    this.modeLabelRow = inputRow + 2;
+    term.moveTo(2, inputRow + 2);
     term(`${this.colors.modeLabel}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model}${this.reset()}`);
 
-    // Right side info
+    // Row 3: Right side info
     const inputPct = this.cumulativeUsage.total > 0
       ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
       : 0;
@@ -1060,8 +1090,14 @@ class TUIManager {
     const ver = `OpenCode ${VERSION}`;
     
     const rightInfo = `${usageText}  ctrl+p commands    ${ver}`;
-    term.moveTo(fullWidth - rightInfo.length, statusRow);
+    term.moveTo(fullWidth - rightInfo.length, inputRow + 2);
     term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
+
+    // Row 4: bottom border
+    term.moveTo(1, inputRow + 3);
+    term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
+    term.moveTo(1, inputRow + 3);
+    term(`\x1b[48;5;24m \x1b[0m`);
   }
 
   private renderPanelSection(col: number, startRow: number, title: string, lines: string[]): number {
