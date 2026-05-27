@@ -1133,10 +1133,9 @@ class TUIManager {
   }
 
   private getPanelData(): RightPanelData {
+    // 标题：不使用用户消息，保持固定标题（避免和消息区域重复）
     return {
-      taskTitle: this.messages.length > 0
-        ? this.messages[0].content.substring(0, 28)
-        : 'New Chat',
+      taskTitle: 'New Chat',
       contextUsage: this.cumulativeUsage,
       todos: getTodos(),
       model: this.model,
