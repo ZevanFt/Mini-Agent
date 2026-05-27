@@ -16,6 +16,7 @@ local_llm/configs/ollama.env
 
 # 构建产物
 dist/
+web/dist/
 *.tsbuildinfo
 
 # 依赖
