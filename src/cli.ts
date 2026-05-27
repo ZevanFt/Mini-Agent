@@ -121,7 +121,7 @@ async function main(): Promise<void> {
   program
     .command('chat')
     .description('Start interactive chat')
-    .option('-m, --model <name>', 'Model name', 'qwen2:0.5b')
+    .option('-m, --model <name>', 'Model name', 'qwen2.5-coder:3b')
     .option('-u, --url <url>', 'Ollama server URL', 'http://localhost:11434')
     .option('-v, --verbose', 'Verbose output', false)
     .option('-s, --session <id>', 'Session ID')
@@ -678,7 +678,7 @@ async function main(): Promise<void> {
     .command('run')
     .description('Single execution')
     .argument('<message>', 'Message to send')
-    .option('-m, --model <name>', 'Model name', 'qwen2:0.5b')
+    .option('-m, --model <name>', 'Model name', 'qwen2.5-coder:3b')
     .option('-u, --url <url>', 'Ollama server URL', 'http://localhost:11434')
     .option('-v, --verbose', 'Verbose output', false)
     .action(async (message, options) => {

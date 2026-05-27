@@ -27,7 +27,7 @@ interface ConfigData {
 }
 
 let globalConfig: ConfigData = {
-  model: 'qwen2:1.5b',
+  model: 'qwen2.5-coder:3b',
   temperature: 0.7,
   maxTokens: 4096,
   maxIterations: 20,
@@ -183,7 +183,7 @@ function handleList(): ToolResult {
 
 function handleReset(key?: string): ToolResult {
   const defaults: ConfigData = {
-    model: 'qwen2:1.5b',
+    model: 'qwen2.5-coder:3b',
     temperature: 0.7,
     maxTokens: 4096,
     maxIterations: 20,
