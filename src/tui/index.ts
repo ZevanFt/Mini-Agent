@@ -558,6 +558,10 @@ class TUIManager {
     if (name === 'UP') {
       if (this.slashMenu.selected > 0) {
         this.slashMenu.selected--;
+        // 滚动：选中项移到可视区域顶部之上时，scrollOffset 跟着上移
+        if (this.slashMenu.selected < this.slashMenu.scrollOffset) {
+          this.slashMenu.scrollOffset = this.slashMenu.selected;
+        }
         this.renderSlashMenu();
       }
       return;
@@ -567,6 +571,11 @@ class TUIManager {
       const filtered = this.getFilteredCommands();
       if (this.slashMenu.selected < filtered.length - 1) {
         this.slashMenu.selected++;
+        // 滚动：选中项移出可视区域底部时，scrollOffset 跟着下移
+        const visibleEnd = this.slashMenu.scrollOffset + this.slashMenu.height;
+        if (this.slashMenu.selected >= visibleEnd) {
+          this.slashMenu.scrollOffset = this.slashMenu.selected - this.slashMenu.height + 1;
+        }
         this.renderSlashMenu();
       }
       return;
@@ -576,6 +585,14 @@ class TUIManager {
       const filtered = this.getFilteredCommands();
       if (filtered.length > 0) {
         this.slashMenu.selected = (this.slashMenu.selected + 1) % filtered.length;
+        // TAB 循环也需要同步滚动
+        const visibleEnd = this.slashMenu.scrollOffset + this.slashMenu.height;
+        if (this.slashMenu.selected >= visibleEnd) {
+          this.slashMenu.scrollOffset = this.slashMenu.selected - this.slashMenu.height + 1;
+        }
+        if (this.slashMenu.selected < this.slashMenu.scrollOffset) {
+          this.slashMenu.scrollOffset = this.slashMenu.selected;
+        }
         this.renderSlashMenu();
       }
       return;
