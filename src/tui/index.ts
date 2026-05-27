@@ -118,6 +118,7 @@ interface SlashMenuState {
   visible: boolean;
   filter: string;
   selected: number;
+  scrollOffset: number;
   col: number;
   row: number;
   width: number;
@@ -144,6 +145,7 @@ class TUIManager {
     visible: false,
     filter: '',
     selected: 0,
+    scrollOffset: 0,
     col: 0,
     row: 0,
     width: 0,
