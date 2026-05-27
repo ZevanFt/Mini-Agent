@@ -506,6 +506,7 @@ class TUIManager {
       visible: true,
       filter: '',
       selected: 0,
+      scrollOffset: 0,
       col: menuCol,
       row: Math.max(1, menuRow),
       width: menuWidth,
@@ -519,6 +520,7 @@ class TUIManager {
     this.slashMenu.visible = false;
     this.slashMenu.filter = '';
     this.slashMenu.selected = 0;
+    this.slashMenu.scrollOffset = 0;
   }
 
   private handleSlashMenuKey(name: string): void {
