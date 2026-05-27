@@ -381,7 +381,12 @@ class TUIManager {
 
   private toggleMode(): void {
     this.appMode = this.appMode === 'plan' ? 'build' : 'plan';
-    this.renderModeLabel();
+    const modeLabel = this.appMode === 'plan' ? 'Plan' : 'Build';
+    // 只更新文字
+    term.moveTo(this.modeLabelCol, this.modeLabelRow);
+    term(`${this.colors.modeLabel}${modeLabel}${this.reset()}`);
+    // 光标立刻回到输入框
+    term.moveTo(this.inputCol + this.inputCursor, this.inputRow);
   }
 
   // ====================  INPUT  ====================
