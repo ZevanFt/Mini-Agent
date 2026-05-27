@@ -896,10 +896,10 @@ class TUIManager {
 
     this.clearScreen();
 
-    // Vertical divider - full height
+    // Vertical divider - full height (更淡更细，OpenCode 风格)
     for (let row = 1; row <= h; row++) {
       term.moveTo(leftW + 1, row);
-      term(`${this.colors.dim}│${this.reset()}`);
+      term(`\x1b[2m│${this.reset()}`);
     }
 
     // Title at top left
@@ -972,11 +972,11 @@ class TUIManager {
     term.moveTo(2, inputRow);
     term(`${this.colors.dim}> ${this.reset()}`);
 
-    // Shortcuts on right side (OpenCode 风格：分开的快捷键提示)
-    const shortcuts = `tab`;
-    const scCol = leftW - shortcuts.length;
-    term.moveTo(scCol, inputRow);
-    term(`${this.colors.shortcut}${shortcuts}${this.reset()}`);
+    // Shortcuts on right side (OpenCode 风格：输入行右上角只有 tab)
+    const inputShortcuts = `tab`;
+    const inputScCol = leftW - inputShortcuts.length;
+    term.moveTo(inputScCol, inputRow);
+    term(`${this.colors.shortcut}${inputShortcuts}${this.reset()}`);
 
     // Status row
     term.moveTo(1, statusRow);
@@ -986,23 +986,41 @@ class TUIManager {
     term.moveTo(1, statusRow);
     term(`\x1b[48;5;24m \x1b[0m`);
 
-    // Model
+    // Model on left
     const modeLabel = this.appMode === 'plan' ? 'Plan' : 'Build';
     term.moveTo(2, statusRow);
     term(`${this.colors.modeLabel}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model}${this.reset()}`);
 
-    // Right side info (OpenCode 风格)
+    // Right side info (严格右对齐：tokens + ctrl+p commands + version)
     const inputPct = this.cumulativeUsage.total > 0
       ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
       : 0;
     const usageText = `${(this.cumulativeUsage.total / 1000).toFixed(1)}K (${inputPct}%)`;
     const ver = `OpenCode ${VERSION}`;
     
-    // Right side: tokens + shortcuts + version
-    const rightText = `${usageText}  ctrl+p    ${ver}`;
-    const rightCol = leftW - rightText.length;
-    term.moveTo(rightCol, statusRow);
-    term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
+    // 构建右对齐文本：tokens dim + ctrl+p shortcut + version dim
+    const statusShortcuts = `ctrl+p`;
+    const rightInfoParts = [
+      { text: usageText, color: this.colors.dim },
+      { text: '  ', color: '' },
+      { text: statusShortcuts, color: this.colors.shortcut },
+      { text: '    ', color: '' },
+      { text: ver, color: this.colors.dim },
+    ];
+    
+    // 计算总长度用于右对齐
+    let totalLen = 0;
+    for (const part of rightInfoParts) {
+      totalLen += part.text.length;
+    }
+    
+    const startCol = leftW - totalLen;
+    let col = startCol;
+    for (const part of rightInfoParts) {
+      term.moveTo(col, statusRow);
+      term(`${part.color}${part.text}${this.reset()}`);
+      col += part.text.length;
+    }
   }
 
   private renderPanelSection(col: number, startRow: number, title: string, lines: string[]): number {
