@@ -617,7 +617,7 @@ class TUIManager {
   private renderSlashMenu(): void {
     const { col, row, width, height } = this.slashMenu;
     const filtered = this.getFilteredCommands();
-    const visible = filtered.slice(0, height);
+    const visible = filtered.slice(this.slashMenu.scrollOffset, this.slashMenu.scrollOffset + height);
 
     // 暗色背景（无边框，类似 OpenCode）
     const bgFill = ' '.repeat(width);
@@ -628,7 +628,8 @@ class TUIManager {
 
     // 命令列表
     visible.forEach((cmd, i) => {
-      const isSel = i === this.slashMenu.selected;
+      const globalIdx = this.slashMenu.scrollOffset + i;
+      const isSel = globalIdx === this.slashMenu.selected;
       const cmdStr = cmd.cmd;
       const descStr = cmd.desc;
       const maxCmdLen = 15;
@@ -638,10 +639,11 @@ class TUIManager {
 
       term.moveTo(col + 1, row + i);
       if (isSel) {
-        // 整行品牌蓝色背景（OpenCode 风格）
+        // 整行品牌蓝色背景
         term(`\x1b[48;5;24m\x1b[38;5;255m ${paddedCmd} ${displayDesc}${' '.repeat(Math.max(0, width - paddedCmd.length - displayDesc.length - 3))}\x1b[0m`);
       } else {
-        term(`\x1b[48;5;236m\x1b[38;5;208m ${paddedCmd} \x1b[38;5;248m${displayDesc}${' '.repeat(Math.max(0, width - paddedCmd.length - displayDesc.length - 3))}\x1b[0m`);
+        // 未选中：白色文字（OpenCode 风格）
+        term(`\x1b[48;5;236m\x1b[38;5;255m ${paddedCmd} \x1b[38;5;248m${displayDesc}${' '.repeat(Math.max(0, width - paddedCmd.length - displayDesc.length - 3))}\x1b[0m`);
       }
     });
   }
