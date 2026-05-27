@@ -436,7 +436,7 @@ class TUIManager {
     const remaining = this.termWidth() - this.inputCol + 1;
     const displayText = display.length > remaining ? display.substring(0, remaining - 1) : display;
     term(`${this.colors.accent}${displayText}${this.reset()}`);
-    term.eraseLineEnd();
+    term(`\x1b[K`);
     this.moveCursor();
   }
 
