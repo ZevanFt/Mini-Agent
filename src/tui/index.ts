@@ -896,28 +896,28 @@ class TUIManager {
 
     this.clearScreen();
 
+    // Vertical divider - full height
+    for (let row = 1; row <= h; row++) {
+      term.moveTo(leftW + 1, row);
+      term(`${this.colors.dim}│${this.reset()}`);
+    }
+
     // Title at top left
     const title = panelData.taskTitle || 'New Chat';
     term.moveTo(2, 1);
     term(`${this.colors.accent}${title}${this.reset()}`);
 
-    // Render messages area (leave 3 rows at bottom for input box)
-    this.renderMessageArea(1, 2, leftW, h - 5);
+    // Render right panel (full height)
+    this.renderRightPanel(panelData, h, w);
 
-    // Render right panel
-    this.renderRightPanel(panelData, h - 2);
+    // Render messages area (leave 2 rows for input box)
+    this.renderMessageArea(1, 2, leftW, h - 4);
 
-    // Vertical divider (not on input rows)
-    for (let row = 1; row < h - 2; row++) {
-      term.moveTo(leftW + 1, row);
-      term(`${this.colors.dim}│${this.reset()}`);
-    }
-
-    // Input box (2 rows at bottom)
-    this.renderInputBox(leftW, h, panelData);
+    // Input box (2 rows at bottom, left side only)
+    this.renderInputBox(leftW, h, w, panelData);
   }
 
-  private renderRightPanel(data: RightPanelData, height: number): void {
+  private renderRightPanel(data: RightPanelData, height: number, w: number): void {
     const leftW = this.leftWidth();
     let row = 1;
 
@@ -935,11 +935,11 @@ class TUIManager {
     // LSP section
     row = this.renderPanelSection(leftW + 2, row, 'LSP', ['LSPs are disabled']);
 
-    // Bottom bar info
-    const bottomRow = height - 1;
+    // Bottom info: path and version
     const cwd = process.cwd();
     const cwdShort = cwd.split('\\').pop() || '';
-    term.moveTo(leftW + 2, bottomRow);
+
+    term.moveTo(leftW + 2, height - 1);
     term(`${this.colors.dim}/${cwdShort}:main${this.reset()}`);
 
     const ver = `OpenCode ${VERSION}`;
@@ -947,47 +947,51 @@ class TUIManager {
     term(`${this.colors.dim}${ver}${this.reset()}`);
   }
 
-  private renderInputBox(leftW: number, height: number, _panelData: RightPanelData): void {
-    const w = this.termWidth();
+  private renderInputBox(leftW: number, height: number, w: number, _panelData: RightPanelData): void {
     const inputRow = height - 1;
     const statusRow = height;
 
-    // Draw dark input box background
-    const bgFill = ' '.repeat(w);
+    // Input row: dark bg, left accent, prompt, shortcuts
+    const bgFill = ' '.repeat(leftW);
     term.moveTo(1, inputRow);
     term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
 
-    // Left blue accent line
+    // Left blue accent
     term.moveTo(1, inputRow);
     term(`\x1b[48;5;24m \x1b[0m`);
 
-    // Prompt text
+    // Prompt
     term.moveTo(2, inputRow);
     term(`${this.colors.dim}> ${this.reset()}`);
 
-    // Right side: shortcuts
-    const shortcuts = `${this.colors.shortcut}tab agents${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}`;
-    const scCol = w - shortcuts.length - 1;
+    // Shortcuts
+    const shortcuts = `tab agents  ctrl+p commands`;
+    const scCol = leftW - shortcuts.length;
     term.moveTo(scCol, inputRow);
-    term(shortcuts);
+    term(`${this.colors.shortcut}${shortcuts}${this.reset()}`);
 
-    // Bottom status row inside input box
+    // Status row
+    term.moveTo(1, statusRow);
+    term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
+
+    // Left blue accent
+    term.moveTo(1, statusRow);
+    term(`\x1b[48;5;24m \x1b[0m`);
+
+    // Model
     const modeLabel = this.appMode === 'plan' ? 'Plan' : 'Build';
     term.moveTo(2, statusRow);
     term(`${this.colors.modeLabel}${modeLabel}${this.reset()} ${this.colors.dim}· ${this.model}${this.reset()}`);
 
-    // Right side: tokens + version
+    // Right side info
     const inputPct = this.cumulativeUsage.total > 0
       ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
       : 0;
     const usageText = `${(this.cumulativeUsage.total / 1000).toFixed(1)}K (${inputPct}%)`;
-    const rightText = `  ${this.colors.shortcut}ctrl+p commands${this.reset()}`;
-    term.moveTo(w - usageText.length - rightText.length - 4, statusRow);
-    term(`${this.colors.dim}${usageText}${this.reset()}`);
-
     const ver = `OpenCode ${VERSION}`;
-    term.moveTo(w - ver.length - 1, statusRow);
-    term(`${this.colors.dim}${ver}${this.reset()}`);
+    const rightCol = leftW - usageText.length - ver.length - 6;
+    term.moveTo(rightCol, statusRow);
+    term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
   }
 
   private renderPanelSection(col: number, startRow: number, title: string, lines: string[]): number {
