@@ -891,10 +891,12 @@ class TUIManager {
   private filterJsonContent(content: string): string {
     // 如果是纯 JSON 对象，过滤掉
     const trimmed = content.trim();
+    
+    // 处理单行 JSON tool_call
     if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
       try {
         const parsed = JSON.parse(trimmed);
-        if (parsed.name && parsed.arguments) {
+        if (parsed.name && (parsed.arguments !== undefined || parsed.message !== undefined)) {
           // 这是 tool_call JSON，过滤掉
           return '';
         }
@@ -902,21 +904,18 @@ class TUIManager {
         // 不是有效 JSON，保留
       }
     }
-    // 过滤掉 markdown JSON 代码块
-    if (trimmed.startsWith('```json') || trimmed.startsWith('```JSON')) {
-      return '';
+    
+    // 处理多行 JSON 或带 ```json 标记的
+    if (trimmed.includes('```json') || trimmed.includes('```JSON')) {
+      // 移除 JSON 代码块
+      return trimmed.replace(/```json\s*[\s\S]*?```/gi, '').trim();
     }
+    
     return content;
   }
 
   private startSpinner(): void {
     this.spinnerIdx = 0;
-    const h = this.termHeight();
-    // 设置输入框光标位置（底部）
-    if (!this.inputRow) {
-      this.inputRow = h - 1;
-      this.inputCol = 2;
-    }
 
     this.spinnerInterval = setInterval(() => {
       if (!this.running) return;
@@ -968,6 +967,9 @@ class TUIManager {
     const rightInfo = `${usageText}  ctrl+p commands    ${ver}`;
     term.moveTo(this.termWidth() - rightInfo.length, statusRow);
     term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
+    
+    // 光标移回输入框（重要！）
+    term.moveTo(this.inputCol, this.inputRow);
   }
 
   private renderActiveLayout(panelData: RightPanelData): void {

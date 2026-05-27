@@ -11,6 +11,8 @@
   "scripts": {
     "build": "bun build src/cli.ts --outfile dist/cli.js --target=bun",
     "dev": "bun run src/cli.ts",
+    "web:dev": "vite --config vite.web.config.ts",
+    "web:build": "vite build --config vite.web.config.ts",
     "test": "bun test test/**/*.test.ts",
     "test:core": "bun test test/core/*.test.ts",
     "test:tools": "bun test test/tools/*.test.ts",
@@ -40,7 +42,13 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "typescript": "^5.4.0"
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.4.0"
   },
   "peerDependencies": {
     "typescript": "^5"

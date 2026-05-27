@@ -10,7 +10,8 @@ import type { Agent } from '../core/agent.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const WEB_ROOT = path.join(__dirname, '..', '..', 'web');
+const WEB_ROOT = path.join(__dirname, '..', '..', 'web', 'dist');
+const WEB_DEV_ROOT = path.join(__dirname, '..', '..', 'web');
 
 export interface ServerOptions {
   port?: number;
@@ -29,6 +30,18 @@ function generateMsgId(): string {
 
 function generateToken(): string {
   return `token_${Date.now()}_${Math.random().toString(36).slice(2, 15)}`;
+}
+
+function getContentType(filePath: string): string {
+  if (filePath.endsWith('.png')) return 'image/png';
+  if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) return 'image/jpeg';
+  if (filePath.endsWith('.svg')) return 'image/svg+xml';
+  if (filePath.endsWith('.webp')) return 'image/webp';
+  if (filePath.endsWith('.ico')) return 'image/x-icon';
+  if (filePath.endsWith('.css')) return 'text/css';
+  if (filePath.endsWith('.js')) return 'application/javascript';
+  if (filePath.endsWith('.html')) return 'text/html';
+  return 'application/octet-stream';
 }
 
 function serveStaticFile(res: ServerResponse, filePath: string, contentType: string): void {
@@ -240,16 +253,20 @@ export class MiniAgentServer {
         serveStaticFile(res, path.join(WEB_ROOT, 'index.html'), 'text/html');
         return;
       }
+      if (pathname.startsWith('/assets/')) {
+        serveStaticFile(res, path.join(WEB_ROOT, pathname), getContentType(pathname));
+        return;
+      }
       if (pathname.endsWith('.css')) {
-        serveStaticFile(res, path.join(WEB_ROOT, url.pathname), 'text/css');
+        serveStaticFile(res, path.join(WEB_ROOT, pathname), 'text/css');
         return;
       }
       if (pathname.endsWith('.js')) {
-        serveStaticFile(res, path.join(WEB_ROOT, url.pathname), 'application/javascript');
+        serveStaticFile(res, path.join(WEB_ROOT, pathname), 'application/javascript');
         return;
       }
       if (pathname.endsWith('.html')) {
-        serveStaticFile(res, path.join(WEB_ROOT, url.pathname), 'text/html');
+        serveStaticFile(res, path.join(WEB_ROOT, pathname), 'text/html');
         return;
       }
 
