@@ -217,121 +217,125 @@ class TUIManager {
       }
     });
 
-    // 唯一 key handler
+    // 唯一 key handler（带 try-catch 保护）
     term.on('key', (name: string) => {
-      if (!this.running) return;
+      try {
+        if (!this.running) return;
 
-      // CTRL_C 退出
-      if (name === 'CTRL_C') {
-        if (!this.exitConfirmed) {
-          this.exitConfirmed = true;
-          this.showExitConfirm();
-        } else {
-          this.destroy();
-        }
-        return;
-      }
-
-      // Slash 菜单模式
-      if (this.slashMenu.visible) {
-        this.handleSlashMenuKey(name);
-        return;
-      }
-
-      // TAB: 切换模式
-      if (name === 'TAB') {
-        this.toggleMode();
-        return;
-      }
-
-      // ENTER: 提交输入
-      if (name === 'ENTER') {
-        this.submitInput();
-        return;
-      }
-
-      // ESCAPE: 取消输入
-      if (name === 'ESCAPE') {
-        this.cancelInput();
-        return;
-      }
-
-      // BACKSPACE: 删除
-      if (name === 'BACKSPACE') {
-        if (this.inputCursor > 0) {
-          this.inputBuffer = this.inputBuffer.slice(0, this.inputCursor - 1) + this.inputBuffer.slice(this.inputCursor);
-          this.inputCursor--;
-          this.redrawInput();
-        }
-        return;
-      }
-
-      // DELETE: 删除光标后
-      if (name === 'DELETE') {
-        if (this.inputCursor < this.inputBuffer.length) {
-          this.inputBuffer = this.inputBuffer.slice(0, this.inputCursor) + this.inputBuffer.slice(this.inputCursor + 1);
-          this.redrawInput();
-        }
-        return;
-      }
-
-      // 方向键
-      if (name === 'LEFT') {
-        if (this.inputCursor > 0) {
-          this.inputCursor--;
-          this.moveCursor();
-        }
-        return;
-      }
-
-      if (name === 'RIGHT') {
-        if (this.inputCursor < this.inputBuffer.length) {
-          this.inputCursor++;
-          this.moveCursor();
-        }
-        return;
-      }
-
-      if (name === 'UP') {
-        if (this.inputHistory.length > 0) {
-          this.inputBuffer = this.inputHistory[0];
-          this.inputCursor = this.inputBuffer.length;
-          this.redrawInput();
-        }
-        return;
-      }
-
-      if (name === 'DOWN') {
-        if (this.inputHistory.length > 1) {
-          this.inputBuffer = this.inputHistory[1];
-          this.inputCursor = this.inputBuffer.length;
-          this.redrawInput();
-        }
-        return;
-      }
-
-      // CTRL_L: 刷新
-      if (name === 'CTRL_L') {
-        if (this.tuiMode === 'idle') {
-          this.renderIdle();
-        } else {
-          this.renderActiveLayout(this.getPanelData());
-        }
-        return;
-      }
-
-      // 普通字符
-      if (name.length === 1) {
-        this.inputBuffer = this.inputBuffer.slice(0, this.inputCursor) + name + this.inputBuffer.slice(this.inputCursor);
-        this.inputCursor++;
-
-        // 检测 slash 命令
-        if (this.inputBuffer === '/') {
-          this.openSlashMenu();
+        // CTRL_C 退出
+        if (name === 'CTRL_C') {
+          if (!this.exitConfirmed) {
+            this.exitConfirmed = true;
+            this.showExitConfirm();
+          } else {
+            this.destroy();
+          }
           return;
         }
 
-        this.redrawInput();
+        // Slash 菜单模式
+        if (this.slashMenu.visible) {
+          this.handleSlashMenuKey(name);
+          return;
+        }
+
+        // TAB: 切换模式
+        if (name === 'TAB') {
+          this.toggleMode();
+          return;
+        }
+
+        // ENTER: 提交输入
+        if (name === 'ENTER') {
+          this.submitInput();
+          return;
+        }
+
+        // ESCAPE: 取消输入
+        if (name === 'ESCAPE') {
+          this.cancelInput();
+          return;
+        }
+
+        // BACKSPACE: 删除
+        if (name === 'BACKSPACE') {
+          if (this.inputCursor > 0) {
+            this.inputBuffer = this.inputBuffer.slice(0, this.inputCursor - 1) + this.inputBuffer.slice(this.inputCursor);
+            this.inputCursor--;
+            this.redrawInput();
+          }
+          return;
+        }
+
+        // DELETE: 删除光标后
+        if (name === 'DELETE') {
+          if (this.inputCursor < this.inputBuffer.length) {
+            this.inputBuffer = this.inputBuffer.slice(0, this.inputCursor) + this.inputBuffer.slice(this.inputCursor + 1);
+            this.redrawInput();
+          }
+          return;
+        }
+
+        // 方向键
+        if (name === 'LEFT') {
+          if (this.inputCursor > 0) {
+            this.inputCursor--;
+            this.moveCursor();
+          }
+          return;
+        }
+
+        if (name === 'RIGHT') {
+          if (this.inputCursor < this.inputBuffer.length) {
+            this.inputCursor++;
+            this.moveCursor();
+          }
+          return;
+        }
+
+        if (name === 'UP') {
+          if (this.inputHistory.length > 0) {
+            this.inputBuffer = this.inputHistory[0];
+            this.inputCursor = this.inputBuffer.length;
+            this.redrawInput();
+          }
+          return;
+        }
+
+        if (name === 'DOWN') {
+          if (this.inputHistory.length > 0) {
+            this.inputBuffer = this.inputHistory[0];
+            this.inputCursor = this.inputBuffer.length;
+            this.redrawInput();
+          }
+          return;
+        }
+
+        // CTRL_L: 刷新
+        if (name === 'CTRL_L') {
+          if (this.tuiMode === 'idle') {
+            this.renderIdle();
+          } else {
+            this.renderActiveLayout(this.getPanelData());
+          }
+          return;
+        }
+
+        // 普通字符
+        if (name.length === 1) {
+          this.inputBuffer = this.inputBuffer.slice(0, this.inputCursor) + name + this.inputBuffer.slice(this.inputCursor);
+          this.inputCursor++;
+
+          // 检测 slash 命令
+          if (this.inputBuffer === '/') {
+            this.openSlashMenu();
+            return;
+          }
+
+          this.redrawInput();
+        }
+      } catch (err) {
+        process.stderr.write(`[TUI] key handler error: ${err instanceof Error ? err.message : String(err)}\n`);
       }
     });
 
