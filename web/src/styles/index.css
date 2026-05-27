@@ -1,65 +1,46 @@
-/* ========================================
-   MiniAgent Web UI — CSS Variables
-   ======================================== */
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --bg-canvas: #09090b;
-  --bg-surface: #111113;
-  --bg-elevated: #18181b;
-  --bg-subtle: #1e1e22;
-  --bg-hover: #27272a;
-  --bg-active: #2e2e33;
+  --bg-canvas: #07070a;
+  --bg-surface: #0c0c10;
+  --bg-elevated: #111118;
+  --bg-subtle: #16161f;
+  --bg-hover: #1c1c28;
+  --bg-active: #22223a;
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.1);
-  --border-focus: rgba(255, 255, 255, 0.2);
+  --border-subtle: rgba(245, 158, 11, 0.08);
+  --border-default: rgba(245, 158, 11, 0.15);
+  --border-focus: rgba(245, 158, 11, 0.3);
 
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-muted: #52525b;
+  --text-primary: #e8e8ec;
+  --text-secondary: #8888a0;
+  --text-muted: #4a4a60;
 
   --accent: #f59e0b;
-  --accent-soft: rgba(245, 158, 11, 0.12);
-  --accent-glow: rgba(245, 158, 11, 0.08);
+  --accent-soft: rgba(245, 158, 11, 0.08);
+  --accent-glow: rgba(245, 158, 11, 0.04);
   --accent-hover: #fbbf24;
+  --accent-dim: rgba(245, 158, 11, 0.6);
 
-  --user-msg-bg: rgba(245, 158, 11, 0.07);
-  --user-msg-border: rgba(245, 158, 11, 0.15);
+  --neon-amber: 245, 158, 11;
+  --neon-blue: 56, 189, 248;
+  --neon-green: 52, 211, 153;
+
+  --user-msg-bg: rgba(245, 158, 11, 0.04);
+  --user-msg-border: rgba(245, 158, 11, 0.12);
   --assistant-msg-bg: transparent;
 
-  --success: #22c55e;
+  --success: #34d399;
   --warning: #f59e0b;
-  --error: #ef4444;
+  --error: #f87171;
 
-  --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Space Mono', 'JetBrains Mono', 'Fira Code', monospace;
   --font-size-base: 14px;
 
-  --sidebar-width: 280px;
-  --top-bar-height: 56px;
-  --right-panel-width: 240px;
-}
-
-[data-theme="light"] {
-  --bg-canvas: #fafafa;
-  --bg-surface: #ffffff;
-  --bg-elevated: #f4f4f5;
-  --bg-subtle: #e8e8ec;
-  --bg-hover: #e0e0e4;
-  --bg-active: #d6d6da;
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-default: rgba(0, 0, 0, 0.1);
-  --border-focus: rgba(0, 0, 0, 0.2);
-  --text-primary: #09090b;
-  --text-secondary: #52525b;
-  --text-muted: #a1a1aa;
-  --accent: #d97706;
-  --accent-soft: rgba(217, 119, 6, 0.1);
-  --accent-glow: rgba(217, 119, 6, 0.06);
-  --accent-hover: #b45309;
-  --user-msg-bg: rgba(217, 119, 6, 0.06);
-  --user-msg-border: rgba(217, 119, 6, 0.15);
-  --assistant-msg-bg: transparent;
+  --sidebar-width: 260px;
+  --top-bar-height: 48px;
+  --right-panel-width: 220px;
 }
 
 *, *::before, *::after {
@@ -81,14 +62,29 @@ body {
   color: var(--text-primary);
   height: 100vh;
   overflow: hidden;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(245, 158, 11, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 158, 11, 0.015) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
 }
 
 #root {
   height: 100vh;
+  position: relative;
+  z-index: 1;
 }
 
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -97,29 +93,60 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--bg-active);
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
 
+/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1); }
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(var(--neon-amber), 0.15); }
+  50% { box-shadow: 0 0 20px rgba(var(--neon-amber), 0.3); }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
 }
 
 @keyframes modalIn {
-  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  from { opacity: 0; transform: scale(0.97) translateY(12px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes gridShimmer {
+  0% { background-position: 0 0; }
+  100% { background-position: 32px 32px; }
+}
+
+@keyframes textGlow {
+  0%, 100% { text-shadow: 0 0 8px rgba(var(--neon-amber), 0.2); }
+  50% { text-shadow: 0 0 20px rgba(var(--neon-amber), 0.4); }
 }

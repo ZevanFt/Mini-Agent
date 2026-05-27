@@ -33,7 +33,6 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSuggestion, language })
     <div className="welcome-screen">
       <div className="welcome-content">
         <img src="/assets/logo.png" alt="MiniAgent" className="welcome-logo-img" />
-        <h1 className="welcome-title">MiniAgent</h1>
         <p className="welcome-subtitle">{t.subtitle}</p>
         <div className="suggestions">
           {t.suggestions.map((s, i) => (

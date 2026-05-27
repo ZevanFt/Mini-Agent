@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 
 interface InputAreaProps {
   onSend: (content: string) => void;
@@ -23,10 +23,6 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading, language }) =>
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const t = i18nMap[language] || i18nMap.en;
-
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -63,6 +59,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading, language }) =>
   return (
     <div id="input-area">
       <div className="input-wrapper">
+        <span className="input-prompt">{'>'}</span>
         <textarea
           ref={textareaRef}
           id="message-input"

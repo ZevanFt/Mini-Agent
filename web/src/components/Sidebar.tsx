@@ -42,10 +42,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     <aside className="sidebar">
       <div className="sidebar-brand">
         <img src="/assets/logo.png" alt="MiniAgent" className="brand-logo" />
-        <div className="brand-text">
-          <div className="brand-name">MiniAgent</div>
-          <div className="brand-tag">{t.logo_subtitle}</div>
-        </div>
       </div>
 
       <button className="btn-new-session" onClick={onNewSession}>
