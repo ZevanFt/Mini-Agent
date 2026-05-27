@@ -190,7 +190,7 @@ class TUIManager {
     };
 
     this.layout = {
-      rightPanelWidth: 60,
+      rightPanelWidth: 45,
       maxHistoryRows: 50,
       ...config.layout,
     };
@@ -974,23 +974,25 @@ class TUIManager {
     const w = this.termWidth();
     const h = this.termHeight();
     const leftW = this.leftWidth();
+    const inputBoxRows = 6;  // 上边距1 + 输入框4 + 下边距1
+    const contentHeight = h - inputBoxRows;
 
     this.clearScreen();
 
-    // Vertical divider - full height
-    for (let row = 1; row <= h; row++) {
+    // Vertical divider - only up to content area
+    for (let row = 1; row <= contentHeight; row++) {
       term.moveTo(leftW + 1, row);
       term(`\x1b[2m│${this.reset()}`);
     }
 
-    // Render right panel (full height, title at top)
-    this.renderRightPanel(panelData, h, w);
+    // Render right panel (only up to content area, title at top)
+    this.renderRightPanel(panelData, contentHeight, w);
 
-    // Render messages area (leave 4 rows for input box + 1 spacer)
-    this.renderMessageArea(1, 2, leftW, h - 5);
+    // Render messages area
+    this.renderMessageArea(1, 2, leftW, contentHeight - 2);
 
-    // Input box (4 rows at bottom, FULL width)
-    this.renderInputBox(w, h, panelData);
+    // Input box (only on left side)
+    this.renderInputBox(leftW, h, panelData);
 
     // Ensure cursor is in input box
     term.moveTo(this.inputCol, this.inputRow);
@@ -998,11 +1000,24 @@ class TUIManager {
 
   private renderRightPanel(data: RightPanelData, height: number, w: number): void {
     const leftW = this.leftWidth();
-    let row = 1;
+    const panelW = w - leftW - 1;
+    const panelCol = leftW + 2;
 
-    // 对话标题在右侧边栏顶部（OpenCode 风格）
+    // 右侧面板背景色 #141414
+    const panelBg = '\x1b[48;2;20;20;20m';
+    const panelFill = ' '.repeat(panelW);
+    
+    for (let r = 1; r <= height; r++) {
+      term.moveTo(panelCol, r);
+      term(`${panelBg}${panelFill}\x1b[0m`);
+    }
+
+    let row = 1;
+    const contentCol = panelCol + 1;
+
+    // 对话标题在右侧边栏顶部
     const title = data.taskTitle || 'New Chat';
-    term.moveTo(leftW + 3, row);
+    term.moveTo(contentCol, row);
     term(`${this.colors.accent}${title}${this.reset()}`);
     row += 2;
 
@@ -1011,27 +1026,27 @@ class TUIManager {
       ? Math.round((this.cumulativeUsage.output / Math.max(1, this.cumulativeUsage.total)) * 100)
       : 0;
     
-    term.moveTo(leftW + 3, row);
+    term.moveTo(contentCol, row);
     term(`${this.colors.panelTitle}Context${this.reset()}`);
     row++;
     
-    term.moveTo(leftW + 3, row);
+    term.moveTo(contentCol, row);
     term(`${this.colors.dim}${this.cumulativeUsage.total.toLocaleString()} tokens${this.reset()}`);
     row++;
     
-    term.moveTo(leftW + 3, row);
+    term.moveTo(contentCol, row);
     term(`${this.colors.dim}${inputPct}% used${this.reset()}`);
     row++;
     
-    term.moveTo(leftW + 3, row);
+    term.moveTo(contentCol, row);
     term(`${this.colors.dim}$0.00 spent${this.reset()}`);
     row += 2;
 
     // LSP section
-    term.moveTo(leftW + 3, row);
+    term.moveTo(contentCol, row);
     term(`${this.colors.panelTitle}LSP${this.reset()}`);
     row++;
-    term.moveTo(leftW + 3, row);
+    term.moveTo(contentCol, row);
     term(`${this.colors.dim}LSPs are disabled${this.reset()}`);
     row += 2;
 
@@ -1039,24 +1054,25 @@ class TUIManager {
     const cwd = process.cwd();
     const cwdShort = cwd.split('\\').pop() || '';
 
-    term.moveTo(leftW + 3, height - 1);
+    term.moveTo(contentCol, height - 1);
     term(`${this.colors.dim}/${cwdShort}:main${this.reset()}`);
 
     const ver = `OpenCode ${VERSION}`;
-    term.moveTo(leftW + 3, height);
+    term.moveTo(contentCol, height);
     term(`${this.colors.dim}${ver}${this.reset()}`);
   }
 
-  private renderInputBox(fullWidth: number, height: number, _panelData: RightPanelData): void {
-    const inputRow = height - 3;  // 输入框起始行（4行高度）
-    const statusRow = height;
+  private renderInputBox(leftW: number, height: number, _panelData: RightPanelData): void {
+    const inputBoxRows = 6;
+    const boxTop = height - inputBoxRows + 1;  // 上边距1行 + 输入框4行
+    const inputRow = boxTop + 1;  // 跳过1行上边距
 
     // Store input position for cursor during spinner
     this.inputRow = inputRow;
     this.inputCol = 3;
 
-    // Input box: 4 rows (OpenCode style)
-    const bgFill = ' '.repeat(fullWidth);
+    // Input box: 4 rows, only on left side
+    const bgFill = ' '.repeat(leftW);
     for (let r = 0; r < 4; r++) {
       term.moveTo(1, inputRow + r);
       term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
@@ -1071,7 +1087,7 @@ class TUIManager {
 
     // Shortcuts on right side (input row)
     const shortcuts = `tab`;
-    term.moveTo(fullWidth - shortcuts.length, inputRow);
+    term.moveTo(leftW - shortcuts.length, inputRow);
     term(`${this.colors.shortcut}${shortcuts}${this.reset()}`);
 
     // Row 2: empty (for cursor/input)
@@ -1090,14 +1106,8 @@ class TUIManager {
     const ver = `OpenCode ${VERSION}`;
     
     const rightInfo = `${usageText}  ctrl+p commands    ${ver}`;
-    term.moveTo(fullWidth - rightInfo.length, inputRow + 2);
+    term.moveTo(leftW - rightInfo.length, inputRow + 2);
     term(`${this.colors.dim}${usageText}${this.reset()}  ${this.colors.shortcut}ctrl+p commands${this.reset()}    ${this.colors.dim}${ver}${this.reset()}`);
-
-    // Row 4: bottom border
-    term.moveTo(1, inputRow + 3);
-    term(`\x1b[48;5;236m${bgFill}\x1b[0m`);
-    term.moveTo(1, inputRow + 3);
-    term(`\x1b[48;5;24m \x1b[0m`);
   }
 
   private renderPanelSection(col: number, startRow: number, title: string, lines: string[]): number {
