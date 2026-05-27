@@ -833,9 +833,21 @@ class TUIManager {
     const panelData = this.getPanelData();
     this.renderActiveLayout(panelData);
 
+    // 清空输入框区域，防止等待时按键残留
+    const h = this.termHeight();
+    const inputRow = h - 1;
+    const statusRow = h;
+    const bgFill = ' '.repeat(this.leftWidth());
+    for (let r = inputRow; r <= statusRow; r++) {
+      term.moveTo(1, r);
+      term(`${this.colors.dim}${bgFill}${this.reset()}`);
+    }
+
     this.startSpinner();
 
+    const startTime = Date.now();
     let response = '';
+    const toolCalls: string[] = [];
     try {
       for await (const chunk of this.agent.chat(text)) {
         if (!this.running) break;
@@ -843,6 +855,10 @@ class TUIManager {
         if (chunk.type === 'content' && chunk.content) {
           response += chunk.content;
           this.streamContentToActiveArea(response, panelData);
+        }
+
+        if (chunk.type === 'tool_call' && chunk.toolCall) {
+          toolCalls.push(chunk.toolCall.name);
         }
 
         if (chunk.usage) {
@@ -857,6 +873,12 @@ class TUIManager {
     }
 
     if (response) {
+      const elapsed = Date.now() - startTime;
+      this.messages.push({ role: 'thought', content: `Thought: ${elapsed}ms`, timestamp: Date.now() });
+      if (toolCalls.length > 0) {
+        const toolSummary = `${toolCalls.join(', ')}`;
+        this.messages.push({ role: 'tool', content: toolSummary, timestamp: Date.now() });
+      }
       this.messages.push({ role: 'assistant', content: response, timestamp: Date.now() });
     }
 
@@ -867,14 +889,15 @@ class TUIManager {
   private startSpinner(): void {
     let idx = 0;
     const leftW = this.leftWidth();
-    const spinnerRow = this.termHeight() - 3;
+    const h = this.termHeight();
+    const spinnerRow = h - 3;
 
     this.spinnerInterval = setInterval(() => {
       if (!this.running) return;
       const ch = SPINNER_CHARS[idx % SPINNER_CHARS.length];
       idx++;
-      term.moveTo(leftW + 1, spinnerRow);
-      term(`${this.colors.thought}${ch}${this.reset()}`);
+      term.moveTo(2, spinnerRow);
+      term(`${this.colors.thought}${ch} Thinking...${this.reset()}`);
     }, 100);
   }
 
@@ -884,9 +907,10 @@ class TUIManager {
       this.spinnerInterval = null;
     }
     const leftW = this.leftWidth();
-    const spinnerRow = this.termHeight() - 3;
-    term.moveTo(leftW + 1, spinnerRow);
-    term(' ');
+    const h = this.termHeight();
+    const spinnerRow = h - 3;
+    term.moveTo(2, spinnerRow);
+    term(' '.repeat(20));
   }
 
   private renderActiveLayout(panelData: RightPanelData): void {
