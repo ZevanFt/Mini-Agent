@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
 import WelcomeScreen from './WelcomeScreen';
 
@@ -34,11 +34,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, streamContent, isLoading,
                 key={msg.id || `msg-${i}`}
                 role={msg.role}
                 content={msg.content}
-                language={language}
               />
             ))}
             {streamContent && (
-              <MessageBubble role="assistant" content={streamContent} language={language} isStreaming />
+              <MessageBubble role="assistant" content={streamContent} />
             )}
             {isLoading && !streamContent && (
               <div className="loading">

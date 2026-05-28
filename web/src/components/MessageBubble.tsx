@@ -3,17 +3,15 @@ import React from 'react';
 interface MessageBubbleProps {
   role: string;
   content: string;
-  language: 'en' | 'zh';
-  isStreaming?: boolean;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ role, content, language, isStreaming }) => {
-  const roleLabel = role === 'user' ? (language === 'zh' ? '你' : 'You') : 'MiniAgent';
+const MessageBubble: React.FC<MessageBubbleProps> = ({ role, content }) => {
+  const roleLabel = role === 'user' ? 'You' : 'MiniAgent';
 
   return (
     <div className={`message message-${role}`}>
       <div className="message-inner">
-        <div className="message-role">{roleLabel}</div>
+        {role === 'user' && <div className="message-role">{roleLabel}</div>}
         <div className="message-content" dangerouslySetInnerHTML={{ __html: formatContent(content) }} />
       </div>
     </div>

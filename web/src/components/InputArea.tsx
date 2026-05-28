@@ -4,22 +4,19 @@ interface InputAreaProps {
   onSend: (content: string) => void;
   isLoading: boolean;
   language: 'en' | 'zh';
+  model: string;
 }
 
-const i18nMap: Record<string, { placeholder: string; hint_send: string; hint_newline: string }> = {
+const i18nMap: Record<string, { placeholder: string }> = {
   en: {
-    placeholder: 'Ask MiniAgent...',
-    hint_send: 'to send',
-    hint_newline: 'newline',
+    placeholder: 'Ask anything, / for commands, @ for context...',
   },
   zh: {
-    placeholder: '问 MiniAgent 任何问题...',
-    hint_send: '发送',
-    hint_newline: '换行',
+    placeholder: '随便问点什么... "在整个代码库中添加日志"',
   },
 };
 
-const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading, language }) => {
+const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading, language, model }) => {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const t = i18nMap[language] || i18nMap.en;
@@ -59,7 +56,6 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading, language }) =>
   return (
     <div id="input-area">
       <div className="input-wrapper">
-        <span className="input-prompt">{'>'}</span>
         <textarea
           ref={textareaRef}
           id="message-input"
@@ -77,12 +73,15 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading, language }) =>
           onClick={handleSend}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M3.5 8h9M9.5 5.5l2.5 2.5-2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M10.5 3.5L4 10l6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
       </div>
-      <div className="input-hint">
-        <kbd>Enter</kbd> {t.hint_send} · <kbd>Shift+Enter</kbd> {t.hint_newline}
+      <div className="input-model-selector">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 2v10M3 4l4-2 4 2M3 10l4 2 4-2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+        </svg>
+        <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>{model}</span>
       </div>
     </div>
   );
