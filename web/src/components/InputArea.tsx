@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { Send, Cpu } from 'lucide-react';
 
 interface InputAreaProps {
   onSend: (content: string) => void;
@@ -72,15 +73,11 @@ const InputArea: React.FC<InputAreaProps> = ({ onSend, isLoading, language, mode
           disabled={!value.trim() || isLoading}
           onClick={handleSend}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M10.5 3.5L4 10l6.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <Send size={16} />
         </button>
       </div>
       <div className="input-model-selector">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 2v10M3 4l4-2 4 2M3 10l4 2 4-2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-        </svg>
+        <Cpu size={14} />
         <span style={{ color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>{model}</span>
       </div>
     </div>

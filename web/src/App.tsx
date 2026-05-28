@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Folder, FolderPlus, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
+import TopBar from './components/TopBar';
+import WelcomeScreen from './components/WelcomeScreen';
 import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
 import SettingsModal from './components/SettingsModal';
@@ -39,6 +42,9 @@ const App: React.FC = () => {
   } = useChat();
 
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [sidebarPanelOpen, setSidebarPanelOpen] = useState(true);
 
   const i18n = i18nMap[settings.language] || i18nMap.en;
 
@@ -84,43 +90,69 @@ const App: React.FC = () => {
     handleSend(prompt);
   }, [handleSend]);
 
+  const handleSelectProject = useCallback((project: string) => {
+    setSelectedProject(project);
+    setShowProjectPicker(false);
+  }, []);
+
   const currentSession = sessions.find(s => s.id === currentSessionId);
+  const isWelcome = messages.length === 0;
 
   return (
     <div id="app" className="app-layout">
-      <Sidebar
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        onNewSession={handleNewSession}
-        onSelectSession={handleSelectSession}
-        onOpenSettings={() => setShowSettings(true)}
+      <TopBar
+        project={selectedProject}
+        onProjectClick={() => setShowProjectPicker(true)}
+        language={settings.language}
       />
 
-      <main className="main-area">
-        <ChatArea
-          messages={messages}
-          streamContent={streamContent}
-          isLoading={isLoading}
+      <div className="app-body">
+        <Sidebar
+          onOpenSettings={() => setShowSettings(true)}
           language={settings.language}
-          onSuggestion={handleSuggestion}
+          onOpenProject={() => setShowProjectPicker(true)}
+          selectedProject={selectedProject}
+          isPanelOpen={sidebarPanelOpen}
+          onTogglePanel={() => setSidebarPanelOpen(!sidebarPanelOpen)}
         />
 
-        <InputArea
-          onSend={handleSend}
-          isLoading={isLoading}
-          language={settings.language}
-          model={settings.model}
-        />
-
-        <div className="status-bar">
-          <div className="status-bar-left">
-            <span>{usage.total > 0 ? `${usage.total.toLocaleString()} ${i18n.tokens}` : '—'}</span>
-          </div>
-          <div className="status-bar-right">
-            <span>MiniAgent 1.0.0</span>
-          </div>
-        </div>
-      </main>
+        <main className="main-area">
+          {isWelcome ? (
+            <WelcomeScreen
+              onSend={handleSend}
+              onProjectClick={() => setShowProjectPicker(true)}
+              model={settings.model}
+              language={settings.language}
+              selectedProject={selectedProject}
+            />
+          ) : (
+            <>
+              <ChatArea
+                messages={messages}
+                streamContent={streamContent}
+                isLoading={isLoading}
+                language={settings.language}
+                onSuggestion={handleSuggestion}
+                model={settings.model}
+              />
+              <InputArea
+                onSend={handleSend}
+                isLoading={isLoading}
+                language={settings.language}
+                model={settings.model}
+              />
+              <div className="status-bar">
+                <div className="status-bar-left">
+                  <span>{usage.total > 0 ? `${usage.total.toLocaleString()} ${i18n.tokens}` : '—'}</span>
+                </div>
+                <div className="status-bar-right">
+                  <span>MiniAgent 1.0.0</span>
+                </div>
+              </div>
+            </>
+          )}
+        </main>
+      </div>
 
       {showSettings && (
         <SettingsModal
@@ -131,6 +163,37 @@ const App: React.FC = () => {
           theme={theme}
           onThemeChange={setTheme}
         />
+      )}
+
+      {showProjectPicker && (
+        <div className="project-picker-overlay" onClick={() => setShowProjectPicker(false)}>
+          <div className="project-picker" onClick={e => e.stopPropagation()}>
+            <div className="project-picker-header">
+              <span>Select Project</span>
+              <button className="project-picker-close" onClick={() => setShowProjectPicker(false)}>
+                <X size={16} />
+              </button>
+            </div>
+            <input className="project-picker-search" placeholder="Search projects..." autoFocus />
+            <div className="project-picker-label">Recent Projects</div>
+            <div className="project-picker-list">
+              {selectedProject && (
+                <div className="project-picker-item active" onClick={() => handleSelectProject(selectedProject)}>
+                  <Folder size={14} />
+                  <span>{selectedProject}</span>
+                </div>
+              )}
+              <div className="project-picker-item" onClick={() => handleSelectProject('my-project')}>
+                <FolderPlus size={14} />
+                <span>my-project</span>
+              </div>
+              <div className="project-picker-item" onClick={() => handleSelectProject('demo-app')}>
+                <FolderPlus size={14} />
+                <span>demo-app</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -8,9 +8,10 @@ interface ChatAreaProps {
   isLoading: boolean;
   language: 'en' | 'zh';
   onSuggestion: (prompt: string) => void;
+  model: string;
 }
 
-const ChatArea: React.FC<ChatAreaProps> = ({ messages, streamContent, isLoading, language, onSuggestion }) => {
+const ChatArea: React.FC<ChatAreaProps> = ({ messages, streamContent, isLoading, language, onSuggestion, model }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasMessages = messages.length > 0 || streamContent.length > 0;
 
@@ -26,7 +27,13 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, streamContent, isLoading,
     <div id="chat-container">
       <div id="messages">
         {!hasMessages ? (
-          <WelcomeScreen onSuggestion={onSuggestion} language={language} />
+          <WelcomeScreen
+            onSend={onSuggestion}
+            onProjectClick={() => {}}
+            language={language}
+            model={model}
+            selectedProject={null}
+          />
         ) : (
           <>
             {messages.map((msg, i) => (
