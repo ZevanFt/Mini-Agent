@@ -41,8 +41,8 @@ interface Message {
   duration?: string;                             // 耗时（仅 thought/tool 类型使用）
 }
 
-// 占位符 Logo（ASCII 艺术字），当 assets/logo.md 不存在时使用
-const PLACEHOLDER_LOGO: string[] = [
+// 固定 Logo（ASCII 艺术字），使用 #0078d7 蓝色
+const LOGO_LINES: string[] = [
   '███    ███  ██  ███    ██  ██          █████    ██████   ███████  ███    ██  ████████ ',
   '████  ████  ██  ████   ██  ██         ██   ██  ██        ██       ████   ██     ██    ',
   '██ ████ ██  ██  ██ ██  ██  ██  █████  ███████  ██   ███  █████    ██ ██  ██     ██    ',
@@ -59,8 +59,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
   // 使用 useMemo 缓存斜杠命令列表，避免每次渲染都重新创建
   const slashCommands = React.useMemo(() => createSlashCommands(), []);
-  // Logo 文本行数组，从 assets/logo.md 加载或使用占位符
-  const [logoLines, setLogoLines] = useState<string[]>([]);
   // 对话消息列表
   const [messages, setMessages] = useState<Message[]>([]);
   // TUI 内部状态
@@ -85,35 +83,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [termWidth, setTermWidth] = useState(120);
   // 终端高度（行数），默认 30
   const [termHeight, setTermHeight] = useState(30);
-
-  // 组件挂载时加载 Logo 文件
-  useEffect(() => {
-    import('fs').then(fs =>
-      import('path').then(path => {
-        // 拼接 logo.md 文件绝对路径：当前工作目录/assets/logo.md
-        const logoPath = path.join(process.cwd(), 'assets', 'logo.md');
-        try {
-          // 同步读取文件内容
-          const content = fs.readFileSync(logoPath, 'utf-8');
-          // 尝试提取代码块内容（``` ... ``` 之间的部分）
-          const codeBlockMatch = content.match(/```\s*\n?([\s\S]*?)```/);
-          if (codeBlockMatch) {
-            // 如果找到代码块，按行分割并过滤空行
-            setLogoLines(codeBlockMatch[1].trim().split('\n').filter(l => l.trim()));
-          } else {
-            // 否则直接使用文件内容按行分割
-            setLogoLines(content.split('\n').filter(l => l.trim()));
-          }
-        } catch {
-          // 文件不存在或读取失败，使用占位符 Logo
-          setLogoLines(PLACEHOLDER_LOGO);
-        }
-      })
-    ).catch(() => {
-      // 动态导入失败，使用占位符 Logo
-      setLogoLines(PLACEHOLDER_LOGO);
-    });
-  }, []); // 空依赖数组，仅在组件挂载时执行一次
 
   // 监听终端窗口大小变化，实时更新 termWidth 和 termHeight
   useEffect(() => {
@@ -444,16 +413,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         // justifyContent="center"：内部子元素垂直居中
         // alignItems="center"：内部子元素水平居中
         <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1}>
-          {/* Logo 区域：显示 ASCII 艺术字 */}
-          {logoLines.length > 0 && (
-            // Logo 容器：纵向排列、水平居中、底部间距 1 行
-            <Box flexDirection="column" alignItems="center" marginBottom={1}>
-              {/* 遍历 Logo 每一行，dimColor 使其变暗 */}
-              {logoLines.map((line, i) => (
-                <Text key={i} dimColor>{line}</Text>
-              ))}
-            </Box>
-          )}
+          {/* Logo 区域：显示 ASCII 艺术字，使用 #0078d7 蓝色 */}
+          <Box flexDirection="column" alignItems="center" marginBottom={1}>
+            {/* 遍历 Logo 每一行，使用固定颜色 #0078d7 */}
+            {LOGO_LINES.map((line, i) => (
+              <Text key={i} color="#0078d7">{line}</Text>
+            ))}
+          </Box>
 
           {/* 输入框容器：固定宽度、纵向布局、单线边框、灰色 */}
           <Box width={inputBoxWidth} flexDirection="column" borderStyle="single" borderColor="gray">
