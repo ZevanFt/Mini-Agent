@@ -13,8 +13,8 @@ import { AutoRunner } from './auto-runner.js';
 import { LogInjector } from './log-injector.js';
 import type { CodeBlock } from './code-enhancer.js';
 import type { RunConfig } from './auto-runner.js';
-import { CodeEnhancer } from './enhancer/index.js';
-import type { EnhancerConfig, EnhancementResult } from './enhancer/types.js';
+import { DualPipelineEnhancer as CodeEnhancer } from './enhancer/index.js';
+import type { DualPipelineConfig as EnhancerConfig, ProcessResult as EnhancementResult } from './enhancer/index.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -28,14 +28,15 @@ function autoDetectStrategy(modelName: string): {
   enableAdvancedEnhancer: boolean;
 } {
   const lower = modelName.toLowerCase();
-  // "strong" models that don't need enhancements
-  const strongPatterns = [
-    '7b', '8b', '9b', '10b', '14b', '20b', '30b', '70b', '72b',
-    'qwen2.5-coder:3b', 'qwen2.5-coder:3b-instruct',
-    'codestral', 'deepseek-coder:6.7b',
-    'codegemma:7b', 'starcoder2:7b', 'llama3.1:8b',
-  ];
-  const needsHelp = !strongPatterns.some((p) => lower.includes(p));
+  const sizeMatch = lower.match(/(\d+)b/);
+  const paramSize = sizeMatch ? parseInt(sizeMatch[1], 10) : 999;
+  const isSmallModel = paramSize <= 7;
+  const isKnownStrong = [
+    'qwen-plus', 'qwen-max', 'deepseek', 'codestral',
+    'claude', 'gpt-4', 'gpt-3.5',
+  ].some(p => lower.includes(p));
+
+  const needsHelp = isSmallModel || !isKnownStrong;
   return {
     enablePhase8: needsHelp,
     enableAdvancedEnhancer: needsHelp,
@@ -113,13 +114,6 @@ export class Agent {
         llm: this.llm,
         snippetDir: options.snippetDir ?? '.miniagent/snippets',
         projectDir: this.cwd,
-        failureLogPath: '.miniagent/failures.json',
-        enableSnippetLibrary: true,
-        enableExampleDriven: true,
-        enableProgressiveGeneration: true,
-        enableMultiRoleReview: true,
-        enableConstraintDriven: true,
-        enableFailureLearning: true,
       });
     }
     
@@ -350,17 +344,14 @@ export class Agent {
     // 优先使用高级增强器
     if (this.advancedEnhancer) {
       try {
-        const enhancerResult = await this.advancedEnhancer.generate({
-          request: `Generate ${language} code for: ${code.substring(0, 200)}`,
-          language,
-          filePath,
+        const enhancerResult = await this.advancedEnhancer.process(code, language, {
+          userRequest: `Generate ${language} code for: ${code.substring(0, 200)}`,
+          projectPath: this.cwd,
         });
         
-        if (enhancerResult.success) {
-          result.content = `\n[Advanced Enhancer Applied: ${enhancerResult.reviews.length} reviews, score: ${enhancerResult.validation.score ?? 'N/A'}]\n${enhancerResult.code}`;
-          this.generatedFiles.set(filePath, enhancerResult.code);
-          return result;
-        }
+        result.content = `\n[DualPipeline Applied: ${enhancerResult.route}, quality ${enhancerResult.qualityBefore} -> ${enhancerResult.qualityAfter}]\n${enhancerResult.finalCode}`;
+        this.generatedFiles.set(filePath, enhancerResult.finalCode);
+        return result;
       } catch (error) {
         logger.warn('Advanced enhancer failed, falling back to legacy:', error);
       }

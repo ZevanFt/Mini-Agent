@@ -1,0 +1,74 @@
+@use './variables.scss' as *;
+
+@mixin glass-card {
+  background: $glass-bg;
+  backdrop-filter: blur($blur-amount);
+  -webkit-backdrop-filter: blur($blur-amount);
+  border: 1px solid $glass-border;
+  border-radius: $radius-lg;
+  box-shadow: $glass-shadow;
+}
+
+.glass-panel {
+  @include glass-card;
+  padding: $spacing-lg;
+}
+
+.glass-btn {
+  @include glass-card;
+  padding: $spacing-sm $spacing-md;
+  border: none;
+  color: $text-light;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: $radius-sm;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(31, 38, 135, 0.25);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.glass-input {
+  @include glass-card;
+  padding: $spacing-sm $spacing-md;
+  border: 1px solid $glass-border;
+  background: rgba(255, 255, 255, 0.1);
+  color: $text-light;
+  border-radius: $radius-sm;
+  outline: none;
+  transition: all 0.3s ease;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  &:focus {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+}

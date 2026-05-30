@@ -2,7 +2,7 @@
  * 安全系统测试 - 测试增强版权限系统
  */
 
-import { EnhancedPermissionSystem, PROTECTED_FILES, READONLY_COMMANDS } from './core/permissions.js';
+import { EnhancedPermissionSystem, PROTECTED_FILES, READONLY_COMMANDS } from '../../src/core/permissions.js';
 import chalk from 'chalk';
 
 function testReadonlyCommands() {

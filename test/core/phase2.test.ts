@@ -1,13 +1,13 @@
-import { Agent } from './core/agent';
-import { MockLLMAdapter } from './llm/mock';
-import { BashTool } from './tools/bash';
-import { FileReadTool } from './tools/file-read';
-import { FileWriteTool } from './tools/file-write';
-import { GlobTool } from './tools/glob';
-import { GrepTool } from './tools/grep';
-import { WebFetchTool } from './tools/web-fetch';
-import { TodoWriteTool } from './tools/todo';
-import { SkillRegistry } from './skills/skill-registry';
+import { Agent } from '../../src/core/agent.js';
+import { MockLLMAdapter } from '../../src/llm/mock.js';
+import { BashTool } from '../../src/tools/bash.js';
+import { FileReadTool } from '../../src/tools/file-read.js';
+import { FileWriteTool } from '../../src/tools/file-write.js';
+import { GlobTool } from '../../src/tools/glob.js';
+import { GrepTool } from '../../src/tools/grep.js';
+import { WebFetchTool } from '../../src/tools/web-fetch.js';
+import { TodoWriteTool } from '../../src/tools/todo.js';
+import { SkillRegistry } from '../../src/skills/skill-registry.js';
 import chalk from 'chalk';
 
 async function test() {

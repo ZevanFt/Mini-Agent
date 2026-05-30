@@ -2,22 +2,22 @@
  * 最终完整集成测试 - 验证所有 Phase 1-5 模块
  */
 
-import { Agent } from './core/agent.js';
-import { MockLLMAdapter } from './llm/mock.js';
-import { BashTool, FileReadTool, FileWriteTool, GlobTool, GrepTool, WebFetchTool, WebSearchTool, TodoWriteTool, ConfigTool } from './tools/index.js';
-import { TaskManager } from './tasks/manager.js';
-import { createTaskTools } from './tools/tasks.js';
-import { createAskUserTool } from './tools/ask-user.js';
-import { createAgentTool, SubAgent } from './tools/sub-agent.js';
-import { PlanModeManager } from './core/plan-mode-manager.js';
-import { createPlanModeTools } from './tools/plan-mode.js';
-import { EnhancedPermissionSystem as PermissionSystem } from './core/permissions.js';
-import { MCPManager } from './mcp/manager.js';
-import { createMCPTools } from './tools/mcp.js';
-import { LongTermMemory } from './memory/long-term.js';
-import { createMemoryTool } from './tools/memory-tool.js';
-import { ContextCompactor, estimateTokens } from './core/compact.js';
-import type { Tool } from './tools/types.js';
+import { Agent } from '../src/core/agent.js';
+import { MockLLMAdapter } from '../src/llm/mock.js';
+import { BashTool, FileReadTool, FileWriteTool, GlobTool, GrepTool, WebFetchTool, WebSearchTool, TodoWriteTool, ConfigTool } from '../src/tools/index.js';
+import { TaskManager } from '../src/tasks/manager.js';
+import { createTaskTools } from '../src/tools/tasks.js';
+import { createAskUserTool } from '../src/tools/ask-user.js';
+import { createAgentTool, SubAgent } from '../src/tools/sub-agent.js';
+import { PlanModeManager } from '../src/core/plan-mode-manager.js';
+import { createPlanModeTools } from '../src/tools/plan-mode.js';
+import { EnhancedPermissionSystem as PermissionSystem } from '../src/core/permissions.js';
+import { MCPManager } from '../src/mcp/manager.js';
+import { createMCPTools } from '../src/tools/mcp.js';
+import { LongTermMemory } from '../src/memory/long-term.js';
+import { createMemoryTool } from '../src/tools/memory-tool.js';
+import { ContextCompactor, estimateTokens } from '../src/core/compact.js';
+import type { Tool } from '../src/tools/types.js';
 import chalk from 'chalk';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -88,7 +88,7 @@ async function test() {
   // Phase 5: Memory + Compaction
   // ============================================
   console.log(chalk.yellow('📦 Phase 5: Memory + Compaction'));
-  const memDir = join(tmpdir(), 'miniagent-final-test');
+  const memDir = join(process.cwd(), 'test', 'tmp', 'miniagent-final-test');
   const longTermMem = new LongTermMemory(memDir);
   const memoryTool = createMemoryTool(longTermMem);
   allTools.push(memoryTool);

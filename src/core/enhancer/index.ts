@@ -1,547 +1,372 @@
 /**
- * 统一代码增强器 - 小模型代码质量增强系统主入口
- * 
- * 核心理念：让本地小模型也能输出高质量、可运行的代码
- * 
- * 整合以下增强机制：
- * 1. SnippetLibrary - 代码模板库系统
- * 2. ExampleDrivenGenerator - 示例驱动生成
- * 3. ProgressiveGenerator - 渐进式复杂度生成
- * 4. MultiRoleReviewer - 多角色审查系统
- * 5. ConstraintDrivenGenerator - 约束驱动生成
- * 6. FailurePatternLearner - 失败模式学习系统
+ * 统一代码增强器 - 智能「救+升」双管线系统主入口
+ *
+ * 核心理念：
+ * - 烂代码要救：1.3B 生成的代码，通过后处理/投票/渐进生成救到能跑
+ * - 好代码要升：3B 生成的代码，不能放着不动，要提升到生产级
+ *
+ * 架构：
+ * 1. 质量检测 → 2. 智能路由 → 3. 救烂管线 / 提升管线 → 4. 最终验证
  */
 
 import type { LLMAdapter } from '@/llm/base.js';
 import { logger } from '@/utils/logger.js';
-import { SnippetLibrary } from './snippet-library.js';
-import { ExampleDrivenGenerator } from './example-driven-generator.js';
-import { ProgressiveGenerator } from './progressive-generator.js';
-import { MultiRoleReviewer } from './multi-role-reviewer.js';
-import { ConstraintDrivenGenerator } from './constraint-driven-generator.js';
-import { FailurePatternLearner } from './failure-pattern-learner.js';
-import type { 
-  CodeSnippet, 
-  CodeExample, 
-  ValidationResult, 
-  GenerationConstraints, 
-  EnhancementResult 
-} from './types.js';
 
-export interface EnhancerConfig {
-  /** LLM 适配器 */
+import { RescuePipeline } from './rescue-pipeline.js';
+import { ElevationPipeline } from './elevation-pipeline.js';
+import { QualityScorer } from './quality-scorer.js';
+import { CodeEvaluator, type EvaluationCriteria, type EvaluationReport } from './code-evaluator.js';
+import { SnippetExtractor, type ExtractedSnippet, type CategorizedSnippet } from './snippet-extractor.js';
+
+export interface DualPipelineConfig {
   llm: LLMAdapter;
-  /** 代码模板库目录 */
   snippetDir?: string;
-  /** 项目示例扫描目录 */
   projectDir?: string;
-  /** 失败模式日志路径 */
-  failureLogPath?: string;
-  /** 最大审查循环次数 */
-  maxReviewCycles?: number;
-  /** 最大重试次数 */
-  maxRetries?: number;
-  /** 启用代码模板库 */
-  enableSnippetLibrary?: boolean;
-  /** 启用示例驱动生成 */
-  enableExampleDriven?: boolean;
-  /** 启用渐进式复杂度生成 */
-  enableProgressiveGeneration?: boolean;
-  /** 启用多角色审查 */
-  enableMultiRoleReview?: boolean;
-  /** 启用约束驱动生成 */
-  enableConstraintDriven?: boolean;
-  /** 启用失败模式学习 */
-  enableFailureLearning?: boolean;
+  rescueThreshold?: number;
+  elevateThreshold?: number;
+  productionThreshold?: number;
+  maxRescueAttempts?: number;
+  enableRescue?: boolean;
+  enableElevation?: boolean;
 }
 
-export interface GenerateOptions {
-  /** 用户请求 */
-  request: string;
-  /** 目标语言 */
-  language?: string;
-  /** 目标文件路径 */
-  filePath?: string;
-  /** 自定义约束 */
-  constraints?: GenerationConstraints;
-  /** 是否使用渐进式生成 */
-  useProgressive?: boolean;
-  /** 是否启用审查 */
-  enableReview?: boolean;
+export interface ProcessResult {
+  originalCode: string;
+  finalCode: string;
+  route: 'rescue' | 'elevate' | 'pass';
+  qualityBefore: number;
+  qualityAfter: number;
+  tier: 'rescue' | 'elevate' | 'production';
+  summary: string;
+  testCode?: string;
+  duration: number;
+  steps: Array<{ name: string; success: boolean; duration: number }>;
 }
 
-export class CodeEnhancer {
-  private readonly llm: LLMAdapter;
-  private readonly snippetLibrary: SnippetLibrary;
-  private readonly exampleDriven: ExampleDrivenGenerator;
-  private readonly progressiveGen: ProgressiveGenerator;
-  private readonly multiRoleReview: MultiRoleReviewer;
-  private readonly constraintDriven: ConstraintDrivenGenerator;
-  private readonly failureLearner: FailurePatternLearner;
-  private readonly config: Required<EnhancerConfig>;
+export interface BuildSnippetLibraryOptions {
+  scanPaths: string[];
+  outputDir?: string;
+  minQualityScore?: number;
+  categories?: string[];
+}
 
-  constructor(config: EnhancerConfig) {
-    this.llm = config.llm;
-    this.config = {
-      llm: config.llm,
-      snippetDir: config.snippetDir ?? '.miniagent/snippets',
-      projectDir: config.projectDir ?? process.cwd(),
-      failureLogPath: config.failureLogPath ?? '.miniagent/failures.json',
-      maxReviewCycles: config.maxReviewCycles ?? 3,
-      maxRetries: config.maxRetries ?? 3,
-      enableSnippetLibrary: config.enableSnippetLibrary ?? true,
-      enableExampleDriven: config.enableExampleDriven ?? true,
-      enableProgressiveGeneration: config.enableProgressiveGeneration ?? true,
-      enableMultiRoleReview: config.enableMultiRoleReview ?? true,
-      enableConstraintDriven: config.enableConstraintDriven ?? true,
-      enableFailureLearning: config.enableFailureLearning ?? true,
-    };
+export interface BuildLibraryResult {
+  totalSnippets: number;
+  categorizedCount: number;
+  byCategory: Record<string, number>;
+  qualityDistribution: {
+    excellent: number;
+    good: number;
+    fair: number;
+    poor: number;
+  };
+}
 
-    // 初始化所有增强模块
-    this.snippetLibrary = new SnippetLibrary(this.config.snippetDir);
-    this.exampleDriven = new ExampleDrivenGenerator(this.llm);
-    this.progressiveGen = new ProgressiveGenerator(this.llm, this.config.maxRetries);
-    this.multiRoleReview = new MultiRoleReviewer(this.llm);
-    this.constraintDriven = new ConstraintDrivenGenerator(this.llm);
-    this.failureLearner = new FailurePatternLearner(this.config.failureLogPath);
+const DEFAULT_CONFIG: Required<Omit<DualPipelineConfig, 'llm'>> = {
+  rescueThreshold: 40,
+  elevateThreshold: 70,
+  productionThreshold: 85,
+  maxRescueAttempts: 2,
+  enableRescue: true,
+  enableElevation: true,
+  snippetDir: '.miniagent/snippets',
+  projectDir: process.cwd(),
+};
 
-    logger.info('CodeEnhancer initialized with all enhancement modules');
+export class DualPipelineEnhancer {
+  private readonly config: Required<DualPipelineConfig>;
+  private readonly qualityScorer: QualityScorer;
+  private readonly rescuePipeline: RescuePipeline;
+  private readonly elevationPipeline: ElevationPipeline;
+  private readonly codeEvaluator: CodeEvaluator;
+  private readonly snippetExtractor: SnippetExtractor;
+
+  constructor(config: DualPipelineConfig) {
+    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.qualityScorer = new QualityScorer();
+    this.rescuePipeline = new RescuePipeline(this.config.llm);
+    this.elevationPipeline = new ElevationPipeline(this.config.llm);
+    this.codeEvaluator = new CodeEvaluator(this.config.llm);
+    this.snippetExtractor = new SnippetExtractor(this.config.llm);
+
+    logger.info(
+      '[DualPipelineEnhancer] initialized: rescueThreshold=%d, elevateThreshold=%d',
+      this.config.rescueThreshold,
+      this.config.elevateThreshold,
+    );
   }
 
-  /**
-   * 加载代码模板库
-   */
-  async loadSnippetLibrary(): Promise<void> {
-    if (!this.config.enableSnippetLibrary) {
-      return;
-    }
-
-    try {
-      await this.snippetLibrary.loadFromDirectory();
-      const stats = this.snippetLibrary.getStats();
-      logger.info(`Snippet library loaded: ${stats.total} snippets`);
-    } catch (error) {
-      logger.warn('Failed to load snippet library:', error);
-    }
-  }
-
-  /**
-   * 扫描项目示例代码
-   */
-  async scanProjectExamples(): Promise<void> {
-    if (!this.config.enableExampleDriven) {
-      return;
-    }
-
-    try {
-      await this.exampleDriven.scanProjectExamples();
-      logger.info('Project examples scanned');
-    } catch (error) {
-      logger.warn('Failed to scan project examples:', error);
-    }
-  }
-
-  /**
-   * 统一代码生成入口
-   * 
-   * 智能选择最佳生成策略：
-   * 1. 查找相似模板/示例
-   * 2. 提取约束
-   * 3. 查询历史失败经验
-   * 4. 选择生成策略（渐进式 vs 直接生成）
-   * 5. 多角色审查
-   * 6. 验证并返回结果
-   */
-  async generate(options: GenerateOptions): Promise<EnhancementResult> {
-    const startTime = Date.now();
-    const result: EnhancementResult = {
-      code: '',
-      steps: [],
-      reviews: [],
-      validation: { valid: false, errors: [], warnings: [], suggestions: [] },
-      usedSnippets: [],
-      usedExamples: [],
-      appliedConstraints: null,
-      retryCount: 0,
-      success: false,
-    };
-
-    try {
-      logger.info(`Generating code for request: ${options.request.substring(0, 100)}...`);
-
-      // 步骤 1: 查找相似模板
-      const snippets = await this.findRelevantSnippets(options);
-      result.usedSnippets = snippets.map(s => s.id);
-
-      // 步骤 2: 查找相似示例
-      const examples = await this.findRelevantExamples(options);
-      result.usedExamples = examples.map(e => e.source);
-
-      // 步骤 3: 提取约束
-      const constraints = await this.extractConstraints(options);
-      result.appliedConstraints = constraints;
-
-      // 步骤 4: 查询历史失败经验
-      const preventionTips = await this.getPreventionTips(options.request);
-
-      // 步骤 5: 选择生成策略并生成
-      let code: string;
-      if (this.config.enableProgressiveGeneration && options.useProgressive !== false) {
-        // 渐进式生成
-        const progressiveResult = await this.progressiveGen.generateProgressively(
-          options.request,
-          options.language ?? 'typescript'
-        );
-        code = progressiveResult.code;
-        result.steps = progressiveResult.steps.map(s => s.name);
-      } else if (examples.length > 0 && this.config.enableExampleDriven) {
-        // 示例驱动生成
-        const exampleResult = await this.exampleDriven.generateWithExamples(options.request, {
-          maxExamples: 3,
-        });
-        code = exampleResult.code;
-        result.steps = ['example-driven-generation'];
-      } else if (constraints && this.config.enableConstraintDriven) {
-        // 约束驱动生成
-        const constraintResults = await this.constraintDriven.generate(options.request, constraints);
-        code = constraintResults.map(b => b.code).join('\n\n');
-        result.steps = ['constraint-driven-generation'];
-      } else {
-        // 直接生成（兜底）
-        const response = await this.llm.chatOnce({
-          messages: [{ role: 'user', content: options.request }],
-          maxTokens: 2048,
-        });
-        code = response.content;
-        result.steps = ['direct-generation'];
-      }
-
-      // 注入预防建议到代码注释
-      if (preventionTips.length > 0) {
-        code = this.injectPreventionTips(code, preventionTips);
-      }
-
-      result.code = code;
-
-      // 步骤 6: 多角色审查
-      if (this.config.enableMultiRoleReview && options.enableReview !== false) {
-        const reviewResults = await this.multiRoleReview.reviewAll(
-          code,
-          options.language ?? 'typescript'
-        );
-        result.reviews = reviewResults.byRole.map((r: { role: string; result: ValidationResult }) => ({
-          role: r.role,
-          result: r.result,
-        }));
-
-        // 如果有严重错误，尝试修复
-        if (reviewResults.overall.errors.length > 0) {
-          const fixedCode = await this.fixBasedOnReview(code, reviewResults.overall, options.language ?? 'typescript');
-          if (fixedCode !== code) {
-            result.code = fixedCode;
-            result.retryCount++;
-          }
-        }
-      }
-
-      // 步骤 7: 最终验证
-      result.validation = await this.validateCode(result.code, options.language ?? 'typescript');
-      result.success = result.validation.valid;
-
-      // 记录结果
-      const elapsed = Date.now() - startTime;
-      logger.info(
-        `Code generation completed in ${elapsed}ms: ${result.success ? 'SUCCESS' : 'FAILED'}, ` +
-        `${result.reviews.length} reviews, ${result.retryCount} retries`
-      );
-
-      return result;
-    } catch (error) {
-      logger.error('Code generation failed:', error);
-      
-      // 记录失败模式
-      await this.failureLearner.recordFailure({
-        request: options.request,
-        generatedCode: result.code,
-        failureReason: error instanceof Error ? error.message : String(error),
-        failureType: 'context',
-        fixStrategy: 'Try progressive generation or provide more constraints',
-        fixCode: '',
-      });
-
-      return result;
-    }
-  }
-
-  /**
-   * 查找相关代码模板
-   */
-  private async findRelevantSnippets(options: GenerateOptions): Promise<CodeSnippet[]> {
-    if (!this.config.enableSnippetLibrary) {
-      return [];
-    }
-
-    try {
-      const matches = this.snippetLibrary.findBestMatches(options.request, 3);
-      if (matches.length > 0 && matches[0].score > 0.5) {
-        logger.info(`Found ${matches.length} relevant snippets`);
-        return matches.map(m => m.snippet);
-      }
-    } catch (error) {
-      logger.warn('Failed to find snippets:', error);
-    }
-
-    return [];
-  }
-
-  /**
-   * 查找相关项目示例
-   */
-  private async findRelevantExamples(options: GenerateOptions): Promise<CodeExample[]> {
-    if (!this.config.enableExampleDriven) {
-      return [];
-    }
-
-    try {
-      const examples = await this.exampleDriven.findSimilarExamples(options.request, {
-        maxResults: 3,
-        minSimilarity: 0.1,
-      });
-      if (examples.length > 0 && examples[0].similarity > 0.3) {
-        logger.info(`Found ${examples.length} relevant examples`);
-        return examples;
-      }
-    } catch (error) {
-      logger.warn('Failed to find examples:', error);
-    }
-
-    return [];
-  }
-
-  /**
-   * 提取生成约束
-   */
-  private async extractConstraints(options: GenerateOptions): Promise<GenerationConstraints | null> {
-    if (!this.config.enableConstraintDriven) {
-      return options.constraints ?? null;
-    }
-
-    try {
-      // 如果用户提供了自定义约束，直接使用
-      if (options.constraints) {
-        return options.constraints;
-      }
-
-      // 否则自动从请求中提取
-      const constraints = await this.constraintDriven.extractConstraints(
-        options.request
-      );
-      
-      if (constraints.mustUse?.length || constraints.mustNotUse?.length || constraints.mustFollow?.length) {
-        logger.info(`Extracted constraints: ${JSON.stringify(constraints)}`);
-        return constraints;
-      }
-    } catch (error) {
-      logger.warn('Failed to extract constraints:', error);
-    }
-
-    return options.constraints ?? null;
-  }
-
-  /**
-   * 获取历史失败经验的预防建议
-   */
-  private async getPreventionTips(request: string): Promise<string[]> {
-    if (!this.config.enableFailureLearning) {
-      return [];
-    }
-
-    try {
-      const similarFailures = await this.failureLearner.findSimilarFailures(request);
-      if (similarFailures.length > 0) {
-        const tips = await this.failureLearner.getPreventionTips();
-        logger.info(`Found ${similarFailures.length} similar failures, ${tips.length} prevention tips`);
-        return tips.map(t => t.prevention);
-      }
-    } catch (error) {
-      logger.warn('Failed to get prevention tips:', error);
-    }
-
-    return [];
-  }
-
-  /**
-   * 将预防建议注入代码注释
-   */
-  private injectPreventionTips(code: string, tips: string[]): string {
-    if (tips.length === 0) {
-      return code;
-    }
-
-    const commentBlock = [
-      '/**',
-      ' * ⚠️ Prevention Tips (based on historical failures):',
-      ...tips.map(tip => ` * - ${tip}`),
-      ' */',
-    ].join('\n');
-
-    return commentBlock + '\n' + code;
-  }
-
-  /**
-   * 基于审查结果修复代码
-   */
-  private async fixBasedOnReview(
+  async process(
     code: string,
-    reviewResult: ValidationResult,
-    language: string
-  ): Promise<string> {
-    if (reviewResult.errors.length === 0) {
-      return code;
+    language: string,
+    context?: { userRequest?: string; framework?: string; projectPath?: string },
+  ): Promise<ProcessResult> {
+    const startTime = Date.now();
+    logger.info('[DualPipelineEnhancer] process started: language=%s, codeLength=%d', language, code.length);
+
+    const scoreResult = this.qualityScorer.score(code, language);
+    const { score, tier } = scoreResult;
+
+    logger.info(
+      '[DualPipelineEnhancer] quality scored: %d, tier=%s',
+      score,
+      tier,
+    );
+
+    if (score >= this.config.productionThreshold) {
+      logger.info('[DualPipelineEnhancer] code already production-quality, skipping');
+      return this.buildPassResult(code, score, Date.now() - startTime);
     }
 
-    try {
-      logger.info(`Attempting to fix ${reviewResult.errors.length} issues found in review`);
+    if (tier === 'rescue' && this.config.enableRescue) {
+      return this.handleRescue(code, language, score, context, startTime);
+    }
 
-      const fixPrompt = `Fix the following issues in this ${language} code:
+    if (tier === 'elevate' && this.config.enableElevation) {
+      return this.handleElevation(code, language, score, startTime);
+    }
 
-Issues to fix:
-${reviewResult.errors.map((e, i) => `${i + 1}. ${e}`).join('\n')}
+    logger.info('[DualPipelineEnhancer] no action needed for tier=%s', tier);
+    return this.buildPassResult(code, score, Date.now() - startTime);
+  }
 
-Original code:
-\`\`\`${language}
-${code}
-\`\`\`
+  async compare(
+    codeA: string,
+    codeB: string,
+    language: string,
+    criteria?: EvaluationCriteria,
+  ): Promise<EvaluationReport> {
+    logger.info('[DualPipelineEnhancer] comparing two code samples: language=%s', language);
+    const report = await this.codeEvaluator.evaluate(codeA, codeB, language, criteria);
+    logger.info(
+      '[DualPipelineEnhancer] comparison complete: winner=%s, A=%d, B=%d',
+      report.winner,
+      report.codeAScore,
+      report.codeBScore,
+    );
+    return report;
+  }
 
-Return only the fixed code, no explanations.`;
+  async buildSnippetLibrary(options: BuildSnippetLibraryOptions): Promise<BuildLibraryResult> {
+    logger.info('[DualPipelineEnhancer] building snippet library from %d paths', options.scanPaths.length);
 
-      const response = await this.llm.chatOnce({
-        messages: [{ role: 'user', content: fixPrompt }],
-        maxTokens: 2048,
+    const allSnippets: ExtractedSnippet[] = [];
+    const minQuality = options.minQualityScore ?? 60;
+
+    for (const scanPath of options.scanPaths) {
+      try {
+        const snippets = await this.snippetExtractor.extractFromProject(scanPath);
+        const filtered = snippets.filter((s) => s.qualityScore >= minQuality);
+        allSnippets.push(...filtered);
+        logger.info(
+          '[DualPipelineEnhancer] scanned %s: %d/%d snippets passed quality filter',
+          scanPath,
+          filtered.length,
+          snippets.length,
+        );
+      } catch (error) {
+        logger.error('[DualPipelineEnhancer] failed to scan %s:', scanPath, error);
+      }
+    }
+
+    const categorized: CategorizedSnippet[] = [];
+    for (const snippet of allSnippets) {
+      try {
+        const cat = await this.snippetExtractor.categorizeSnippet(snippet);
+        categorized.push(cat);
+      } catch (error) {
+        logger.error('[DualPipelineEnhancer] failed to categorize snippet "%s":', snippet.name, error);
+      }
+    }
+
+    const byCategory: Record<string, number> = {};
+    for (const cat of categorized) {
+      const key = `${cat.category}/${cat.subcategory}`;
+      byCategory[key] = (byCategory[key] ?? 0) + 1;
+    }
+
+    const qualityDistribution = { excellent: 0, good: 0, fair: 0, poor: 0 };
+    for (const s of allSnippets) {
+      if (s.qualityScore >= 80) qualityDistribution.excellent++;
+      else if (s.qualityScore >= 60) qualityDistribution.good++;
+      else if (s.qualityScore >= 40) qualityDistribution.fair++;
+      else qualityDistribution.poor++;
+    }
+
+    logger.info(
+      '[DualPipelineEnhancer] snippet library built: %d total, %d categorized',
+      allSnippets.length,
+      categorized.length,
+    );
+
+    return {
+      totalSnippets: allSnippets.length,
+      categorizedCount: categorized.length,
+      byCategory,
+      qualityDistribution,
+    };
+  }
+
+  async extractAndCategorize(code: string, language: string, filePath?: string): Promise<CategorizedSnippet[]> {
+    const snippets = await this.snippetExtractor.extractSnippets(code, language);
+    const results: CategorizedSnippet[] = [];
+    for (const s of snippets) {
+      if (filePath) s.filePath = filePath;
+      results.push(await this.snippetExtractor.categorizeSnippet(s));
+    }
+    return results;
+  }
+
+  private async handleRescue(
+    code: string,
+    language: string,
+    score: number,
+    context: { userRequest?: string; framework?: string; projectPath?: string } | undefined,
+    startTime: number,
+  ): Promise<ProcessResult> {
+    logger.info('[DualPipelineEnhancer] routing to RESCUE pipeline');
+
+    let attempts = 0;
+    let currentCode = code;
+    let currentScore = score;
+    const allSteps: Array<{ name: string; success: boolean; duration: number }> = [];
+
+    while (attempts < this.config.maxRescueAttempts) {
+      attempts++;
+      logger.info('[DualPipelineEnhancer] rescue attempt %d/%d', attempts, this.config.maxRescueAttempts);
+
+      const rescueResult = await this.rescuePipeline.rescue(currentCode, language, {
+        userRequest: context?.userRequest,
+        framework: context?.framework,
+        projectPath: context?.projectPath,
       });
 
-      return response.content.trim();
-    } catch (error) {
-      logger.error('Failed to fix code based on review:', error);
-      return code;
+      allSteps.push(
+        ...rescueResult.steps.map((s) => ({
+          name: `rescue-attempt-${attempts}/${s.name}`,
+          success: s.success,
+          duration: s.duration,
+        })),
+      );
+
+      currentCode = rescueResult.rescuedCode;
+      currentScore = rescueResult.qualityAfter;
+
+      if (rescueResult.passed) {
+        logger.info(
+          '[DualPipelineEnhancer] rescue SUCCEEDED on attempt %d: %d -> %d',
+          attempts,
+          score,
+          currentScore,
+        );
+
+        const totalDuration = Date.now() - startTime;
+        const summary = this.buildRescueSummary(rescueResult, attempts);
+
+        return {
+          originalCode: code,
+          finalCode: currentCode,
+          route: 'rescue',
+          qualityBefore: score,
+          qualityAfter: currentScore,
+          tier: 'rescue',
+          summary,
+          duration: totalDuration,
+          steps: allSteps,
+        };
+      }
+
+      const newScoreResult = this.qualityScorer.score(currentCode, language);
+      currentScore = newScoreResult.score;
+
+      if (currentScore > score) {
+        logger.info('[DualPipelineEnhancer] quality improved: %d -> %d, continuing', score, currentScore);
+        score = currentScore;
+      } else {
+        logger.info('[DualPipelineEnhancer] quality not improved, trying elevation instead');
+        return this.handleElevation(currentCode, language, currentScore, startTime);
+      }
     }
+
+    logger.warn('[DualPipelineEnhancer] rescue failed after %d attempts, falling back to elevation', attempts);
+    return this.handleElevation(currentCode, language, currentScore, startTime);
   }
 
-  /**
-   * 验证代码质量
-   */
-  private async validateCode(code: string, language: string): Promise<ValidationResult> {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-    const suggestions: string[] = [];
+  private async handleElevation(
+    code: string,
+    language: string,
+    score: number,
+    startTime: number,
+  ): Promise<ProcessResult> {
+    logger.info('[DualPipelineEnhancer] routing to ELEVATION pipeline');
 
-    // 基础语法检查
-    if (language === 'typescript' || language === 'javascript') {
-      // 括号匹配
-      const openBraces = (code.match(/{/g) || []).length;
-      const closeBraces = (code.match(/}/g) || []).length;
-      if (openBraces !== closeBraces) {
-        errors.push(`Mismatched braces: ${openBraces} opening, ${closeBraces} closing`);
-      }
+    const elevationResult = await this.elevationPipeline.elevate(code, language);
 
-      // 检查是否有明显的语法错误
-      if (code.includes(';;') || code.includes('  ;')) {
-        warnings.push('Possible syntax issues detected');
-      }
-    }
+    const totalDuration = Date.now() - startTime;
+    const finalScoreResult = this.qualityScorer.score(elevationResult.elevatedCode, language);
+    const finalScore = finalScoreResult.score;
 
-    if (language === 'python') {
-      // Python 缩进检查
-      const lines = code.split('\n');
-      for (let i = 1; i < lines.length; i++) {
-        const prevIndent = lines[i - 1].search(/\S/);
-        const currIndent = lines[i].search(/\S/);
-        
-        if (currIndent > prevIndent && !lines[i - 1].trimEnd().endsWith(':') && lines[i - 1].trim() !== '') {
-          warnings.push(`Possible indentation issue at line ${i + 1}`);
-        }
-      }
-    }
+    const steps = elevationResult.steps.map((s) => ({
+      name: `elevation/${s.name}`,
+      success: s.success,
+      duration: s.duration,
+    }));
 
-    // 安全检查
-    if (code.includes('eval(') || code.includes('exec(')) {
-      warnings.push('Code contains eval/exec, consider safer alternatives');
-    }
-
-    if (code.includes('password') || code.includes('secret') || code.includes('api_key')) {
-      suggestions.push('Avoid hardcoding secrets, use environment variables instead');
-    }
-
-    // 质量建议
-    if (code.length > 500) {
-      suggestions.push('Consider breaking this into smaller functions');
-    }
-
-    const valid = errors.length === 0;
-    const score = valid ? Math.max(0, 100 - warnings.length * 10 - suggestions.length * 5) : 0;
-
-    return {
-      valid,
-      errors,
-      warnings,
-      suggestions,
+    logger.info(
+      '[DualPipelineEnhancer] elevation complete: %d -> %d, steps=%d succeeded/%d failed',
       score,
-    };
-  }
+      finalScore,
+      steps.filter((s) => s.success).length,
+      steps.filter((s) => !s.success).length,
+    );
 
-  /**
-   * 获取增强器状态
-   */
-  getStatus(): {
-    snippetLibrary: number;
-    cachedExamples: number;
-    failurePatterns: number;
-  } {
     return {
-      snippetLibrary: this.snippetLibrary.getStats().total,
-      cachedExamples: this.exampleDriven.getCacheStats().totalExamples,
-      failurePatterns: this.failureLearner.getAllPatterns().length,
+      originalCode: code,
+      finalCode: elevationResult.elevatedCode,
+      route: 'elevate',
+      qualityBefore: score,
+      qualityAfter: finalScore,
+      tier: 'elevate',
+      summary: elevationResult.summary,
+      testCode: elevationResult.testCode,
+      duration: totalDuration,
+      steps,
     };
   }
 
-  /**
-   * 获取所有代码模板
-   */
-  getAllSnippets(): CodeSnippet[] {
-    return this.snippetLibrary.getAllSnippets();
-  }
-
-  /**
-   * 导出代码模板库到文件
-   */
-  exportSnippets(filePath: string): boolean {
-    return this.snippetLibrary.exportLibrary(filePath);
-  }
-
-  /**
-   * 从文件导入代码模板库
-   */
-  importSnippets(filePath: string, overwrite: boolean = false): number {
-    const count = this.snippetLibrary.importLibrary(filePath, overwrite);
-    logger.info(`Imported ${count} snippets`);
-    return count;
-  }
-
-  /**
-   * 获取失败模式统计
-   */
-  getFailureStats(): {
-    totalPatterns: number;
-    patternsByType: Record<string, number>;
-    topFailures: Array<{ request: string; reason: string; count: number }>;
-  } {
-    const patterns = this.failureLearner.getAllPatterns();
-    const patternsByTypeResult = this.failureLearner.getPatternsByType();
-    
+  private buildPassResult(
+    code: string,
+    score: number,
+    duration: number,
+  ): ProcessResult {
     return {
-      totalPatterns: patterns.length,
-      patternsByType: Object.fromEntries(Object.entries(patternsByTypeResult).map(([k, v]) => [k, v.length])),
-      topFailures: [], // 可以扩展实现
+      originalCode: code,
+      finalCode: code,
+      route: 'pass',
+      qualityBefore: score,
+      qualityAfter: score,
+      tier: 'production',
+      summary: `Code passed quality check with score ${score}/100. No enhancement needed.`,
+      duration,
+      steps: [{ name: 'quality-check', success: true, duration: 0 }],
     };
+  }
+
+  private buildRescueSummary(rescueResult: any, attempts: number): string {
+    const lines: string[] = [];
+    lines.push(
+      `Rescue pipeline succeeded on attempt ${attempts}: quality ${rescueResult.qualityBefore} -> ${rescueResult.qualityAfter}.`,
+    );
+    lines.push(`Strategy used: ${rescueResult.strategy}`);
+    lines.push(`Steps executed: ${rescueResult.steps.length}`);
+    lines.push(`Steps succeeded: ${rescueResult.steps.filter((s: any) => s.success).length}`);
+    return lines.join('\n');
   }
 }
+
+export { RescuePipeline, ElevationPipeline, QualityScorer, CodeEvaluator, SnippetExtractor };
+export type { ExtractedSnippet, CategorizedSnippet } from './snippet-extractor.js';
+export type { EvaluationCriteria, EvaluationReport } from './code-evaluator.js';
+export type { RescueResult, RescueStep, RescueContext } from './rescue-pipeline.js';
+export type { ElevationResult, ElevationStepResult, ElevationOptions } from './elevation-pipeline.js';
+export type { QualityScoreResult } from './quality-scorer.js';

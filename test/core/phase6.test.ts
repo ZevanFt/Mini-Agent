@@ -2,9 +2,9 @@
  * Phase 6 测试 - Edit Tool, Hooks, Slash Commands
  */
 
-import { FileEditTool } from '../src/tools/file-edit.js';
-import { HookDispatcher, createToolLogHook, createSecurityAuditHook, createSessionTimerHook } from '../src/core/hooks.js';
-import { createSlashCommands, parseCommand, isSlashCommand } from '../src/core/commands.js';
+import { FileEditTool } from '../../src/tools/file-edit.js';
+import { HookDispatcher, createToolLogHook, createSecurityAuditHook, createSessionTimerHook } from '../../src/core/hooks.js';
+import { createSlashCommands, parseCommand, isSlashCommand } from '../../src/core/commands.js';
 import chalk from 'chalk';
 import { writeFileSync, readFileSync, mkdirSync } from 'fs';
 import { join } from 'path';

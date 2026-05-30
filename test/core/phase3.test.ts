@@ -1,5 +1,5 @@
-import { TaskManager } from './tasks/manager.js';
-import type { Task, TaskStatus } from './tasks/types.js';
+import { TaskManager } from '../../src/tasks/manager.js';
+import type { Task, TaskStatus } from '../../src/tasks/types.js';
 import chalk from 'chalk';
 
 async function test() {

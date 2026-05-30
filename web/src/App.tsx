@@ -23,7 +23,9 @@ const i18nMap: Record<string, Record<string, string>> = {
 
 const App: React.FC = () => {
   const { settings, saveSettings, resetSettings } = useSettings();
-  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
+  useEffect(() => {
+    setTheme(settings.theme);
+  }, [settings.theme]);
   const {
     sessions,
     currentSessionId,

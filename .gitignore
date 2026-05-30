@@ -44,3 +44,22 @@ articles/
 # IDE
 .vscode/
 .idea/
+
+# MiniAgent 测试演示输出（整体忽略）
+demo-output/
+
+# 旧版散乱文件（已迁移到 demo-output/）
+admin-system/
+admin-system-project/
+wechat-post.md
+screenshot_capture.py
+screenshots/
+
+# 散乱测试产物（已迁移到 demo-output/test-artifacts/）
+test_*.txt
+ollama-full-response.txt
+dev_prompt.txt
+call-ollama*.mjs
+temp-call-ollama.mjs
+extract-ollama-files.mjs
+screenshots.mjs

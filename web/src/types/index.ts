@@ -30,6 +30,7 @@ export interface AppSettings {
   temperature: number;
   maxTokens: number;
   tools: { bash: string; fileWrite: string };
+  theme: 'dark' | 'light' | 'system';
 }
 
 export interface ChatChunk {
@@ -46,6 +47,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   temperature: 0.7,
   maxTokens: 4096,
   tools: { bash: 'allow', fileWrite: 'allow' },
+  theme: 'dark',
 };
 
 export const MODEL_OPTIONS = [

@@ -9,21 +9,21 @@
  * 5. 完整的工具注册和执行流程
  */
 
-import { Agent } from './core/agent.js';
-import { MockLLMAdapter } from './llm/mock.js';
-import { BashTool } from './tools/bash.js';
-import { FileReadTool } from './tools/file-read.js';
-import { GlobTool } from './tools/glob.js';
-import { GrepTool } from './tools/grep.js';
-import { TodoWriteTool } from './tools/todo.js';
-import { createTaskTools } from './tools/tasks.js';
-import { createAskUserTool } from './tools/ask-user.js';
-import { PlanModeManager } from './core/plan-mode-manager.js';
-import { createPlanModeTools } from './tools/plan-mode.js';
-import { PermissionSystem } from './core/permissions.js';
-import { MCPManager } from './mcp/manager.js';
-import { createMCPTools } from './tools/mcp.js';
-import type { Tool } from './tools/types.js';
+import { Agent } from '../src/core/agent.js';
+import { MockLLMAdapter } from '../src/llm/mock.js';
+import { BashTool } from '../src/tools/bash.js';
+import { FileReadTool } from '../src/tools/file-read.js';
+import { GlobTool } from '../src/tools/glob.js';
+import { GrepTool } from '../src/tools/grep.js';
+import { TodoWriteTool } from '../src/tools/todo.js';
+import { createTaskTools } from '../src/tools/tasks.js';
+import { createAskUserTool } from '../src/tools/ask-user.js';
+import { PlanModeManager } from '../src/core/plan-mode-manager.js';
+import { createPlanModeTools } from '../src/tools/plan-mode.js';
+import { EnhancedPermissionSystem as PermissionSystem } from '../src/core/permissions.js';
+import { MCPManager } from '../src/mcp/manager.js';
+import { createMCPTools } from '../src/tools/mcp.js';
+import type { Tool } from '../src/tools/types.js';
 import chalk from 'chalk';
 
 async function test() {
@@ -60,7 +60,7 @@ async function test() {
   mcpTools.forEach(t => agent.addTool(t));
 
   // 权限系统
-  const perms = new PermissionSystem();
+  const perms = new PermissionSystem({ workingDirectory: process.cwd() });
 
   console.log(chalk.green(`  ✅ 已注册 ${agent.getTools().length} 个工具`));
   const toolNames = agent.getTools().map(t => t.name);

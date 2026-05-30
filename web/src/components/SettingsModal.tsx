@@ -85,7 +85,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ settings, onSave, onClose
   const t = i18nMap[language] || i18nMap.en;
 
   const handleSave = () => {
-    onSave(localSettings);
+    onSave({ ...localSettings, theme: localTheme });
     onThemeChange(localTheme);
     onClose();
   };

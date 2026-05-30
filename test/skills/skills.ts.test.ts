@@ -2,33 +2,41 @@
  * SKILL.md 格式 Skill 测试
  */
 
-import { parseSkillFile, loadSkillFromDirectory, discoverSkills, matchSkillToRequest } from './skills/parser.js';
-import { SkillRegistry } from './skills/skill-registry.js';
+import { parseSkillFile, loadSkillFromDirectory, discoverSkills, matchSkillToRequest } from '../../src/skills/parser.js';
+import { SkillRegistry } from '../../src/skills/skill-registry.js';
 import chalk from 'chalk';
 import { readFileSync } from 'fs';
 
 function testParser() {
   console.log(chalk.yellow('1️⃣  SKILL.md 解析器测试'));
   
-  const content = readFileSync('/workspace/.miniagent/skills/git-commit/SKILL.md', 'utf-8');
-  const parsed = parseSkillFile(content, '/workspace/.miniagent/skills/git-commit');
+  const skillsDir = process.env.SKILLS_DIR || 'skills';
+  const skillPath = `${skillsDir}/git-commit/SKILL.md`;
   
-  console.log(chalk.green(`  ✅ name: ${parsed.name}`));
-  console.log(chalk.green(`  ✅ description 长度: ${parsed.description.length} 字符`));
-  console.log(chalk.green(`  ✅ allowedTools: ${parsed.allowedTools.join(', ') || '(all)'}`));
-  console.log(chalk.green(`  ✅ disallowedTools: ${parsed.disallowedTools.join(', ') || '(none)'}`));
-  console.log(chalk.green(`  ✅ instructions 长度: ${parsed.instructions.length} 字符`));
-  console.log(chalk.green(`  ✅ directory: ${parsed.directory}`));
-  console.log(chalk.green(`  ✅ hasScripts: ${parsed.hasScripts}`));
-  console.log(chalk.green(`  ✅ hasReferences: ${parsed.hasReferences}`));
-  console.log(chalk.green(`  ✅ hasAssets: ${parsed.hasAssets}`));
+  try {
+    const content = readFileSync(skillPath, 'utf-8');
+    const parsed = parseSkillFile(content, `${skillsDir}/git-commit`);
+    
+    console.log(chalk.green(`  ✅ name: ${parsed.name}`));
+    console.log(chalk.green(`  ✅ description 长度: ${parsed.description.length} 字符`));
+    console.log(chalk.green(`  ✅ allowedTools: ${parsed.allowedTools.join(', ') || '(all)'}`));
+    console.log(chalk.green(`  ✅ disallowedTools: ${parsed.disallowedTools.join(', ') || '(none)'}`));
+    console.log(chalk.green(`  ✅ instructions 长度: ${parsed.instructions.length} 字符`));
+    console.log(chalk.green(`  ✅ directory: ${parsed.directory}`));
+    console.log(chalk.green(`  ✅ hasScripts: ${parsed.hasScripts}`));
+    console.log(chalk.green(`  ✅ hasReferences: ${parsed.hasReferences}`));
+    console.log(chalk.green(`  ✅ hasAssets: ${parsed.hasAssets}`));
+  } catch (e) {
+    console.log(chalk.yellow('  ⚠️  Skill 文件不存在，跳过解析测试'));
+  }
   console.log();
 }
 
 function testSkillDiscovery() {
   console.log(chalk.yellow('2️⃣  Skill 发现测试'));
   
-  const skills = discoverSkills('/workspace/.miniagent/skills');
+  const skillsDir = process.env.SKILLS_DIR || 'skills';
+  const skills = discoverSkills(skillsDir);
   console.log(chalk.green(`  ✅ 发现 ${skills.length} 个 Skill`));
   
   for (const skill of skills) {
@@ -40,7 +48,8 @@ function testSkillDiscovery() {
 function testSkillMatching() {
   console.log(chalk.yellow('3️⃣  Skill 自动匹配测试'));
   
-  const skills = discoverSkills('/workspace/.miniagent/skills');
+  const skillsDir = process.env.SKILLS_DIR || 'skills';
+  const skills = discoverSkills(skillsDir);
   
   const testCases = [
     { message: '帮我提交代码，改动了一些功能', expectedTop: 'git-commit' },

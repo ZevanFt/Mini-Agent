@@ -2,8 +2,8 @@
  * Phase 4 测试 - MCP 支持
  */
 
-import { MCPManager } from './mcp/manager.js';
-import { createMCPTools } from './tools/mcp.js';
+import { MCPManager } from '../../src/mcp/manager.js';
+import { createMCPTools } from '../../src/tools/mcp.js';
 import chalk from 'chalk';
 
 async function test() {

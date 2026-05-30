@@ -1,0 +1,10 @@
+{
+  "id": "mem_1780066635485_72tu06",
+  "key": "decision_use_bun",
+  "value": "选择 Bun 作为运行时，因为启动速度快",
+  "category": "decision",
+  "createdAt": "2026-05-29T14:57:15.485Z",
+  "updatedAt": "2026-05-29T15:08:05.839Z",
+  "accessCount": 2,
+  "importance": 5
+}

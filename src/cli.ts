@@ -1,24 +1,23 @@
+#!/usr/bin/env node
 import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'path';
+import { logger, setupTuiLogging, disableTuiLogging } from './utils/logger.js';
 import fs from 'fs';
 import { Agent } from './core/agent.js';
 import { ThinkingMode } from './core/thinking-mode.js';
 import { HookDispatcher, createToolLogHook, createSecurityAuditHook, createSessionTimerHook } from './core/hooks.js';
 import { OllamaAdapter } from './llm/ollama.js';
-import { BashTool } from './tools/bash.js';
-import { FileReadTool } from './tools/file-read.js';
-import { FileWriteTool } from './tools/file-write.js';
-import { GlobTool } from './tools/glob.js';
-import { GrepTool } from './tools/grep.js';
-import { WebSearchTool } from './tools/web-search.js';
-import { WebFetchTool } from './tools/web-fetch.js';
-import { ConfigTool } from './tools/config.js';
-import { createMemoryTool } from './tools/memory-tool.js';
+import { createAskUserTool } from './tools/ask-user.js';
+import { createTaskTools } from './tools/tasks.js';
+import { createPlanModeTools } from './tools/plan-mode.js';
+import { TaskManager } from './tasks/index.js';
+import { BashTool, FileReadTool, FileWriteTool, GlobTool, GrepTool, WebSearchTool, WebFetchTool, ConfigTool } from './tools/index.js';
 import { TodoWriteTool } from './tools/todo.js';
+import { FormatTool } from './tools/format.js';
+import { createMemoryTool } from './tools/memory-tool.js';
 import { LongTermMemory } from './memory/long-term.js';
 import { SessionMemory } from './memory/index.js';
-import { ContextCompactor } from './core/compact.js';
 import { createSlashCommands, parseCommand } from './core/commands.js';
 import { CheckpointManager } from './core/checkpoints.js';
 import { ProjectConfigParser } from './core/project-config.js';
@@ -33,7 +32,13 @@ import { EnhancedPermissionSystem } from './core/permissions.js';
 import { MiniAgentServer } from './web/server.js';
 import { createMCPTools } from './tools/mcp.js';
 import { MCPManager } from './mcp/manager.js';
-import { FormatTool } from './tools/format.js';
+import { LSPTool } from './tools/lsp.js';
+import { NotebookTool } from './tools/notebook.js';
+import { WorktreeTool } from './tools/worktree.js';
+import { createShareTool } from './tools/share.js';
+import { ApplyPatchTool } from './tools/apply-patch.js';
+import { ReadImageTool } from './tools/read-image.js';
+import { McpSseServer } from './mcp/sse-transport.js';
 
 const VERSION = '0.2.0';
 const MINIAGENT_DIR = path.join(process.cwd(), '.miniagent');
@@ -176,8 +181,16 @@ async function main(): Promise<void> {
         process.exit(1);
       });
 
-      printBanner();
-      console.log();
+      // ── TUI 模式下先初始化日志到文件，禁止终端输出 ──
+      if (options.tui) {
+        const logPath = setupTuiLogging(MINIAGENT_DIR);
+      }
+
+      // TUI 模式下不打印 banner 和初始化信息
+      if (!options.tui) {
+        printBanner();
+        console.log();
+      }
 
       const sessionId = options.session || `session_${Date.now()}`;
       const sessions = SessionMemory.listSessions(SESSIONS_DIR);
@@ -206,7 +219,7 @@ async function main(): Promise<void> {
       }
 
       const agentsConfig = ProjectConfigParser.load(process.cwd());
-      if (agentsConfig.filePath) {
+      if (!options.tui && agentsConfig.filePath) {
         console.log(chalk.dim(`📄 Found ${path.basename(agentsConfig.filePath)}: ${agentsConfig.filePath}`));
       }
 
@@ -215,7 +228,7 @@ async function main(): Promise<void> {
       hookDispatcher.register(createSecurityAuditHook());
       hookDispatcher.register(createSessionTimerHook());
 
-      const permissionSystem = new EnhancedPermissionSystem({
+      void new EnhancedPermissionSystem({
         workingDirectory: process.cwd(),
       });
 
@@ -240,6 +253,32 @@ async function main(): Promise<void> {
         hookDispatcher,
       });
 
+      const taskManager = new TaskManager(MINIAGENT_DIR);
+      await taskManager.initialize();
+
+      const askUserCallback = async (params: { question: string; options?: string[]; timeout?: number }): Promise<string> => {
+        console.log(chalk.yellow('\n⚡ Agent asks: ') + params.question);
+        if (params.options && params.options.length > 0) {
+          console.log(chalk.dim('   Options: ' + params.options.join(' | ')));
+        }
+        
+        const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        const timeout = (params.timeout || 300) * 1000;
+        
+        return new Promise<string>((resolve) => {
+          const timer = setTimeout(() => {
+            rl.close();
+            resolve('[timeout]');
+          }, timeout);
+
+          rl.question(chalk.green('   Your answer: '), (answer) => {
+            clearTimeout(timer);
+            rl.close();
+            resolve(answer || '[no answer]');
+          });
+        });
+      };
+
       agent.addTool(BashTool);
       agent.addTool(FileReadTool);
       agent.addTool(FileWriteTool);
@@ -251,6 +290,30 @@ async function main(): Promise<void> {
       agent.addTool(createMemoryTool(new LongTermMemory()));
       agent.addTool(TodoWriteTool);
       agent.addTool(FormatTool);
+
+      // 新增工具注册
+      agent.addTool(createAskUserTool(askUserCallback));
+      
+      const taskTools = createTaskTools(taskManager);
+      for (const tool of taskTools) {
+        agent.addTool(tool);
+      }
+
+      const planModeManager = {};
+      const planModeTools = createPlanModeTools(planModeManager);
+      for (const tool of planModeTools) {
+        agent.addTool(tool);
+      }
+
+      agent.addTool(LSPTool);
+      agent.addTool(NotebookTool);
+      agent.addTool(WorktreeTool);
+      agent.addTool(createShareTool(
+        () => [],
+        () => ({ id: sessionId, model: currentModel, startTime: Date.now() }),
+      ));
+      agent.addTool(ApplyPatchTool);
+      agent.addTool(ReadImageTool);
 
       const skillRegistry = new SkillRegistry();
       skillRegistry.addDiscoveryDir(path.join(MINIAGENT_DIR, 'skills'));
@@ -276,38 +339,44 @@ async function main(): Promise<void> {
 
       if (options.mcpSsePort) {
         const ssePort = parseInt(options.mcpSsePort, 10);
-        console.log(chalk.cyan(`\n🔌 Starting MCP SSE server on port ${ssePort}...`));
+        if (!options.tui) {
+          console.log(chalk.cyan(`\n🔌 Starting MCP SSE server on port ${ssePort}...`));
+        }
         await mcpManager.startSseServer(ssePort);
-        console.log(chalk.green(`✅ MCP SSE server running on port ${ssePort}`));
-        console.log(chalk.dim('   External clients can connect via SSE\n'));
+        if (!options.tui) {
+          console.log(chalk.green(`✅ MCP SSE server running on port ${ssePort}`));
+          console.log(chalk.dim('   External clients can connect via SSE\n'));
+        }
       }
 
       for (const mcpTool of createMCPTools(mcpManager)) {
         agent.addTool(mcpTool);
       }
 
-      if (!options.noTui) {
+      if (!options.noTui && !options.tui) {
         printStatus(agent, currentModel, sessionId, hookDispatcher.listActiveHooks().length, skillRegistry.listActive().length, pluginManager.listActive().length);
         console.log();
       }
 
-      if (agentsConfig.allowedTools.length > 0 && agentsConfig.filePath) {
+      if (!options.tui && agentsConfig.allowedTools.length > 0 && agentsConfig.filePath) {
         console.log(chalk.yellow(`⚠️  Tool restrictions from ${path.basename(agentsConfig.filePath)}: only ${agentsConfig.allowedTools.join(', ')} allowed`));
         console.log();
       }
 
-      const checkResult = await updateChecker.check();
-      if (checkResult.updateAvailable) {
-        console.log(chalk.yellow(`🔄 Update available: ${checkResult.current} → ${checkResult.latest}`));
-        if (checkResult.releaseNotes) {
-          console.log(chalk.dim(checkResult.releaseNotes));
+      if (!options.tui) {
+        const checkResult = await updateChecker.check();
+        if (checkResult.updateAvailable) {
+          console.log(chalk.yellow(` Update available: ${checkResult.current} → ${checkResult.latest}`));
+          if (checkResult.releaseNotes) {
+            console.log(chalk.dim(checkResult.releaseNotes));
+          }
+          console.log();
         }
-        console.log();
+
+        console.log(chalk.green('💬 Ready! Type /help for commands, or just start chatting\n'));
       }
 
-      console.log(chalk.green('💬 Ready! Type /help for commands, or just start chatting\n'));
-
-      // ── TUI Mode ──
+      // ── TUI Mode ─
       if (options.tui) {
         if (!process.stdin.isTTY) {
           console.error(chalk.red('TUI mode requires a terminal (TTY). Use non-TUI mode instead.'));
@@ -318,18 +387,15 @@ async function main(): Promise<void> {
           process.exit(1);
         }
 
-        // terminal-kit handles uncaughtException itself; the global catchers
-        // above stay registered as a safety net.  No need for local handlers.
-
-        console.log(chalk.cyan('🖥️  Starting Terminal UI...'));
         try {
-          const tui = await initTUI({ agent, model: currentModel });
+          const tui = await initTUI({ agent, model: currentModel, sessionId, cwd: process.cwd(), version: VERSION });
           tui.start();
           await tui.waitForExit();
         } catch (err) {
           destroyTUI();
+          disableTuiLogging();
           teeCrash('TUI_INIT', err);
-          process.stderr.write(`\n❌ TUI failed to start: ${err instanceof Error ? err.message : String(err)}\n`);
+          process.stderr.write(`\n TUI failed to start: ${err instanceof Error ? err.message : String(err)}\n`);
           if (err instanceof Error && err.stack) {
             process.stderr.write(`${err.stack.split('\n').slice(1, 4).join('\n')}\n`);
           }
@@ -371,9 +437,8 @@ async function main(): Promise<void> {
         }
 
         if (trimmedInput.startsWith('/compact')) {
-          const compactor = new ContextCompactor();
-          const messages = agent.getState();
-          console.log(chalk.dim(`\nContext: ${messages.conversationCount} messages`));
+          const state = agent.getState();
+          console.log(chalk.dim(`\nContext: ${state.conversationCount} messages`));
           console.log(chalk.green('Context compaction ready. Run this to compress conversation.\n'));
           continue;
         }
@@ -384,22 +449,162 @@ async function main(): Promise<void> {
           continue;
         }
 
+        if (trimmedInput === '/mcp') {
+          const servers = mcpManager.listServers();
+          console.log(chalk.cyan.bold(`\n🔌 MCP Servers (${servers.length}):\n`));
+          if (servers.length === 0) {
+            console.log(chalk.dim('  No MCP servers configured. Add them to agents.json.\n'));
+          } else {
+            for (const [name, server] of Object.entries(servers)) {
+              const status = server.status === 'connected' ? chalk.green('🟢 Connected') : chalk.red('🔴 Disconnected');
+              console.log(`${chalk.green(name)}: ${status}`);
+            }
+          }
+          console.log();
+          continue;
+        }
+
+        if (trimmedInput === '/agents') {
+          const parsedConfig = ProjectConfigParser.load(process.cwd());
+          console.log(chalk.cyan.bold('\n🤖 Agent Configuration:\n'));
+          console.log(chalk.dim(`  Model: ${parsedConfig.model || currentModel || '(default)'}`));
+          console.log(chalk.dim(`  Allowed Tools: ${parsedConfig.allowedTools.length > 0 ? parsedConfig.allowedTools.join(', ') : '(all)'}`));
+          console.log(chalk.dim(`  Rules: ${parsedConfig.rules.length > 0 ? parsedConfig.rules.length + ' rules' : '(none)'}`));
+          console.log();
+          continue;
+        }
+
+        if (trimmedInput === '/health') {
+          console.log(chalk.cyan.bold('\n🏥 Health Check:\n'));
+          const checks: { name: string; status: string; detail: string }[] = [];
+          checks.push({ name: 'Agent', status: '🟢', detail: 'Running' });
+          checks.push({ name: 'Tools', status: '🟢', detail: `${agent.getTools().length} available` });
+          checks.push({ name: 'Skills', status: '🟢', detail: `${skillRegistry.listActive().length} active` });
+          checks.push({ name: 'Hooks', status: '🟢', detail: `${hookDispatcher.listActiveHooks().length} active` });
+          checks.push({ name: 'Plugins', status: '🟢', detail: `${pluginManager.listActive().length} active` });
+          try {
+            const { execSync } = await import('child_process');
+            execSync('git status', { stdio: 'ignore' });
+            checks.push({ name: 'Git', status: '🟢', detail: 'Available' });
+          } catch {
+            checks.push({ name: 'Git', status: '🔴', detail: 'Not available' });
+          }
+          for (const check of checks) {
+            console.log(`  ${check.status} ${check.name}: ${check.detail}`);
+          }
+          console.log();
+          continue;
+        }
+
         if (trimmedInput.startsWith('/plan')) {
           console.log(chalk.green('\n📋 Planning mode activated. Describe your task.\n'));
           continue;
         }
 
-        if (trimmedInput.startsWith('/review')) {
-          console.log(chalk.green('\n🔍 Running code review. Checking git status and changes...\n'));
+        if (trimmedInput === '/diff') {
+          try {
+            const { execSync } = await import('child_process');
+            const status = execSync('git status --short', { encoding: 'utf-8' });
+            const diff = execSync('git diff --stat', { encoding: 'utf-8' });
+            console.log(chalk.cyan.bold('\n📝 Git Changes:\n'));
+            if (status.trim()) {
+              console.log(chalk.yellow('  Files:\n'));
+              status.split('\n').filter(Boolean).forEach(line => console.log(chalk.dim(`    ${line}`)));
+            }
+            if (diff.trim()) {
+              console.log(chalk.yellow('\n  Changes:\n'));
+              diff.split('\n').filter(Boolean).forEach(line => console.log(chalk.dim(`    ${line}`)));
+            }
+            if (!status.trim() && !diff.trim()) {
+              console.log(chalk.green('  No changes to commit.\n'));
+            }
+            console.log();
+          } catch {
+            console.log(chalk.yellow('  Not a git repository.\n'));
+          }
           continue;
         }
 
-        if (trimmedInput.startsWith('/commit')) {
-          console.log(chalk.green('\n📝 Analyzing git diff and generating commit message...\n'));
+        if (trimmedInput === '/review') {
+          try {
+            const { execSync } = await import('child_process');
+            const status = execSync('git status --short', { encoding: 'utf-8' });
+            const changedFiles = status.split('\n').filter(Boolean).map(line => line.trim().split(/\s+/).pop() || '').filter(Boolean);
+            console.log(chalk.cyan.bold('\n🔍 Code Review:\n'));
+            if (changedFiles.length === 0) {
+              console.log(chalk.green('  No changes to review.\n'));
+            } else {
+              console.log(chalk.yellow(`  Reviewing ${changedFiles.length} files:\n`));
+              for (const file of changedFiles.slice(0, 10)) {
+                try {
+                  const content = fs.readFileSync(file, 'utf-8');
+                  const lines = content.split('\n').length;
+                  const ext = file.split('.').pop() || '';
+                  console.log(chalk.green(`  ${file}`));
+                  console.log(chalk.dim(`    ${lines} lines | ${ext}\n`));
+                } catch { /* skip */ }
+              }
+              if (changedFiles.length > 10) {
+                console.log(chalk.dim(`  ... and ${changedFiles.length - 10} more files\n`));
+              }
+            }
+            console.log();
+          } catch {
+            console.log(chalk.yellow('  Not a git repository.\n'));
+          }
           continue;
         }
 
-        if (trimmedInput.startsWith('/config')) {
+        if (trimmedInput === '/commit') {
+          try {
+            const { execSync } = await import('child_process');
+            const diff = execSync('git diff --stat', { encoding: 'utf-8' });
+            const staged = execSync('git diff --cached --stat', { encoding: 'utf-8' });
+            console.log(chalk.cyan.bold('\n📝 Generate Commit Message:\n'));
+            if (!diff.trim() && !staged.trim()) {
+              console.log(chalk.yellow('  No changes to commit.\n'));
+            } else {
+              console.log(chalk.yellow('  Changes:\n'));
+              if (staged.trim()) {
+                staged.split('\n').filter(Boolean).forEach(line => console.log(chalk.dim(`    ${line}`)));
+              }
+              if (diff.trim()) {
+                diff.split('\n').filter(Boolean).forEach(line => console.log(chalk.dim(`    ${line}`)));
+              }
+              console.log(chalk.green('\n  Tip: Use conventional commit format:\n'));
+              console.log(chalk.dim('    feat: add feature\n    fix: resolve bug\n    refactor: restructure code\n'));
+            }
+            console.log();
+          } catch {
+            console.log(chalk.yellow('  Not a git repository.\n'));
+          }
+          continue;
+        }
+
+        if (trimmedInput === '/search') {
+          const parts = trimmedInput.split(/\s+/);
+          const query = parts.slice(1).join(' ');
+          if (!query) {
+            console.log(chalk.yellow('\nUsage: /search <pattern>\n'));
+          } else {
+            console.log(chalk.cyan.bold(`\n🔎 Searching for "${query}"...\n`));
+            try {
+              const { execSync } = await import('child_process');
+              const result = execSync(`grep -rn --include="*.ts" --include="*.js" --include="*.tsx" --include="*.jsx" "${query.replace(/"/g, '\\"')}" . 2>/dev/null | head -20`, { encoding: 'utf-8' });
+              if (result.trim()) {
+                result.split('\n').filter(Boolean).forEach(line => console.log(chalk.dim(`  ${line}`)));
+              } else {
+                console.log(chalk.yellow('  No results found.\n'));
+              }
+            } catch {
+              console.log(chalk.yellow('  Search failed or grep not available.\n'));
+            }
+            console.log();
+          }
+          continue;
+        }
+
+        if (trimmedInput === '/config') {
           console.log(chalk.cyan('\n⚙️  Configuration:\n'));
           console.log(chalk.dim(`  Model: ${currentModel}`));
           console.log(chalk.dim(`  Ollama URL: ${options.url}`));
@@ -465,6 +670,22 @@ async function main(): Promise<void> {
           console.log(chalk.dim(`  Plugins: ${pluginManager.listActive().length}`));
           console.log(chalk.dim(`  Checkpoints: ${checkpointManager.list().length}`));
           console.log();
+          continue;
+        }
+
+        if (trimmedInput.startsWith('/tasks')) {
+          const allTasks = taskManager.list({ status: 'all' as any, limit: 50 });
+          console.log(chalk.cyan.bold(`\n📋 Tasks (${allTasks.length}):\n`));
+          if (allTasks.length === 0) {
+            console.log(chalk.dim('  No tasks yet. Use /task create to create one.\n'));
+          } else {
+            for (const t of allTasks) {
+              const statusIcon = t.status === 'completed' ? '✅' : t.status === 'in_progress' ? '🔄' : t.status === 'failed' ? '❌' : '⏳';
+              console.log(`${statusIcon} ${chalk.green(t.title)} [${t.id}]`);
+              console.log(chalk.dim(`   Status: ${t.status} | Priority: ${t.priority}`));
+            }
+            console.log();
+          }
           continue;
         }
 
@@ -735,7 +956,10 @@ async function main(): Promise<void> {
     .description('Start MiniAgent web server')
     .option('--port <number>', 'Port to listen on', '3000')
     .option('--host <string>', 'Host to bind to', '127.0.0.1')
+    .option('--model <model>', 'LLM model to use', 'qwen2.5-coder:3b')
+    .option('--url <url>', 'Ollama server URL', 'http://localhost:11434')
     .option('--ui-password <string>', 'Password to protect web UI')
+    .option('--verbose', 'Verbose output', false)
     .action(async (options) => {
       console.log(chalk.cyan.bold('\n🚀 Starting MiniAgent Web Server...'));
 
@@ -746,15 +970,24 @@ async function main(): Promise<void> {
         projectDir: process.cwd(),
       });
 
+      const llm = createLLM(options.model, options.url);
+      const agent = new Agent({ llm, cwd: process.cwd(), verbose: options.verbose });
+      const mcpManager = new MCPManager(agent);
+      const projectConfig = ProjectConfigParser.load(process.cwd());
+      for (const tool of createMCPTools(mcpManager, projectConfig.mcpServers || {})) {
+        agent.addTool(tool);
+      }
+      server.setAgent(agent);
+
       try {
         await server.start();
         console.log(chalk.green(`\n✅ Web UI available at: http://${options.host}:${options.port}`));
+        console.log(chalk.green(`🤖 Agent model: ${options.model}`));
         if (options.uiPassword) {
           console.log(chalk.yellow('🔒 UI Password protected'));
         }
         console.log(chalk.dim('Press Ctrl+C to stop\n'));
 
-        // Handle graceful shutdown
         process.on('SIGINT', () => {
           console.log(chalk.yellow('\n\nShutting down server...'));
           server.stop();
@@ -777,31 +1010,123 @@ async function main(): Promise<void> {
     .description('Start MCP SSE server for external clients')
     .option('--port <number>', 'Port to listen on', '8080')
     .option('--host <string>', 'Host to bind to', '127.0.0.1')
+    .option('--model <model>', 'LLM model to use', 'qwen2.5-coder:3b')
+    .option('--url <url>', 'Ollama server URL', 'http://localhost:11434')
     .option('-v, --verbose', 'Verbose output', false)
     .action(async (options) => {
       console.log(chalk.cyan.bold('\n🔌 Starting MCP SSE Server...'));
 
-      const mcpManager = new MCPManager();
-
       const port = parseInt(options.port, 10);
-      console.log(chalk.green(`✅ MCP SSE server running on ${options.host}:${port}`));
-      console.log(chalk.dim('   External clients can connect via SSE'));
-      console.log(chalk.dim('   POST /message - Send messages'));
+
+      const sseServer = new McpSseServer({ port, host: options.host });
+
+      const llm = createLLM(options.model, options.url);
+      const agent = new Agent({ llm, cwd: process.cwd(), verbose: options.verbose });
+      const mcpManager = new MCPManager(agent);
+
+      agent.addTool(BashTool);
+      agent.addTool(FileReadTool);
+      agent.addTool(FileWriteTool);
+      agent.addTool(GlobTool);
+      agent.addTool(GrepTool);
+
+      sseServer.setMessageHandler(async (message, sessionId, sendResponse) => {
+        const msg = message as { method?: string; params?: Record<string, unknown>; id?: string | number };
+        try {
+          if (msg.method === 'tools/list') {
+            const tools = agent.getTools().map(t => ({
+              name: t.name,
+              description: t.description,
+              parameters: t.parameters || {},
+            }));
+            sendResponse({
+              jsonrpc: '2.0',
+              id: msg.id,
+              result: { tools },
+            });
+            return;
+          }
+
+          if (msg.method === 'tools/call') {
+            const toolName = msg.params?.name as string;
+            const toolArgs = msg.params?.arguments as Record<string, unknown>;
+            const tool = agent.getTools().find(t => t.name === toolName);
+            if (!tool) {
+              sendResponse({
+                jsonrpc: '2.0',
+                id: msg.id,
+                error: { code: -32601, message: `Tool not found: ${toolName}` },
+              });
+              return;
+            }
+            const result = await tool.execute(toolArgs);
+            sendResponse({
+              jsonrpc: '2.0',
+              id: msg.id,
+              result,
+            });
+            return;
+          }
+
+          if (msg.method === 'chat/send') {
+            const content = msg.params?.content as string;
+            if (!content) {
+              sendResponse({
+                jsonrpc: '2.0',
+                id: msg.id,
+                error: { code: -32602, message: 'Missing content parameter' },
+              });
+              return;
+            }
+            let response = '';
+            for await (const chunk of agent.chat(content)) {
+              if (chunk.type === 'content' && chunk.content) {
+                response += chunk.content;
+              }
+            }
+            sendResponse({
+              jsonrpc: '2.0',
+              id: msg.id,
+              result: { content: response },
+            });
+            return;
+          }
+
+          sendResponse({
+            jsonrpc: '2.0',
+            id: msg.id,
+            error: { code: -32601, message: `Method not found: ${msg.method}` },
+          });
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          sendResponse({
+            jsonrpc: '2.0',
+            id: msg.id,
+            error: { code: -32603, message: `Internal error: ${message}` },
+          });
+        }
+      });
+
+      await sseServer.start();
+
+      console.log(chalk.green(`\n✅ MCP SSE server running on ${options.host}:${port}`));
+      console.log(chalk.green(`🤖 Agent model: ${options.model}`));
+      console.log(chalk.dim('   Available methods:'));
+      console.log(chalk.dim('   POST /message - { method: "tools/list" }'));
+      console.log(chalk.dim('   POST /message - { method: "tools/call", params: { name, arguments } }'));
+      console.log(chalk.dim('   POST /message - { method: "chat/send", params: { content } }'));
       console.log(chalk.dim('   GET /sse - SSE event stream'));
       console.log(chalk.dim('   GET /health - Health check\n'));
-
-      await mcpManager.startSseServer(port, options.host);
-
       console.log(chalk.dim('Press Ctrl+C to stop\n'));
 
       process.on('SIGINT', async () => {
         console.log(chalk.yellow('\n\nShutting down MCP SSE server...'));
-        await mcpManager.stopSseServer();
+        await sseServer.stop();
         process.exit(0);
       });
 
       process.on('SIGTERM', async () => {
-        await mcpManager.stopSseServer();
+        await sseServer.stop();
         process.exit(0);
       });
     });

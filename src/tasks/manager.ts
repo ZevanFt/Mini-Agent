@@ -1,4 +1,6 @@
 import type { Task, CreateTaskParams, UpdateTaskParams, ListTasksFilter, TaskStatus } from './types.js';
+import { TaskStore } from './store.js';
+import { logger } from '../utils/logger.js';
 
 function generateId(): string {
   return `task_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -6,8 +8,51 @@ function generateId(): string {
 
 export class TaskManager {
   private tasks: Map<string, Task> = new Map();
+  private store?: TaskStore;
+  private initialized = false;
 
-  create(params: CreateTaskParams): Task {
+  constructor(dataDir?: string) {
+    if (dataDir) {
+      this.store = new TaskStore(dataDir);
+    }
+  }
+
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+    if (!this.store) {
+      this.initialized = true;
+      return;
+    }
+    try {
+      await this.store.initSchema();
+      const persisted = await this.store.loadAll();
+      for (const task of persisted) {
+        this.tasks.set(task.id, task);
+      }
+      logger.info('[TaskManager] loaded %d tasks from store', persisted.length);
+    } catch (error) {
+      logger.error('[TaskManager] failed to load tasks from store:', error);
+    }
+    this.initialized = true;
+  }
+
+  private async persist(task: Task): Promise<void> {
+    try {
+      await this.store?.insert(task);
+    } catch (error) {
+      logger.error('[TaskManager] failed to persist task %s:', task.id, error);
+    }
+  }
+
+  private async persistUpdate(task: Task): Promise<void> {
+    try {
+      await this.store?.update(task);
+    } catch (error) {
+      logger.error('[TaskManager] failed to update task %s in store:', task.id, error);
+    }
+  }
+
+  async create(params: CreateTaskParams): Promise<Task> {
     const id = generateId();
     const now = new Date().toISOString();
 
@@ -35,6 +80,8 @@ export class TaskManager {
       }
     }
 
+    await this.persist(task);
+
     return task;
   }
 
@@ -42,7 +89,7 @@ export class TaskManager {
     return this.tasks.get(id);
   }
 
-  update(id: string, params: UpdateTaskParams): Task | undefined {
+  async update(id: string, params: UpdateTaskParams): Promise<Task | undefined> {
     const task = this.tasks.get(id);
     if (!task) return undefined;
 
@@ -52,6 +99,7 @@ export class TaskManager {
     if (params.result) task.result = { ...task.result, ...params.result } as Task['result'];
 
     task.updatedAt = new Date().toISOString();
+    await this.persistUpdate(task);
     return task;
   }
 
@@ -94,7 +142,7 @@ export class TaskManager {
     return true;
   }
 
-  remove(id: string): boolean {
+  async remove(id: string): Promise<boolean> {
     const task = this.tasks.get(id);
     if (!task) return false;
 
@@ -114,6 +162,11 @@ export class TaskManager {
     }
 
     this.tasks.delete(id);
+    try {
+      await this.store?.delete(id);
+    } catch (error) {
+      logger.error('[TaskManager] failed to delete task %s from store:', id, error);
+    }
     return true;
   }
 
@@ -158,5 +211,9 @@ export class TaskManager {
       total: this.tasks.size,
       byStatus,
     };
+  }
+
+  async close(): Promise<void> {
+    await this.store?.close();
   }
 }

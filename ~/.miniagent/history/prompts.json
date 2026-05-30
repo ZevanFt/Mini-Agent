@@ -4,5 +4,23 @@
     "prompt": "exit",
     "timestamp": "2026-05-26T14:31:21.269Z",
     "sessionId": "session_1779805881239"
+  },
+  {
+    "id": "9d2d5f13-af75-4763-b65c-ebdfc38c71c5",
+    "prompt": "/help",
+    "timestamp": "2026-05-30T10:27:14.478Z",
+    "sessionId": "session_1780136824011"
+  },
+  {
+    "id": "ae12c3b9-f10a-4f3c-ae24-e891cf02ef31",
+    "prompt": "nihao",
+    "timestamp": "2026-05-30T10:27:21.726Z",
+    "sessionId": "session_1780136824011"
+  },
+  {
+    "id": "a04bdd2f-e530-4290-99cc-ecc5ecc93b87",
+    "prompt": "aaa",
+    "timestamp": "2026-05-30T10:57:53.343Z",
+    "sessionId": "session_1780138667645"
   }
 ]

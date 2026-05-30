@@ -41,7 +41,7 @@ Each task has a title, description, priority, and status.`,
       async execute(params: Record<string, unknown>) {
         const { title, description, priority, parent_id: parentId, tags } = params as unknown as CreateTaskParams & { parent_id?: string };
 
-        const task = taskManager.create({
+        const task = await taskManager.create({
           title,
           description,
           priority: priority as any,
@@ -163,7 +163,7 @@ Use this when completing a task, marking it as failed, or adding notes.`,
         if (priority) updateParams.priority = priority;
         if (resultSummary) updateParams.result = { summary: resultSummary };
 
-        const updated = taskManager.update(taskId, updateParams);
+        const updated = await taskManager.update(taskId, updateParams);
 
         if (!updated) {
           return {

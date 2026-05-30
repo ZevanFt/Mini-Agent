@@ -7,10 +7,10 @@
  * 3. Plan Mode 工具
  */
 
-import { PlanModeManager } from './core/plan-mode-manager.js';
-import { PlanModeState } from './core/plan-mode.js';
-import { PermissionSystem } from './core/permissions.js';
-import { createPlanModeTools } from './tools/plan-mode.js';
+import { PlanModeManager } from '../../src/core/plan-mode-manager.js';
+import { PlanModeState } from '../../src/core/plan-mode.js';
+import { PermissionSystem } from '../../src/core/permissions.js';
+import { createPlanModeTools } from '../../src/tools/plan-mode.js';
 import chalk from 'chalk';
 
 async function testPlanMode() {

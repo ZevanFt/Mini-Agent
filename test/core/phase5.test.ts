@@ -2,13 +2,13 @@
  * Phase 5 测试 - WebSearch, Config, Memory, Context Compaction
  */
 
-import { WebSearchTool } from './tools/web-search.js';
-import { ConfigTool } from './tools/config.js';
-import { LongTermMemory } from './memory/long-term.js';
-import { ContextCompactor, estimateTokens } from './core/compact.js';
-import { createMemoryTool } from './tools/memory-tool.js';
-import { MockLLMAdapter } from './llm/mock.js';
-import type { Message } from './memory/index.js';
+import { WebSearchTool } from '../../src/tools/web-search.js';
+import { ConfigTool } from '../../src/tools/config.js';
+import { LongTermMemory } from '../../src/memory/long-term.js';
+import { ContextCompactor, estimateTokens } from '../../src/core/compact.js';
+import { createMemoryTool } from '../../src/tools/memory-tool.js';
+import { MockLLMAdapter } from '../../src/llm/mock.js';
+import type { Message } from '../../src/memory/index.js';
 import chalk from 'chalk';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -59,7 +59,7 @@ async function testConfig() {
 }
 
 async function testLongTermMemory() {
-  const memDir = join(tmpdir(), 'miniagent-test-memory');
+  const memDir = join(process.cwd(), 'test', 'tmp', 'miniagent-test-memory');
   console.log(chalk.yellow('3️⃣  LongTermMemory 测试'));
   
   const memory = new LongTermMemory(memDir);
@@ -146,7 +146,7 @@ async function testContextCompaction() {
 }
 
 async function testMemoryTool() {
-  const memDir = join(tmpdir(), 'miniagent-test-memory-tool');
+  const memDir = join(process.cwd(), 'test', 'tmp', 'miniagent-test-memory-tool');
   console.log(chalk.yellow('5️⃣  MemoryTool 测试'));
   
   const memory = new LongTermMemory(memDir);
