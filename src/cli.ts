@@ -132,6 +132,7 @@ async function main(): Promise<void> {
     .option('-s, --session <id>', 'Session ID')
     .option('--list-sessions', 'List all sessions')
     .option('--tui', 'Use terminal UI mode (TUI)', false)
+    .option('--debug', 'Enable debug mode (connect to React DevTools)', false)
     .option('--no-tui', 'Disable banner and status')
     .option('--mcp-sse-port <number>', 'Start MCP SSE server on given port')
     .action(async (options) => {
