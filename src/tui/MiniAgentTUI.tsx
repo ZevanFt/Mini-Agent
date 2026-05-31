@@ -462,12 +462,11 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
   // 计算输入框宽度：终端宽度的 35%
   const inputBoxWidth = Math.floor(termWidth * 0.35);
-  // 内部内容宽度（减去 Ink 边框占用的 2 个字符）
-  const contentWidth = inputBoxWidth - 2;
-  // 文字可用宽度（再减去手动画的 │ 和空格，共 2 字符）
-  const textWidth = Math.max(contentWidth - 2, 20);
-  // 虚线分隔符
-  const dashLine = '─'.repeat(Math.max(contentWidth - 1, 20));
+  // 内部可用宽度（减去 Ink 边框 2 字符 + paddingX={1} 左右各 1 字符 = 共减 4 字符）
+  const textWidth = Math.max(inputBoxWidth - 4, 20);
+  // 虚线分隔符宽度
+  const dashWidth = Math.max(inputBoxWidth - 4, 20);
+  const dashLine = '─'.repeat(dashWidth);
   // 计算字符串的显示宽度（英文 1 字符，中文/emoji 2 字符）
   const getStringWidth = (str: string): number => {
     let width = 0;
@@ -510,43 +509,32 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           </Box>
 
           {/* 输入框容器：固定宽度、纵向布局、单线边框、灰色 */}
-          <Box width={inputBoxWidth} flexDirection="column" borderStyle="single" borderColor="gray">
-            {/* 顶部留白：增加输入框上内边距 */}
-            <Box width={contentWidth}>
-              <Text color="blue">│</Text>
-              <Text>{' '}</Text>
-            </Box>
+          <Box width={inputBoxWidth} flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
+            {/* 顶部留白 */}
+            <Text>{' '}</Text>
             {/* 输入框文本行 */}
             {state.inputLines.flatMap((line, row) => [
-              // 每行容器：内部宽度（减去边框）
-              <Box key={`line-${row}`} width={contentWidth}>
-                {/* 左侧边框：蓝色竖线 */}
-                <Text color="blue">│</Text>
-                {/* 文本内容：空格 + 行文本（按显示宽度截断后含光标块） */}
+              // 每行：文本 + 空格
+              <Box key={`line-${row}`}>
                 <Text>
-                  {' '}{truncateByWidth(
+                  {truncateByWidth(
                     row === state.cursorRow
                       ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
                       : line,
                     textWidth
                   ).text}
-                  {/* 占位提示符：当第 0 行第 0 列且为空时显示 */}
                   {row === 0 && row === state.cursorRow && state.cursorCol === 0 && line === '' && (
                     <Text dimColor>Ask anything...</Text>
                   )}
                 </Text>
               </Box>,
-              // 行间距：文字行之间的间隙
-              <Box key={`gap-${row}`} width={contentWidth}>
-                <Text color="blue">│</Text>
+              // 行间距
+              <Box key={`gap-${row}`}>
                 <Text>{' '}</Text>
               </Box>
             ])}
-            {/* 底部留白：输入区域和模式信息之间的间距 */}
-            <Box width={contentWidth}>
-              <Text color="blue">│</Text>
-              <Text>{' '}</Text>
-            </Box>
+            {/* 底部留白 */}
+            <Text>{' '}</Text>
             {/* 模式信息行：显示当前模式和模型名称 */}
             <Box width={contentWidth}>
               <Text color="blue"> {currentMode} </Text>
