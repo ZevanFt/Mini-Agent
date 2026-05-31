@@ -508,44 +508,43 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             ))}
           </Box>
 
-          {/* 输入框容器：固定宽度、纵向布局、单线边框、灰色 */}
-          <Box width={inputBoxWidth} flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
+          {/* 输入框容器：不设宽度，由子元素自然撑开 */}
+          <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingLeft={1} paddingRight={1}>
             {/* 顶部留白 */}
             <Text>{' '}</Text>
-            {/* 输入框文本行 */}
+            {/* 输入框文本行（每行宽度统一为 textWidth） */}
             {state.inputLines.flatMap((line, row) => [
-              // 每行：文本 + 空格
-              <Box key={`line-${row}`}>
-                <Text>
-                  {truncateByWidth(
-                    row === state.cursorRow
-                      ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
-                      : line,
-                    textWidth
-                  ).text}
-                  {row === 0 && row === state.cursorRow && state.cursorCol === 0 && line === '' && (
-                    <Text dimColor>Ask anything...</Text>
-                  )}
-                </Text>
+              <Box key={`line-${row}`} width={textWidth + 1}>
+                <Text>{truncateByWidth(
+                  row === state.cursorRow
+                    ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
+                    : line,
+                  textWidth
+                ).text}</Text>
+                {row === 0 && row === state.cursorRow && state.cursorCol === 0 && line === '' && (
+                  <Text dimColor>Ask anything...</Text>
+                )}
               </Box>,
               // 行间距
-              <Box key={`gap-${row}`}>
+              <Box key={`gap-${row}`} width={textWidth + 1}>
                 <Text>{' '}</Text>
               </Box>
             ])}
             {/* 底部留白 */}
-            <Text>{' '}</Text>
-            {/* 模式信息行：显示当前模式和模型名称 */}
-            <Box width={contentWidth}>
+            <Box width={textWidth + 1}>
+              <Text>{' '}</Text>
+            </Box>
+            {/* 模式信息行 */}
+            <Box width={textWidth + 1}>
               <Text color="blue"> {currentMode} </Text>
               <Text dimColor>· {modelName} {state.agentName}</Text>
             </Box>
             {/* 虚线分隔符 */}
-            <Box width={contentWidth}>
+            <Box width={textWidth + 1}>
               <Text dimColor>{dashLine}</Text>
             </Box>
-            {/* 快捷键提示：靠右对齐 */}
-            <Box width={contentWidth} justifyContent="flex-end">
+            {/* 快捷键提示 */}
+            <Box width={textWidth + 1} justifyContent="flex-end">
               <Text dimColor>tab agents  ctrl+p</Text>
             </Box>
           </Box>
@@ -599,46 +598,42 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           </Box>
           {/* 底部输入框：宽度 100%、水平垂直居中 */}
           <Box width="100%" justifyContent="center" alignItems="center">
-            {/* 输入框容器：固定宽度、纵向布局、单线边框、灰色 */}
-            <Box width={inputBoxWidth} flexDirection="column" borderStyle="single" borderColor="gray">
+            {/* 输入框容器：不设宽度，由子元素自然撑开 */}
+            <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingLeft={1} paddingRight={1}>
               {/* 顶部留白 */}
-              <Box width={contentWidth}>
-                <Text color="blue">│</Text>
+              <Box width={textWidth + 1}>
                 <Text>{' '}</Text>
               </Box>
               {/* 输入框文本行 */}
               {state.inputLines.flatMap((line, row) => [
-                <Box key={`line-${row}`} width={contentWidth}>
-                  <Text color="blue">│</Text>
-                  <Text>{' '}{truncateByWidth(
+                <Box key={`line-${row}`} width={textWidth + 1}>
+                  <Text>{truncateByWidth(
                     row === state.cursorRow
                       ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
                       : line,
                     textWidth
-                  )}</Text>
+                  ).text}</Text>
                 </Box>,
                 // 行间距
-                <Box key={`gap-${row}`} width={contentWidth}>
-                  <Text color="blue">│</Text>
+                <Box key={`gap-${row}`} width={textWidth + 1}>
                   <Text>{' '}</Text>
                 </Box>
               ])}
               {/* 底部留白 */}
-              <Box width={contentWidth}>
-                <Text color="blue">│</Text>
+              <Box width={textWidth + 1}>
                 <Text>{' '}</Text>
               </Box>
               {/* 模式信息行 */}
-              <Box width={contentWidth}>
+              <Box width={textWidth + 1}>
                 <Text color="blue"> {currentMode} </Text>
                 <Text dimColor>· {modelName} {state.agentName}</Text>
               </Box>
               {/* 虚线分隔符 */}
-              <Box width={contentWidth}>
+              <Box width={textWidth + 1}>
                 <Text dimColor>{dashLine}</Text>
               </Box>
               {/* 快捷键提示 */}
-              <Box width={contentWidth} justifyContent="flex-end">
+              <Box width={textWidth + 1} justifyContent="flex-end">
                 <Text dimColor>tab agents  ctrl+p</Text>
               </Box>
             </Box>
