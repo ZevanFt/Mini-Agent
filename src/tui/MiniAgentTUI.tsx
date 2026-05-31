@@ -83,6 +83,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [termWidth, setTermWidth] = useState(120);
   // 终端高度（行数），默认 30
   const [termHeight, setTermHeight] = useState(30);
+  // 光标闪烁状态：true=显示，false=隐藏
+  const [cursorVisible, setCursorVisible] = useState(true);
 
   // 监听终端窗口大小变化，实时更新 termWidth 和 termHeight
   useEffect(() => {
@@ -99,6 +101,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     return () => {
       process.stdout.off('resize', updateDimensions); // 组件卸载时解绑
     };
+  }, []); // 空依赖数组
+
+  // 光标闪烁定时器：每 530ms 切换一次显示/隐藏
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCursorVisible(prev => !prev);
+    }, 530);
+    return () => clearInterval(timer); // 组件卸载时清除
   }, []); // 空依赖数组
 
   // 计算当前模式名称（从 AGENT_MODES 数组中取）
@@ -356,8 +366,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
-    // 退格键：删除字符或合并行
-    if (input === '\u007f' || input === '\b') {
+    // 退格键：删除字符或合并行（Ink 使用 key.backspace）
+    if (key.backspace) {
       if (state.cursorCol > 0) {
         updateState(prev => {
           const newLines = [...prev.inputLines];
@@ -382,25 +392,103 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
-    // 普通字符输入：插入到光标位置
+    // 普通字符输入：插入到光标位置（含自动换行逻辑）
     if (input.length >= 1) {
       updateState(prev => {
         const newLines = [...prev.inputLines];
-        const line = newLines[prev.cursorRow];
-        newLines[prev.cursorRow] = line.slice(0, prev.cursorCol) + input + line.slice(prev.cursorCol); // 插入字符
-        return {
-          ...prev,
-          inputLines: newLines,
-          cursorCol: prev.cursorCol + input.length, // 光标右移
-        };
+        const currentLine = newLines[prev.cursorRow];
+        const newText = currentLine.slice(0, prev.cursorCol) + input + currentLine.slice(prev.cursorCol);
+        
+        // 检查当前行是否超过最大显示宽度
+        if (getStringWidth(newText) > textWidth) {
+          // 按显示宽度截断，超出部分移到下一行
+          const { text: lineText, charCount: lineCharCount } = truncateByWidth(newText, textWidth);
+          const overflowText = newText.slice(lineCharCount);
+          
+          newLines[prev.cursorRow] = lineText;
+          
+          // 递归处理溢出文本：可能需要多行换行
+          let remainingOverflow = overflowText;
+          let insertRow = prev.cursorRow + 1;
+          
+          while (getStringWidth(remainingOverflow) > 0) {
+            if (insertRow < newLines.length) {
+              // 已有该行，将溢出文本拼接到开头
+              const combined = remainingOverflow + newLines[insertRow];
+              if (getStringWidth(combined) <= textWidth) {
+                // 合并后不超过宽度，直接放入
+                newLines[insertRow] = combined;
+                remainingOverflow = '';
+              } else {
+                // 合并后超过宽度，截断当前行
+                const truncated = truncateByWidth(combined, textWidth);
+                newLines[insertRow] = truncated.text;
+                remainingOverflow = combined.slice(truncated.charCount);
+                insertRow++;
+              }
+            } else {
+              // 没有该行，创建新行
+              if (getStringWidth(remainingOverflow) <= textWidth) {
+                newLines.push(remainingOverflow);
+                remainingOverflow = '';
+              } else {
+                const lineContent = truncateByWidth(remainingOverflow, textWidth);
+                newLines.push(lineContent.text);
+                remainingOverflow = remainingOverflow.slice(lineContent.charCount);
+                insertRow++;
+              }
+            }
+          }
+          
+          // 换行后光标移到下一行溢出文本末尾
+          return {
+            ...prev,
+            inputLines: newLines,
+            cursorRow: prev.cursorRow + 1,
+            cursorCol: newLines[prev.cursorRow + 1] ? newLines[prev.cursorRow + 1].length : 0,
+          };
+        } else {
+          // 正常插入
+          newLines[prev.cursorRow] = newText;
+          return {
+            ...prev,
+            inputLines: newLines,
+            cursorCol: prev.cursorCol + input.length, // 光标右移
+          };
+        }
       });
     }
   });
 
   // 计算输入框宽度：终端宽度的 35%
   const inputBoxWidth = Math.floor(termWidth * 0.35);
-  // 计算输入框内部可用宽度（减去边框和 padding 约 4 个字符）
-  const innerWidth = Math.max(inputBoxWidth - 4, 20); // 最小 20 字符
+  // 内部内容宽度（减去 Ink 边框占用的 2 个字符）
+  const contentWidth = inputBoxWidth - 2;
+  // 文字可用宽度（再减去手动画的 │ 和空格，共 2 字符）
+  const textWidth = Math.max(contentWidth - 2, 20);
+  // 虚线分隔符
+  const dashLine = '─'.repeat(Math.max(contentWidth - 1, 20));
+  // 计算字符串的显示宽度（英文 1 字符，中文/emoji 2 字符）
+  const getStringWidth = (str: string): number => {
+    let width = 0;
+    for (const char of str) {
+      // 非 ASCII 字符（中文、emoji 等）占 2 格，ASCII 字符占 1 格
+      width += char.charCodeAt(0) > 127 ? 2 : 1;
+    }
+    return width;
+  };
+  // 文本截断辅助函数：按显示宽度截断，返回 { text, charCount }
+  const truncateByWidth = (text: string, maxWidth: number): { text: string; charCount: number } => {
+    let currentWidth = 0;
+    let result = '';
+    for (const char of text) {
+      const charWidth = char.charCodeAt(0) > 127 ? 2 : 1;
+      if (currentWidth + charWidth > maxWidth) break;
+      result += char;
+      currentWidth += charWidth;
+    }
+    return { text: result, charCount: result.length };
+  };
 
   return (
     // 最外层容器：纵向布局、宽度 100%、高度使用终端实际行数（明确数值）
@@ -423,32 +511,53 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
           {/* 输入框容器：固定宽度、纵向布局、单线边框、灰色 */}
           <Box width={inputBoxWidth} flexDirection="column" borderStyle="single" borderColor="gray">
+            {/* 顶部留白：增加输入框上内边距 */}
+            <Box width={contentWidth}>
+              <Text color="blue">│</Text>
+              <Text>{' '}</Text>
+            </Box>
             {/* 输入框文本行 */}
-            {state.inputLines.map((line, row) => (
-              // 每行容器：固定宽度
-              <Box key={row} width={inputBoxWidth}>
+            {state.inputLines.flatMap((line, row) => [
+              // 每行容器：内部宽度（减去边框）
+              <Box key={`line-${row}`} width={contentWidth}>
                 {/* 左侧边框：蓝色竖线 */}
                 <Text color="blue">│</Text>
-                {/* 文本内容：空格 + 行文本（含光标块） */}
-                <Text>{' '}{row === state.cursorRow ? line.slice(0, state.cursorCol) + '█' + line.slice(state.cursorCol) : line}
+                {/* 文本内容：空格 + 行文本（按显示宽度截断后含光标块） */}
+                <Text>
+                  {' '}{truncateByWidth(
+                    row === state.cursorRow
+                      ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
+                      : line,
+                    textWidth
+                  ).text}
                   {/* 占位提示符：当第 0 行第 0 列且为空时显示 */}
                   {row === 0 && row === state.cursorRow && state.cursorCol === 0 && line === '' && (
                     <Text dimColor>Ask anything...</Text>
                   )}
                 </Text>
+              </Box>,
+              // 行间距：文字行之间的间隙
+              <Box key={`gap-${row}`} width={contentWidth}>
+                <Text color="blue">│</Text>
+                <Text>{' '}</Text>
               </Box>
-            ))}
+            ])}
+            {/* 底部留白：输入区域和模式信息之间的间距 */}
+            <Box width={contentWidth}>
+              <Text color="blue">│</Text>
+              <Text>{' '}</Text>
+            </Box>
             {/* 模式信息行：显示当前模式和模型名称 */}
-            <Box width={inputBoxWidth}>
+            <Box width={contentWidth}>
               <Text color="blue"> {currentMode} </Text>
               <Text dimColor>· {modelName} {state.agentName}</Text>
             </Box>
-            {/* 虚线分隔符：填充内部宽度 */}
-            <Box width={inputBoxWidth}>
-              <Text dimColor>{'─'.repeat(innerWidth)}</Text>
+            {/* 虚线分隔符 */}
+            <Box width={contentWidth}>
+              <Text dimColor>{dashLine}</Text>
             </Box>
             {/* 快捷键提示：靠右对齐 */}
-            <Box width={inputBoxWidth} justifyContent="flex-end">
+            <Box width={contentWidth} justifyContent="flex-end">
               <Text dimColor>tab agents  ctrl+p</Text>
             </Box>
           </Box>
@@ -504,24 +613,44 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           <Box width="100%" justifyContent="center" alignItems="center">
             {/* 输入框容器：固定宽度、纵向布局、单线边框、灰色 */}
             <Box width={inputBoxWidth} flexDirection="column" borderStyle="single" borderColor="gray">
+              {/* 顶部留白 */}
+              <Box width={contentWidth}>
+                <Text color="blue">│</Text>
+                <Text>{' '}</Text>
+              </Box>
               {/* 输入框文本行 */}
-              {state.inputLines.map((line, row) => (
-                <Box key={row} width={inputBoxWidth}>
+              {state.inputLines.flatMap((line, row) => [
+                <Box key={`line-${row}`} width={contentWidth}>
                   <Text color="blue">│</Text>
-                  <Text>{' '}{row === state.cursorRow ? line.slice(0, state.cursorCol) + '█' + line.slice(state.cursorCol) : line}</Text>
+                  <Text>{' '}{truncateByWidth(
+                    row === state.cursorRow
+                      ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
+                      : line,
+                    textWidth
+                  )}</Text>
+                </Box>,
+                // 行间距
+                <Box key={`gap-${row}`} width={contentWidth}>
+                  <Text color="blue">│</Text>
+                  <Text>{' '}</Text>
                 </Box>
-              ))}
+              ])}
+              {/* 底部留白 */}
+              <Box width={contentWidth}>
+                <Text color="blue">│</Text>
+                <Text>{' '}</Text>
+              </Box>
               {/* 模式信息行 */}
-              <Box width={inputBoxWidth}>
+              <Box width={contentWidth}>
                 <Text color="blue"> {currentMode} </Text>
                 <Text dimColor>· {modelName} {state.agentName}</Text>
               </Box>
               {/* 虚线分隔符 */}
-              <Box width={inputBoxWidth}>
-                <Text dimColor>{'─'.repeat(innerWidth)}</Text>
+              <Box width={contentWidth}>
+                <Text dimColor>{dashLine}</Text>
               </Box>
               {/* 快捷键提示 */}
-              <Box width={inputBoxWidth} justifyContent="flex-end">
+              <Box width={contentWidth} justifyContent="flex-end">
                 <Text dimColor>tab agents  ctrl+p</Text>
               </Box>
             </Box>
