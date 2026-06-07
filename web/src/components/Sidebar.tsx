@@ -3,6 +3,7 @@ import { Settings, HelpCircle, FolderPlus, ChevronLeft, ChevronRight } from 'luc
 
 interface SidebarProps {
   onOpenSettings: () => void;
+  onOpenAbout: () => void;
   language: 'en' | 'zh';
   onOpenProject: () => void;
   selectedProject: string | null;
@@ -27,7 +28,7 @@ const i18nMap: Record<string, Record<string, string>> = {
   },
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, language, onOpenProject, selectedProject, isPanelOpen, onTogglePanel }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, onOpenAbout, language, onOpenProject, selectedProject, isPanelOpen, onTogglePanel }) => {
   const t = i18nMap[language] || i18nMap.en;
 
   return (
@@ -43,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings, language, onOpenProje
           <button className="sidebar-bar-btn" onClick={onOpenSettings} title="Settings">
             <Settings size={18} />
           </button>
-          <button className="sidebar-bar-btn" title="Help">
+          <button className="sidebar-bar-btn" onClick={onOpenAbout} title="Help">
             <HelpCircle size={18} />
           </button>
         </div>

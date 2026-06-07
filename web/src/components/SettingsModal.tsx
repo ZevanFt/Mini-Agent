@@ -37,6 +37,7 @@ const i18nMap: Record<string, Record<string, string>> = {
     tool_bash_desc: 'Permission for bash tool',
     tool_file: 'File Write',
     tool_file_desc: 'Permission for file write tool',
+    tools: 'Tools',
     allow: 'Allow',
     ask: 'Ask',
     deny: 'Deny',
@@ -68,6 +69,7 @@ const i18nMap: Record<string, Record<string, string>> = {
     tool_bash_desc: 'Bash 工具的权限',
     tool_file: '文件写入',
     tool_file_desc: '文件写入工具的权限',
+    tools: '工具',
     allow: '允许',
     ask: '询问',
     deny: '禁止',
@@ -275,7 +277,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ settings, onSave, onClose
           {activeTab === 'tools' && (
             <>
               <div className="settings-section">
-                <div className="settings-section-title">Tools</div>
+                <div className="settings-section-title">{t.tools}</div>
                 <div className="setting-row">
                   <div className="setting-label">
                     <div className="setting-label-main">{t.tool_bash}</div>

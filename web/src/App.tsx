@@ -6,6 +6,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
 import SettingsModal from './components/SettingsModal';
+import AboutModal from './components/AboutModal';
 import { useSessions } from './hooks/useSessions';
 import { useChat } from './hooks/useChat';
 import { useSettings } from './hooks/useSettings';
@@ -41,6 +42,7 @@ const App: React.FC = () => {
   } = useChat();
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [sidebarPanelOpen, setSidebarPanelOpen] = useState(true);
@@ -114,6 +116,7 @@ const App: React.FC = () => {
       <div className="app-body" style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily || 'system-ui, -apple-system, sans-serif' }}>
         <Sidebar
           onOpenSettings={() => setShowSettings(true)}
+          onOpenAbout={() => setShowAbout(true)}
           language={settings.language}
           onOpenProject={() => setShowProjectPicker(true)}
           selectedProject={selectedProject}
@@ -179,6 +182,13 @@ const App: React.FC = () => {
           language={settings.language}
           theme={theme}
           onThemeChange={setTheme}
+        />
+      )}
+
+      {showAbout && (
+        <AboutModal
+          onClose={() => setShowAbout(false)}
+          language={settings.language}
         />
       )}
 
