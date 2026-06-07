@@ -1,11 +1,19 @@
-import { useEffect, useState } from 'react';
-import { X, FolderOpen, Folder } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, FolderOpen, Folder, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface FolderPickerProps {
   onSelect: (path: string) => void;
   onClose: () => void;
   language: 'en' | 'zh';
   recentProjects?: string[];
+  baseUrl?: string;
+}
+
+interface DirEntry {
+  name: string;
+  path: string;
+  type: 'dir' | 'file';
+  children?: DirEntry[];
 }
 
 const i18nMap: Record<string, Record<string, string>> = {
@@ -14,51 +22,91 @@ const i18nMap: Record<string, Record<string, string>> = {
     browse: 'Browse Folders...',
     recent: 'Recent Projects',
     no_recent: 'No recent projects',
+    loading: 'Loading...',
+    select_folder: 'Select a folder to open',
   },
   zh: {
     title: '打开项目',
     browse: '浏览文件夹...',
     recent: '最近项目',
     no_recent: '暂无最近项目',
+    loading: '加载中...',
+    select_folder: '选择要打开的文件夹',
   },
 };
 
-/**
- * Use the File System Access API to pick a folder.
- * Falls back to a simple recent-projects list if the API is unavailable.
- */
-const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language, recentProjects = [] }) => {
+const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language, recentProjects = [], baseUrl }) => {
   const t = i18nMap[language] || i18nMap.en;
-  const [picking, setPicking] = useState(false);
-  const [fallback, setFallback] = useState(false);
+  const [entries, setEntries] = useState<DirEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const hasFileSystemAccess = 'showDirectoryPicker' in window;
-
-  useEffect(() => {
-    if (!hasFileSystemAccess) {
-      setFallback(true);
-    }
-  }, [hasFileSystemAccess]);
-
-  const handleBrowse = async () => {
-    if (!hasFileSystemAccess) return;
-    setPicking(true);
+  const fetchEntries = async () => {
+    setLoading(true);
+    setError('');
     try {
-      const dirHandle = await (window as any).showDirectoryPicker({
-        mode: 'read',
-      });
-      // Reconstruct a readable path-like name
-      let path = dirHandle.name;
-      onSelect(path);
-      onClose();
+      const url = new URL('/api/projects/scan', baseUrl || window.location.origin);
+      const resp = await fetch(url.toString());
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      setEntries(data.entries || []);
     } catch (err: any) {
-      // User cancelled or denied
-      if (err.name !== 'AbortError') {
-        console.error('Folder picker error:', err);
-      }
+      setError(err.message);
     } finally {
-      setPicking(false);
+      setLoading(false);
     }
+  };
+
+  useEffect(() => { fetchEntries(); }, []);
+
+  const toggleExpand = (entryPath: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(entryPath)) next.delete(entryPath);
+      else next.add(entryPath);
+      return next;
+    });
+  };
+
+  const handleSelect = (entryPath: string) => {
+    onSelect(entryPath);
+    onClose();
+  };
+
+  const renderEntry = (entry: DirEntry, depth: number = 0) => {
+    const isExpanded = expanded.has(entry.path);
+
+    return (
+      <div key={entry.path}>
+        <div
+          className="folder-picker-entry"
+          style={{ paddingLeft: `${12 + depth * 16}px` }}
+          onClick={() => entry.type === 'dir' ? toggleExpand(entry.path) : handleSelect(entry.path)}
+        >
+          {entry.type === 'dir' && (
+            <span className="folder-picker-expand-icon">
+              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </span>
+          )}
+          {entry.type === 'dir' ? <Folder size={14} className="folder-picker-icon" /> : null}
+          <span className="folder-picker-entry-name">{entry.name}</span>
+          {entry.type === 'dir' && (
+            <button
+              className="folder-picker-select-btn"
+              onClick={e => { e.stopPropagation(); handleSelect(entry.path); }}
+            >
+              {language === 'zh' ? '选择' : 'Select'}
+            </button>
+          )}
+        </div>
+        {entry.type === 'dir' && isExpanded && entry.children && (
+          <div className="folder-picker-children">
+            {entry.children.map(child => renderEntry(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -72,19 +120,6 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
         </div>
 
         <div className="folder-picker-body">
-          {hasFileSystemAccess && !picking && (
-            <button className="folder-picker-browse-btn" onClick={handleBrowse}>
-              <FolderOpen size={18} />
-              <span>{t.browse}</span>
-            </button>
-          )}
-
-          {picking && (
-            <div className="folder-picker-prompt">
-              <p>{t.browse}</p>
-            </div>
-          )}
-
           {recentProjects.length > 0 && (
             <>
               <div className="folder-picker-label">{t.recent}</div>
@@ -100,11 +135,23 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
                   </div>
                 ))}
               </div>
+              <div className="folder-picker-separator" />
             </>
           )}
 
-          {!hasFileSystemAccess && recentProjects.length === 0 && (
+          <div className="folder-picker-label">{t.browse}</div>
+
+          {loading && <div className="folder-picker-loading">{t.loading}</div>}
+          {error && <div className="folder-picker-error">{error}</div>}
+
+          {!loading && !error && entries.length === 0 && (
             <div className="folder-picker-empty">{t.no_recent}</div>
+          )}
+
+          {!loading && entries.length > 0 && (
+            <div className="folder-picker-tree">
+              {entries.map(entry => renderEntry(entry))}
+            </div>
           )}
         </div>
       </div>

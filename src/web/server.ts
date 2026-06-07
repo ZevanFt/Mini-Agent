@@ -1,5 +1,5 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync, statSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { SQLiteStore } from '../core/sqlite-store.js';
@@ -241,6 +241,12 @@ export class MiniAgentServer {
 
       if (pathname === '/api/usage/stats' && method === 'GET') {
         await this.handleUsageStats(req, res, url);
+        return;
+      }
+
+      // Project directory scanning (for cloud deployments)
+      if (pathname === '/api/projects/scan' && method === 'GET') {
+        await this.handleProjectScan(req, res, url);
         return;
       }
 
@@ -714,5 +720,97 @@ export class MiniAgentServer {
     const stats = await this.store.getUsageStats(days);
     logger.info('Usage stats fetched', { days });
     jsonResponse(res, 200, { stats, days });
+  }
+
+  // --- Project Directory Scan ---
+  /**
+   * Scan a directory on the server and return its folder structure.
+   * Supports pagination and depth limiting for large directories.
+   * Query params: `path` (relative), `depth` (default 2), `maxItems` (default 200)
+   */
+  private async handleProjectScan(_req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
+    const scanPath = url.searchParams.get('path') || this.options.projectDir;
+    const maxDepth = parseInt(url.searchParams.get('depth') || '2', 10);
+    const maxItems = parseInt(url.searchParams.get('maxItems') || '200', 10);
+
+    // Security: resolve path and ensure it's under projectDir
+    const resolved = path.resolve(scanPath);
+    const projectRoot = this.options.projectDir;
+
+    interface DirEntry {
+      name: string;
+      path: string;
+      type: 'dir' | 'file';
+      children?: DirEntry[];
+    }
+
+    const scanDir = (dir: string, depth: number): DirEntry[] => {
+      if (depth > maxDepth) return [];
+      try {
+        const entries = readdirSync(dir, { withFileTypes: true });
+        const results: DirEntry[] = [];
+        let count = 0;
+
+        for (const entry of entries) {
+          if (count >= maxItems) break;
+          if (entry.name.startsWith('.') && entry.name !== '.git') continue;
+          if (entry.name === 'node_modules' || entry.name === '.git') {
+            if (entry.name === '.git') {
+              results.push({
+                name: entry.name,
+                path: path.join(dir, entry.name),
+                type: 'dir',
+              });
+              count++;
+            }
+            continue;
+          }
+
+          const fullPath = path.join(dir, entry.name);
+          try {
+            const stat = statSync(fullPath);
+            if (entry.isDirectory() || stat.isDirectory()) {
+              const item: DirEntry = {
+                name: entry.name,
+                path: fullPath,
+                type: 'dir',
+              };
+              if (depth < maxDepth) {
+                item.children = scanDir(fullPath, depth + 1);
+              }
+              results.push(item);
+              count++;
+            } else if (stat.isFile()) {
+              // Only include key file types for project detection
+              const ext = path.extname(entry.name).toLowerCase();
+              if (ext === '.json' || ext === '.ts' || ext === '.js' || ext === '.py'
+                  || ext === '.go' || ext === '.rs' || ext === '.toml' || ext === '.yaml'
+                  || ext === '.yml' || ext === '.md' || ext === '.gitignore') {
+                results.push({
+                  name: entry.name,
+                  path: fullPath,
+                  type: 'file',
+                });
+                count++;
+              }
+            }
+          } catch {
+            // Skip inaccessible files/dirs
+          }
+        }
+        return results;
+      } catch (err: any) {
+        logger.warn('Directory scan error:', err.message, { dir });
+        return [];
+      }
+    };
+
+    const entries = scanDir(resolved, 0);
+    logger.info('Project scan', { path: resolved, depth: maxDepth, entries: entries.length });
+    jsonResponse(res, 200, {
+      path: resolved,
+      entries,
+      maxDepth,
+    });
   }
 }
