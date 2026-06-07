@@ -1,7 +1,7 @@
-import type { LLMAdapter, ChatChunk, Message, ChatParams } from '../llm/base.js';
+import type { LLMAdapter, ChatChunk, ChatParams } from '../llm/base.js';
 import { ToolRegistry } from '../tools/registry.js';
 import { ToolExecutor } from '../tools/executor.js';
-import type { Tool, ToolResult, ToolCall } from '../tools/types.js';
+import type { Tool, ToolResult } from '../tools/types.js';
 import { SessionMemory } from '../memory/index.js';
 import { buildSystemPrompt } from './system-prompt.js';
 import type { HookDispatcher } from './hooks.js';
@@ -11,10 +11,7 @@ import { CodeEnhancer as LegacyCodeEnhancer } from './code-enhancer.js';
 import { CompletenessChecker } from './completeness-checker.js';
 import { AutoRunner } from './auto-runner.js';
 import { LogInjector } from './log-injector.js';
-import type { CodeBlock } from './code-enhancer.js';
-import type { RunConfig } from './auto-runner.js';
 import { DualPipelineEnhancer as CodeEnhancer } from './enhancer/index.js';
-import type { DualPipelineConfig as EnhancerConfig, ProcessResult as EnhancementResult } from './enhancer/index.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -325,7 +322,7 @@ export class Agent {
   }
 
   private async enhanceGeneratedCode(
-    toolName: string,
+    _toolName: string,
     args: Record<string, unknown>,
     result: ToolResult
   ): Promise<ToolResult> {

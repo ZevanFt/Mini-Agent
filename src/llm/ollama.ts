@@ -96,13 +96,11 @@ interface OllamaOptions {
 
 export class OllamaAdapter implements LLMAdapter {
   private model: string;
-  private baseUrl: string;
   private temperature: number;
   private maxTokens: number;
 
   constructor(options: OllamaOptions) {
     this.model = options.model;
-    this.baseUrl = options.baseUrl || 'http://localhost:11434';
     this.temperature = options.temperature ?? 0.7;
     this.maxTokens = options.maxTokens ?? 4096;
   }

@@ -9,8 +9,8 @@
  * 1. 质量检测 → 2. 智能路由 → 3. 救烂管线 / 提升管线 → 4. 最终验证
  */
 
-import type { LLMAdapter } from '@/llm/base.js';
-import { logger } from '@/utils/logger.js';
+import type { LLMAdapter } from '../../llm/base.js';
+import { logger } from '../../utils/logger.js';
 
 import { RescuePipeline } from './rescue-pipeline.js';
 import { ElevationPipeline } from './elevation-pipeline.js';

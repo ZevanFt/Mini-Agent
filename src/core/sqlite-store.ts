@@ -2,7 +2,7 @@ import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import path from 'path';
 import fs from 'fs';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger.js';
 
 export interface StoredSession {
   id: string;
@@ -202,6 +202,27 @@ export class SQLiteStore {
     const result = await this.db.run('DELETE FROM sessions WHERE id = ?', id);
     
     return (result.changes ?? 0) > 0;
+  }
+
+  async updateSession(id: string, updates: { name?: string; message_count?: number; tool_calls?: number; metadata?: Record<string, any> }): Promise<StoredSession | null> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const session = await this.getSession(id);
+    if (!session) return null;
+
+    const now = new Date().toISOString();
+    const newName = updates.name ?? session.name;
+    const newMessageCount = updates.message_count ?? session.message_count;
+    const newToolCalls = updates.tool_calls ?? session.tool_calls;
+    const newMetadata = updates.metadata ?? session.metadata;
+
+    await this.db.run(
+      `UPDATE sessions SET name = ?, updated_at = ?, message_count = ?, tool_calls = ?, metadata = ? WHERE id = ?`,
+      [newName, now, newMessageCount, newToolCalls, newMetadata ? JSON.stringify(newMetadata) : null, id]
+    );
+
+    logger.info('Session updated', { id });
+    return { ...session, name: newName, message_count: newMessageCount, tool_calls: newToolCalls, metadata: newMetadata, updated_at: new Date(now) };
   }
 
   // Message methods

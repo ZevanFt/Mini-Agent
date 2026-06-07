@@ -72,14 +72,6 @@ export class PluginManager {
     const manifestRaw = fs.readFileSync(manifestPath, 'utf-8');
     const manifest: PluginManifest = JSON.parse(manifestRaw);
 
-    const mainFile = path.join(pluginPath, manifest.main || 'index.js');
-    let pluginModule: any = {};
-
-    if (fs.existsSync(mainFile)) {
-      const resolvedPath = path.resolve(mainFile);
-      pluginModule = await import(`file://${resolvedPath}`);
-    }
-
     const tools: Tool[] = [];
     if (manifest.tools) {
       for (const toolFile of manifest.tools) {
@@ -147,10 +139,6 @@ export class PluginManager {
     const execAsync = promisify(exec);
 
     await execAsync(`npm install --prefix "${targetDir}" "${packageName}"`);
-
-    const pluginName = packageName.startsWith('@')
-      ? packageName.slice(1).split('/')[0]
-      : packageName.split('/')[0] || packageName;
 
     const pluginPath = path.join(targetDir, 'node_modules', packageName);
     const manifestPath = path.join(pluginPath, 'plugin.json');

@@ -146,7 +146,7 @@ export class AutoRunner {
     return new Promise((resolve) => {
       const timeout = config.timeout || 30000;
 
-      const child = exec(
+      exec(
         fullCmd,
         { cwd: config.cwd, timeout },
         (error, stdout, stderr) => {

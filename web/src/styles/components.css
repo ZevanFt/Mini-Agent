@@ -943,9 +943,20 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   display: flex;
+  flex-direction: column;
   overflow: hidden;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
   animation: modalIn 0.2s ease;
+}
+
+.settings-panel > .settings-nav {
+  flex-direction: column;
+}
+
+.settings-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
 .settings-nav {
@@ -997,7 +1008,45 @@
 .settings-body {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 28px;
+  padding: 24px;
+}
+
+/* 设置底部操作栏 */
+.settings-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.settings-btn-cancel,
+.settings-btn-save {
+  padding: 8px 24px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid var(--border-default);
+  transition: all 0.15s ease;
+}
+
+.settings-btn-cancel {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.settings-btn-cancel:hover {
+  background: var(--bg-hover);
+}
+
+.settings-btn-save {
+  background: var(--accent-default);
+  color: white;
+  border-color: var(--accent-default);
+}
+
+.settings-btn-save:hover {
+  background: var(--accent-hover);
 }
 
 .settings-section {

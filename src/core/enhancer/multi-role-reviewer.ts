@@ -12,9 +12,9 @@
  * 内置角色：安全专家、性能工程师、架构师、测试专家、可读性专家
  */
 
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
-import { logger } from '@/utils/logger';
-import type { CodeBlock, ValidationResult, ReviewRole } from './types.js';
+import type { LLMAdapter } from '../../llm/base.js';
+import { logger } from '../../utils/logger.js';
+import type { ValidationResult, ReviewRole } from './types.js';
 
 /**
  * 审查结果项

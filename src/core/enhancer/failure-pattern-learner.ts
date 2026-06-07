@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, resolve } from 'path';
 import type { FailurePattern, GenerationConstraints } from './types.js';
-import { logger } from '@/utils/logger.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * 失败模式学习系统
@@ -185,7 +185,6 @@ export class FailurePatternLearner {
     const mustHandle = new Set<string>();
 
     for (const failure of similarFailures) {
-      const reason = failure.failureReason.toLowerCase();
 
       switch (failure.failureType) {
         case 'syntax':

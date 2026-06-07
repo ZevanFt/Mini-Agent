@@ -82,7 +82,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ settings, onSave, onClose
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [localSettings, setLocalSettings] = useState<AppSettings>({ ...settings });
   const [localTheme, setLocalTheme] = useState(theme);
-  const t = i18nMap[language] || i18nMap.en;
+  // 使用 localSettings.language 实现实时翻译切换
+  const t = i18nMap[localSettings.language] || i18nMap.en;
 
   const handleSave = () => {
     onSave({ ...localSettings, theme: localTheme });
@@ -99,21 +100,22 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ settings, onSave, onClose
   return (
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-panel" onClick={e => e.stopPropagation()}>
-        <div className="settings-nav">
-          {tabs.map(tab => (
-            <div
-              key={tab.id}
-              className={`settings-nav-item ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </div>
-          ))}
-          <div className="settings-nav-footer">{t.version}</div>
-        </div>
+        <div className="settings-content">
+          <div className="settings-nav">
+            {tabs.map(tab => (
+              <div
+                key={tab.id}
+                className={`settings-nav-item ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+              </div>
+            ))}
+            <div className="settings-nav-footer">{t.version}</div>
+          </div>
 
-        <div className="settings-body">
-          {activeTab === 'general' && (
+          <div className="settings-body">
+            {activeTab === 'general' && (
             <>
               <div className="settings-section">
                 <div className="settings-section-title">{t.general}</div>
@@ -175,19 +177,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ settings, onSave, onClose
                     <div className="setting-label-desc">{t.interface_font_desc}</div>
                   </div>
                   <div className="setting-control">
-                    <select className="setting-select" defaultValue="system">
-                      <option value="system">System Sans</option>
+                    <select
+                      className="setting-select"
+                      value={localSettings.fontFamily || 'system-ui'}
+                      onChange={e => update('fontFamily', e.target.value)}
+                    >
+                      <option value="system-ui">System Sans</option>
+                      <option value="Arial, sans-serif">Arial</option>
+                      <option value="'Segoe UI', sans-serif">Segoe UI</option>
                     </select>
                   </div>
                 </div>
                 <div className="setting-row">
                   <div className="setting-label">
-                    <div className="setting-label-main">{t.code_font}</div>
-                    <div className="setting-label-desc">{t.code_font_desc}</div>
+                    <div className="setting-label-main">字体大小</div>
+                    <div className="setting-label-desc">调整界面字体大小</div>
                   </div>
                   <div className="setting-control">
-                    <select className="setting-select" defaultValue="mono">
-                      <option value="mono">System Mono</option>
+                    <select
+                      className="setting-select"
+                      value={localSettings.fontSize || 14}
+                      onChange={e => update('fontSize', parseInt(e.target.value))}
+                    >
+                      <option value={12}>12px (小)</option>
+                      <option value={14}>14px (中)</option>
+                      <option value={16}>16px (大)</option>
+                      <option value={18}>18px (特大)</option>
                     </select>
                   </div>
                 </div>
@@ -298,6 +313,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ settings, onSave, onClose
               </div>
             </>
           )}
+        </div>
+        </div>
+
+        {/* 底部操作栏 */}
+        <div className="settings-footer">
+          <button className="settings-btn-cancel" onClick={onClose}>
+            {t.cancel || '取消'}
+          </button>
+          <button className="settings-btn-save" onClick={handleSave}>
+            {t.confirm || '确定'}
+          </button>
         </div>
       </div>
     </div>

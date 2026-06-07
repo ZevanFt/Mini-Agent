@@ -1,5 +1,5 @@
-import { logger } from '@/utils/logger';
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
+import { logger } from '../../utils/logger.js';
+import type { LLMAdapter } from '../../llm/base.js';
 
 export interface SecurityHardeningResult {
   hardenedCode: string;
@@ -17,9 +17,12 @@ export interface SecurityHardeningOptions {
   suggestRateLimiting?: boolean;
 }
 
+const DEFAULT_TEMPERATURE = 0.2;
+const DEFAULT_MAX_TOKENS = 8192;
+
 const DEFAULT_OPTIONS: Required<Omit<SecurityHardeningOptions, 'addInputValidation' | 'replaceDangerousFunctions' | 'detectSecrets' | 'addSanitization' | 'suggestRateLimiting'>> & Pick<SecurityHardeningOptions, 'addInputValidation' | 'replaceDangerousFunctions' | 'detectSecrets' | 'addSanitization' | 'suggestRateLimiting'> = {
-  temperature: 0.2,
-  maxTokens: 8192,
+  temperature: DEFAULT_TEMPERATURE,
+  maxTokens: DEFAULT_MAX_TOKENS,
   addInputValidation: true,
   replaceDangerousFunctions: true,
   detectSecrets: true,
@@ -42,19 +45,6 @@ const DANGEROUS_FUNCTIONS = [
   { pattern: /\bexecSync\s*\(/g, replacement: 'execSync() - use async subprocess', name: 'execSync' },
   { pattern: /\bFunction\s*\(/g, replacement: 'Function constructor - avoid dynamic code generation', name: 'Function constructor' },
   { pattern: /\bsetTimeout\s*\(\s*string/g, replacement: 'setTimeout with string - use function reference', name: 'setTimeout with string' },
-];
-
-const XSS_PATTERNS = [
-  { pattern: /\.innerHTML\s*=/g, name: 'innerHTML assignment' },
-  { pattern: /\.outerHTML\s*=/g, name: 'outerHTML assignment' },
-  { pattern: /dangerouslySetInnerHTML/g, name: 'dangerouslySetInnerHTML' },
-  { pattern: /document\.write\s*\(/g, name: 'document.write' },
-];
-
-const SQL_INJECTION_PATTERNS = [
-  { pattern: /execute\s*\(\s*["'][^"']*\+\s*/g, name: 'SQL string concatenation' },
-  { pattern: /query\s*\(\s*["'][^"']*\+\s*/g, name: 'SQL string concatenation' },
-  { pattern: /\$\{.*\}.*SELECT|INSERT|UPDATE|DELETE/gi, name: 'SQL template injection' },
 ];
 
 export class SecurityHardener {
@@ -281,7 +271,7 @@ Rules:
     return count;
   }
 
-  private generateLLMSuggestions(code: string, language: string): string[] {
+  private generateLLMSuggestions(code: string, _language: string): string[] {
     const suggestions: string[] = [];
 
     const xssMatches = code.match(/innerHTML|outerHTML|dangerouslySetInnerHTML|document\.write/gi);

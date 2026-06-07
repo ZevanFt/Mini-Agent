@@ -1,10 +1,10 @@
-import { logger } from '@/utils/logger';
-import type { LLMAdapter } from '@/llm/base.js';
+import { logger } from '../../utils/logger.js';
+import type { LLMAdapter } from '../../llm/base.js';
 import { SecurityHardener } from './security-hardener';
 import { TypeCompleter } from './type-completer';
 import { DocGenerator } from './doc-generator';
 import { TestGenerator } from './test-generator';
-import { LogInjector } from '../log-injector';
+import { LogInjector } from '../log-injector.js';
 
 export interface ElevationStepResult {
   name: string;
@@ -39,7 +39,6 @@ const DEFAULT_OPTIONS: Required<ElevationOptions> = {
 };
 
 export class ElevationPipeline {
-  private llm: LLMAdapter;
   private securityHardener: SecurityHardener;
   private typeCompleter: TypeCompleter;
   private docGenerator: DocGenerator;
@@ -47,7 +46,6 @@ export class ElevationPipeline {
   private logInjector: LogInjector;
 
   constructor(llm: LLMAdapter) {
-    this.llm = llm;
     this.securityHardener = new SecurityHardener(llm);
     this.typeCompleter = new TypeCompleter(llm);
     this.docGenerator = new DocGenerator(llm);

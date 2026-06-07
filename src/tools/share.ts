@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { createHash } from 'crypto';
 import type { Tool, ToolResult } from './types.js';
 import path from 'path';
@@ -56,7 +56,7 @@ Use this when:
     },
 
     async execute(params: Record<string, unknown>): Promise<ToolResult> {
-      const { session_id, title } = params as ShareParams;
+      const { title } = params as ShareParams;
       const sessionInfo = getSessionInfo();
 
       try {
@@ -67,7 +67,7 @@ Use this when:
           id: hash,
           title: title || `MiniAgent Session ${new Date().toISOString().split('T')[0]}`,
           created_at: new Date().toISOString(),
-          messages: messages.map((msg, i) => ({
+          messages: messages.map((msg) => ({
             role: msg.role,
             content: msg.content.slice(0, 2000), // Truncate long messages
             timestamp: new Date().toISOString(),

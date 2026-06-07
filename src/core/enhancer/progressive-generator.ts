@@ -5,8 +5,8 @@
  * 生成流程：骨架 → 实现 → 错误处理 → 边界情况
  */
 
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
-import { logger } from '@/utils/logger';
+import type { LLMAdapter } from '../../llm/base.js';
+import { logger } from '../../utils/logger.js';
 import type { CodeBlock, ValidationResult, ProgressiveStep } from './types.js';
 
 /**
@@ -521,7 +521,7 @@ Output the improved code.`;
    * @param stepName - 步骤名称
    * @returns 得分 0-100
    */
-  private calculateScore(code: string, errorCount: number, warningCount: number, stepName: string): number {
+  private calculateScore(code: string, errorCount: number, warningCount: number, _stepName: string): number {
     let score = 100;
     score -= errorCount * 25;
     score -= warningCount * 10;

@@ -1,4 +1,4 @@
-import { logger } from '@/utils/logger';
+import { logger } from '../../utils/logger.js';
 
 export interface CategoryBreakdown {
   category: string;
@@ -89,7 +89,7 @@ export class QualityScorer {
       }
 
       const lines = code.split('\n');
-      const inconsistentIndent = lines.some((line, i) => {
+      const inconsistentIndent = lines.some((line, _i) => {
         if (line.trim() === '' || line.trim().startsWith('//')) return false;
         const spaces = line.match(/^(\s*)/)?.[1].length ?? 0;
         return spaces % 2 !== 0;

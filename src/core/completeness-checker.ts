@@ -1,5 +1,3 @@
-import { logger } from '@/utils/logger';
-
 export interface CheckResult {
   passed: boolean;
   message: string;
@@ -239,7 +237,7 @@ export class CompletenessChecker {
     return results;
   }
 
-  private checkCompleteness(code: string, language: string): CheckResult[] {
+  private checkCompleteness(code: string, _language: string): CheckResult[] {
     const results: CheckResult[] = [];
 
     const todoMatches = code.match(/TODO[:\s].*/gi) || [];
@@ -275,7 +273,6 @@ export class CompletenessChecker {
 
   private checkPythonIndent(code: string): boolean {
     const lines = code.split('\n');
-    let lastIndent = 0;
 
     for (const line of lines) {
       if (line.trim() === '' || line.trim().startsWith('#')) continue;
@@ -284,8 +281,6 @@ export class CompletenessChecker {
       if (indent % 4 !== 0) {
         return false;
       }
-
-      lastIndent = indent;
     }
 
     return true;

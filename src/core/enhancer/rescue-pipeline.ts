@@ -1,12 +1,11 @@
-import type { LLMAdapter } from '@/llm/base.js';
-import { logger } from '@/utils/logger';
+import type { LLMAdapter } from '../../llm/base.js';
+import { logger } from '../../utils/logger.js';
 import { PostProcessor } from './post-processor.js';
 import { MultiSampleVoter } from './multi-sample-voter.js';
 import { ProgressiveGenerator } from './progressive-generator.js';
 import { FailurePatternLearner } from './failure-pattern-learner.js';
 import { SnippetLibrary } from './snippet-library.js';
 import { ConstraintDrivenGenerator } from './constraint-driven-generator.js';
-import { ExampleDrivenGenerator } from './example-driven-generator.js';
 import { QualityScorer, type QualityScoreResult } from './quality-scorer.js';
 import type { CodeBlock, GenerationConstraints } from './types.js';
 
@@ -54,7 +53,6 @@ export class RescuePipeline {
   private readonly failurePatternLearner: FailurePatternLearner;
   private readonly snippetLibrary: SnippetLibrary;
   private readonly constraintDrivenGenerator: ConstraintDrivenGenerator;
-  private readonly exampleDrivenGenerator: ExampleDrivenGenerator;
   private readonly qualityScorer: QualityScorer;
 
   constructor(llm: LLMAdapter) {
@@ -64,7 +62,6 @@ export class RescuePipeline {
     this.failurePatternLearner = new FailurePatternLearner();
     this.snippetLibrary = new SnippetLibrary();
     this.constraintDrivenGenerator = new ConstraintDrivenGenerator(llm);
-    this.exampleDrivenGenerator = new ExampleDrivenGenerator(llm);
     this.qualityScorer = new QualityScorer();
   }
 

@@ -41,7 +41,7 @@ export interface ChatChunk {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  language: 'en',
+  language: 'zh',
   fontSize: 14,
   model: 'qwen2.5-coder:3b',
   temperature: 0.7,

@@ -6,11 +6,6 @@ interface ExecuteOptions {
 }
 
 export class ToolExecutor {
-  private concurrentLimit: number;
-
-  constructor(options: { concurrentLimit?: number } = {}) {
-    this.concurrentLimit = options.concurrentLimit ?? 5;
-  }
 
   async execute(tool: Tool, params: Record<string, unknown>, options: ExecuteOptions = {}): Promise<ToolResult> {
     const maxRetries = options.maxRetries ?? 1;

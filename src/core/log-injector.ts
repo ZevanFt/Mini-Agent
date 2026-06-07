@@ -1,4 +1,4 @@
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger.js';
 
 export interface InjectionConfig {
   includeFunctionEntry?: boolean;
@@ -37,7 +37,6 @@ export class LogInjector {
 
     const functionRegex = /(async\s+)?(function\s+\w+|const\s+\w+\s*=\s*(async\s+)?\()/g;
     let match: RegExpExecArray | null;
-    let offset = 0;
 
     while ((match = functionRegex.exec(code)) !== null) {
       const startIndex = match.index;
@@ -58,7 +57,7 @@ export class LogInjector {
     return result;
   }
 
-  private injectPython(code: string, config: Required<InjectionConfig>): string {
+  private injectPython(code: string, _config: Required<InjectionConfig>): string {
     let funcName = 'anonymous';
     const lines = code.split('\n');
     const injectedLines: string[] = [];

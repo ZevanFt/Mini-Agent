@@ -1,5 +1,5 @@
-import { logger } from '@/utils/logger';
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
+import { logger } from '../../utils/logger.js';
+import type { LLMAdapter } from '../../llm/base.js';
 
 export interface TypeCompletionResult {
   typedCode: string;
@@ -16,9 +16,12 @@ export interface TypeCompletionOptions {
   typeStyle?: 'typescript' | 'python' | 'auto';
 }
 
+const DEFAULT_TEMPERATURE = 0.2;
+const DEFAULT_MAX_TOKENS = 8192;
+
 const DEFAULT_OPTIONS: Required<Omit<TypeCompletionOptions, 'typeStyle'>> & Pick<TypeCompletionOptions, 'typeStyle'> = {
-  temperature: 0.2,
-  maxTokens: 8192,
+  temperature: DEFAULT_TEMPERATURE,
+  maxTokens: DEFAULT_MAX_TOKENS,
   addReturnTypeAnnotations: true,
   addParameterAnnotations: true,
   addVariableAnnotations: true,

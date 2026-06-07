@@ -11,8 +11,7 @@
 
 import type { Tool } from '../tools/types.js';
 import { discoverSkills, loadSkillFromDirectory, matchSkillToRequest, type ParsedSkill } from './parser.js';
-import { existsSync, statSync } from 'fs';
-import { join } from 'path';
+import { existsSync } from 'fs';
 
 /**
  * 加载的文件内容
@@ -317,7 +316,6 @@ export class SkillRegistry {
    * 重新加载所有 Skill（从文件系统重新扫描）
    */
   reloadSkills(): void {
-    const oldSkills = new Map(this.skills);
     this.skills.clear();
     this.states.clear();
     this.discoverAndLoad();

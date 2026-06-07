@@ -1,6 +1,9 @@
 import type { Tool } from '../tools/types.js';
-import { readFileSync, existsSync, statSync } from 'fs';
+import { readFileSync, existsSync, statSync, readdirSync } from 'fs';
 import path from 'path';
+import { minimatch } from 'minimatch';
+
+const DEFAULT_MAX_RESULTS = 100;
 
 interface GrepParams {
   pattern: string;
@@ -33,7 +36,7 @@ Returns matching lines with file paths and line numbers.`,
       maxResults: {
         type: 'number',
         description: 'Maximum number of results to return (default: 100)',
-        default: 100,
+        default: DEFAULT_MAX_RESULTS,
       },
       caseSensitive: {
         type: 'boolean',
@@ -49,7 +52,7 @@ Returns matching lines with file paths and line numbers.`,
       pattern,
       path: searchPath = process.cwd(),
       include,
-      maxResults = 100,
+      maxResults = DEFAULT_MAX_RESULTS,
       caseSensitive = false,
     } = params as unknown as GrepParams;
 
@@ -61,7 +64,7 @@ Returns matching lines with file paths and line numbers.`,
       function searchDir(dir: string): void {
         if (results.length >= maxResults) return;
 
-        const entries = require('fs').readdirSync(dir);
+        const entries = readdirSync(dir);
         for (const entry of entries) {
           if (entry === 'node_modules' || entry === '.git') continue;
 
@@ -72,7 +75,7 @@ Returns matching lines with file paths and line numbers.`,
           if (stat.isDirectory()) {
             searchDir(fullPath);
           } else if (stat.isFile()) {
-            if (include && !require('minimatch')(entry, include)) continue;
+            if (include && !minimatch(entry, include)) continue;
 
             try {
               const content = readFileSync(fullPath, 'utf-8');

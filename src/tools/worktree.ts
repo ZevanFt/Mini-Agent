@@ -2,7 +2,6 @@ import type { Tool } from '../tools/types.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
-import { existsSync } from 'fs';
 import { logger } from '../utils/logger.js';
 
 const execAsync = promisify(exec);

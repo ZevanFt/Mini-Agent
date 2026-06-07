@@ -1,5 +1,5 @@
-import { logger } from '@/utils/logger';
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
+import { logger } from '../../utils/logger.js';
+import type { LLMAdapter } from '../../llm/base.js';
 
 export interface DocGenerationResult {
   documentedCode: string;
@@ -15,9 +15,12 @@ export interface DocGenerationOptions {
   docStyle?: 'jsdoc' | 'docstring' | 'auto';
 }
 
+const DEFAULT_TEMPERATURE = 0.2;
+const DEFAULT_MAX_TOKENS = 8192;
+
 const DEFAULT_OPTIONS: Required<Omit<DocGenerationOptions, 'docStyle'>> & Pick<DocGenerationOptions, 'docStyle'> = {
-  temperature: 0.2,
-  maxTokens: 8192,
+  temperature: DEFAULT_TEMPERATURE,
+  maxTokens: DEFAULT_MAX_TOKENS,
   includeModuleDocs: true,
   includeFunctionDocs: true,
   includeClassDocs: true,

@@ -30,7 +30,7 @@
  * - 拒绝追踪：连续拒绝过多可能意味着异常行为
  */
 
-import { realpathSync } from 'fs';
+import { resolve } from 'path';
 
 /**
  * 权限动作
@@ -253,11 +253,11 @@ export const PROMPT_INJECTION_PATTERNS = [
 /**
  * 检查路径是否在工作目录内
  */
-function isPathWithinDir(path: string, dir: string): boolean {
+function isPathWithinDir(filePath: string, dir: string): boolean {
   try {
-    const resolvedPath = path.startsWith('.') ? 
-      require('path').resolve(dir, path) : path;
-    const resolvedDir = require('path').resolve(dir);
+    const resolvedPath = filePath.startsWith('.') ? 
+      resolve(dir, filePath) : filePath;
+    const resolvedDir = resolve(dir);
     return resolvedPath.startsWith(resolvedDir);
   } catch {
     return false;
@@ -522,7 +522,7 @@ export class EnhancedPermissionSystem {
   /**
    * 第 1 层：检查权限模式
    */
-  private checkMode(toolName: string, params: Record<string, unknown>): PermissionResult | null {
+  private checkMode(toolName: string, _params: Record<string, unknown>): PermissionResult | null {
     switch (this.config.mode) {
       case 'bypass':
         // Bypass 模式：跳过所有检查（仅在沙箱中使用）

@@ -1,5 +1,5 @@
-import { logger } from '@/utils/logger';
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
+import { logger } from '../../utils/logger.js';
+import type { LLMAdapter } from '../../llm/base.js';
 
 export interface TestGenerationResult {
   testCode: string;
@@ -16,10 +16,13 @@ export interface TestGenerationOptions {
   includeErrorPaths?: boolean;
 }
 
+const DEFAULT_TEMPERATURE = 0.3;
+const DEFAULT_MAX_TOKENS = 4096;
+
 const DEFAULT_OPTIONS: Required<Omit<TestGenerationOptions, 'framework'>> & Pick<TestGenerationOptions, 'framework'> = {
   framework: undefined,
-  temperature: 0.3,
-  maxTokens: 4096,
+  temperature: DEFAULT_TEMPERATURE,
+  maxTokens: DEFAULT_MAX_TOKENS,
   includeHappyPath: true,
   includeEdgeCases: true,
   includeErrorPaths: true,

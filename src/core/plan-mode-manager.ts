@@ -14,8 +14,6 @@ import {
   PlanModeState,
   type Plan,
   type PlanStep,
-  type PlanResult,
-  type StepResult,
   type GeneratePlanParams,
   formatPlan,
   planToSystemPrompt,

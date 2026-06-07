@@ -10,8 +10,8 @@
  * 5. 上下文理解能力
  */
 
-import { logger } from '@/utils/logger';
-import type { LLMAdapter } from '@/llm/base.js';
+import { logger } from '../utils/logger.js';
+import type { LLMAdapter } from './base.js';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
@@ -44,6 +44,10 @@ export interface TestResult {
   details: string;
   timestamp: string;
 }
+
+const CODE_GEN_MAX_TOKENS = 512;
+const TOOL_CALL_MAX_TOKENS = 256;
+const CONTEXT_MAX_TOKENS = 512;
 
 const TEST_PROMPTS = {
   codeGeneration: [
@@ -169,7 +173,7 @@ export class ModelScorer {
       try {
         const result = await llm.chatOnce({
           messages: [{ role: 'user', content: test.prompt }],
-          maxTokens: 512,
+          maxTokens: CODE_GEN_MAX_TOKENS,
         });
 
         const score = this.evaluateCodeResponse(result.content, test.expected);
@@ -196,7 +200,7 @@ export class ModelScorer {
   /**
    * 测试工具调用能力
    */
-  private async testToolCall(modelName: string, llm: LLMAdapter): Promise<number> {
+  private async testToolCall(_modelName: string, llm: LLMAdapter): Promise<number> {
     let totalScore = 0;
     let testCount = 0;
 
@@ -204,7 +208,7 @@ export class ModelScorer {
       try {
         const result = await llm.chatOnce({
           messages: [{ role: 'user', content: test.prompt }],
-          maxTokens: 256,
+          maxTokens: TOOL_CALL_MAX_TOKENS,
         });
 
         const score = this.evaluateToolCallResponse(result.content, test.expected);
@@ -222,7 +226,7 @@ export class ModelScorer {
   /**
    * 测试上下文理解能力
    */
-  private async testContext(modelName: string, llm: LLMAdapter): Promise<number> {
+  private async testContext(_modelName: string, llm: LLMAdapter): Promise<number> {
     let totalScore = 0;
     let testCount = 0;
 
@@ -230,7 +234,7 @@ export class ModelScorer {
       try {
         const result = await llm.chatOnce({
           messages: [{ role: 'user', content: test.prompt }],
-          maxTokens: 512,
+          maxTokens: CONTEXT_MAX_TOKENS,
         });
 
         const score = this.evaluateContextResponse(result.content, test.expected);
@@ -248,7 +252,7 @@ export class ModelScorer {
   /**
    * 测试响应速度
    */
-  private async testSpeed(modelName: string, llm: LLMAdapter): Promise<number> {
+  private async testSpeed(_modelName: string, llm: LLMAdapter): Promise<number> {
     const start = Date.now();
     try {
       await llm.chatOnce({
@@ -367,7 +371,7 @@ export class ModelScorer {
   /**
    * 推荐最佳模型
    */
-  recommendModel(useCase: string = 'general'): ModelRecommendation {
+  recommendModel(_useCase: string = 'general'): ModelRecommendation {
     const allScores = this.getAllScores();
     
     if (allScores.length === 0) {

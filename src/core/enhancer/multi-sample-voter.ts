@@ -1,5 +1,14 @@
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
-import { logger } from '@/utils/logger';
+import type { LLMAdapter, ChatParams } from '../../llm/base.js';
+import { logger } from '../../utils/logger.js';
+
+// ------------------------------------------------------------------
+// Constants
+// ------------------------------------------------------------------
+
+const GENERIC_CODE_BLOCK_REGEX = /```[\s\S]*?```/g;
+const SAMPLE_BASE_TEMPERATURE = 0.7;
+const SAMPLE_TEMPERATURE_STEP = 0.05;
+const SAMPLE_MAX_TOKENS = 4096;
 
 interface VoteResult {
   success: boolean;
@@ -80,8 +89,8 @@ export class MultiSampleVoter {
           messages: [
             { role: 'user', content: prompt },
           ],
-          temperature: 0.7 + (i * 0.05),
-          maxTokens: 4096,
+          temperature: SAMPLE_BASE_TEMPERATURE + (i * SAMPLE_TEMPERATURE_STEP),
+          maxTokens: SAMPLE_MAX_TOKENS,
         };
 
         const response = await this.llm.chatOnce(params);
@@ -123,15 +132,15 @@ Output only the improved code in a single \`\`\`${language} code block.`;
   }
 
   private extractCodeFromResponse(content: string, language: string): string {
-    const codeBlockRegex = new RegExp('```' + language.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*([\\s\\S]*?)```', 'g');
+    const escapedLang = language.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const codeBlockRegex = new RegExp(`\`\`\`${escapedLang}\\s*([\\s\\S]*?)\`\`\``, 'g');
     const matches = [...content.matchAll(codeBlockRegex)];
 
     if (matches.length > 0) {
       return matches[0][1].trim();
     }
 
-    const genericCodeBlockRegex = /```[\s\S]*?```/g;
-    const genericMatches = [...content.matchAll(genericCodeBlockRegex)];
+    const genericMatches = [...content.matchAll(GENERIC_CODE_BLOCK_REGEX)];
 
     if (genericMatches.length > 0) {
       return genericMatches[0][0].replace(/^```[^\n]*\n?/m, '').replace(/```$/m, '').trim();
@@ -156,7 +165,7 @@ Output only the improved code in a single \`\`\`${language} code block.`;
     };
   }
 
-  private computeQualityScore(metrics: SampleScore['metrics'], code: string, language: string): number {
+  private computeQualityScore(metrics: SampleScore['metrics'], code: string, _language: string): number {
     let score = 0;
 
     score += metrics.braceBalance ? 25 : 0;

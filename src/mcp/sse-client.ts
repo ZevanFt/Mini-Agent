@@ -61,17 +61,6 @@ interface JsonRpcRequest {
 /**
  * JSON-RPC 响应
  */
-interface JsonRpcResponse {
-  jsonrpc: '2.0';
-  id?: number | string;
-  result?: unknown;
-  error?: {
-    code: number;
-    message: string;
-    data?: unknown;
-  };
-}
-
 /**
  * JSON-RPC 通知
  */
@@ -172,7 +161,7 @@ export class McpSseClient extends EventEmitter {
     this.isConnecting = false;
 
     // 拒绝所有待处理请求
-    for (const [id, req] of this.pendingRequests) {
+    for (const [_id, req] of this.pendingRequests) {
       clearTimeout(req.timer);
       req.reject(new Error('Client disconnected'));
     }

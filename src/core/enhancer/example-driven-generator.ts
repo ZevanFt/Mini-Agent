@@ -1,7 +1,7 @@
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
-import { logger } from '@/utils/logger.js';
-import { glob } from 'glob';
-import * as fs from 'fs';
+import type { LLMAdapter } from '../../llm/base.js';
+import { logger } from '../../utils/logger.js';
+import fg from 'fast-glob';
+import { readFileSync } from 'fs';
 
 export interface CodeExample {
   source: string;
@@ -33,18 +33,28 @@ interface GenerationOptions {
   systemPrompt?: string;
 }
 
+const DEFAULT_MAX_FILES = 50;
+const DEFAULT_MAX_EXAMPLES_PER_FILE = 5;
+const DEFAULT_LANGUAGES = ['ts', 'js', 'py', 'tsx', 'jsx'];
+const DEFAULT_INCLUDE_DIRS = ['src', 'lib', 'core'];
+const DEFAULT_EXCLUDE_DIRS = ['node_modules', 'dist', '.git', 'build'];
+
 const DEFAULT_SCAN_OPTIONS: Required<ScanOptions> = {
-  maxFiles: 50,
-  maxExamplesPerFile: 5,
-  languages: ['ts', 'js', 'py', 'tsx', 'jsx'],
-  includeDirs: ['src', 'lib', 'core'],
-  excludeDirs: ['node_modules', 'dist', '.git', 'build'],
+  maxFiles: DEFAULT_MAX_FILES,
+  maxExamplesPerFile: DEFAULT_MAX_EXAMPLES_PER_FILE,
+  languages: DEFAULT_LANGUAGES,
+  includeDirs: DEFAULT_INCLUDE_DIRS,
+  excludeDirs: DEFAULT_EXCLUDE_DIRS,
 };
 
+const DEFAULT_MAX_EXAMPLES = 5;
+const DEFAULT_TEMPERATURE = 0.3;
+const DEFAULT_MAX_TOKENS = 4096;
+
 const DEFAULT_GENERATION_OPTIONS: Required<Omit<GenerationOptions, 'systemPrompt'>> & Pick<GenerationOptions, 'systemPrompt'> = {
-  maxExamples: 5,
-  temperature: 0.3,
-  maxTokens: 4096,
+  maxExamples: DEFAULT_MAX_EXAMPLES,
+  temperature: DEFAULT_TEMPERATURE,
+  maxTokens: DEFAULT_MAX_TOKENS,
   systemPrompt: undefined,
 };
 
@@ -285,10 +295,11 @@ export class ExampleDrivenGenerator {
     try {
       const patterns = allExtensions.map((ext) => `${dir}/**/*.${ext}`);
       const ignorePatterns = options.excludeDirs.map((d) => `**/${d}/**`);
-      const rawFiles = await glob(patterns, {
+      const rawFiles = await fg(patterns, {
         cwd: process.cwd(),
         ignore: ignorePatterns,
-        nodir: true,
+        onlyFiles: true,
+        absolute: false,
       });
       return rawFiles.slice(0, options.maxFiles);
     } catch (error) {
@@ -309,7 +320,7 @@ export class ExampleDrivenGenerator {
     const examples: CodeExample[] = [];
 
     try {
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const content = readFileSync(filePath, 'utf-8');
       const language = this.detectLanguage(filePath);
       const patterns = this.findCodeBlocks(content, language);
 
@@ -568,7 +579,6 @@ Rules:
   private inferCodingStyle(code: string, language: string): string {
     const lines = code.split('\n');
     const usesTabs = lines.some((l) => l.startsWith('\t'));
-    const usesSpaces = lines.some((l) => l.startsWith('  '));
     const indentSize = this.detectIndentSize(lines);
 
     const parts: string[] = [];

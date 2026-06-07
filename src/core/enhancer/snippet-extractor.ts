@@ -1,7 +1,7 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { logger } from '@/utils/logger';
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
+import { existsSync, readFileSync, readdirSync, Dirent } from 'fs';
+import { resolve, extname, join } from 'path';
+import { logger } from '../../utils/logger.js';
+import type { LLMAdapter, ChatParams } from '../../llm/base.js';
 
 // ------------------------------------------------------------------
 // Public interfaces
@@ -135,10 +135,10 @@ export class SnippetExtractor {
   }
 
   public async extractFromProject(projectPath: string): Promise<ExtractedSnippet[]> {
-    const absolutePath = path.resolve(projectPath);
+    const absolutePath = resolve(projectPath);
     logger.info(`[SnippetExtractor] Starting project scan: ${absolutePath}`);
 
-    if (!fs.existsSync(absolutePath)) {
+    if (!existsSync(absolutePath)) {
       logger.error(`[SnippetExtractor] Project path does not exist: ${absolutePath}`);
       return [];
     }
@@ -162,14 +162,14 @@ export class SnippetExtractor {
   }
 
   public async extractFromFile(filePath: string): Promise<ExtractedSnippet[]> {
-    const ext = path.extname(filePath).replace('.', '');
+    const ext = extname(filePath).replace('.', '');
     if (!SUPPORTED_EXTENSIONS.has(ext)) {
       logger.debug(`[SnippetExtractor] Skip unsupported: ${filePath}`);
       return [];
     }
 
     const language = LANGUAGE_EXTENSIONS[ext];
-    const content = fs.readFileSync(filePath, 'utf-8');
+    const content = readFileSync(filePath, 'utf-8');
     const snippets = await this.extractSnippets(content, language);
 
     for (const s of snippets) {
@@ -324,21 +324,21 @@ export class SnippetExtractor {
   // ------------------------------------------------------------------
 
   private collectCodeFiles(dir: string, results: string[] = []): string[] {
-    let entries: fs.Dirent[];
+    let entries: Dirent[];
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = readdirSync(dir, { withFileTypes: true });
     } catch {
       return results;
     }
 
     for (const entry of entries) {
-      const full = path.join(dir, entry.name);
+      const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (!IGNORE_DIRS.has(entry.name)) {
           this.collectCodeFiles(full, results);
         }
       } else if (entry.isFile()) {
-        const ext = path.extname(entry.name).replace('.', '');
+        const ext = extname(entry.name).replace('.', '');
         if (SUPPORTED_EXTENSIONS.has(ext)) {
           results.push(full);
         }

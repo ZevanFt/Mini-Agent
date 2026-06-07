@@ -23,9 +23,6 @@ const i18nMap: Record<string, Record<string, string>> = {
 
 const App: React.FC = () => {
   const { settings, saveSettings, resetSettings } = useSettings();
-  useEffect(() => {
-    setTheme(settings.theme);
-  }, [settings.theme]);
   const {
     sessions,
     currentSessionId,
@@ -47,6 +44,12 @@ const App: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [sidebarPanelOpen, setSidebarPanelOpen] = useState(true);
+
+  // 主题管理（从 settings 读取，通过 saveSettings 修改）
+  const theme = settings.theme;
+  const setTheme = useCallback((newTheme: 'dark' | 'light' | 'system') => {
+    saveSettings({ ...settings, theme: newTheme });
+  }, [settings, saveSettings]);
 
   const i18n = i18nMap[settings.language] || i18nMap.en;
 
@@ -108,7 +111,7 @@ const App: React.FC = () => {
         language={settings.language}
       />
 
-      <div className="app-body">
+      <div className="app-body" style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily || 'system-ui, -apple-system, sans-serif' }}>
         <Sidebar
           onOpenSettings={() => setShowSettings(true)}
           language={settings.language}
@@ -118,7 +121,7 @@ const App: React.FC = () => {
           onTogglePanel={() => setSidebarPanelOpen(!sidebarPanelOpen)}
         />
 
-        <main className="main-area">
+        <main className="main-area" style={{ fontSize: `${settings.fontSize}px`, fontFamily: settings.fontFamily || 'system-ui' }}>
           {isWelcome ? (
             <WelcomeScreen
               onSend={handleSend}
@@ -148,7 +151,19 @@ const App: React.FC = () => {
                   <span>{usage.total > 0 ? `${usage.total.toLocaleString()} ${i18n.tokens}` : '—'}</span>
                 </div>
                 <div className="status-bar-right">
-                  <span>MiniAgent 1.0.0</span>
+                  <span style={{ fontFamily: settings.fontFamily || 'system-ui', fontSize: settings.fontSize - 2 }}>
+                    MiniAgent 1.0.0
+                  </span>
+                  <select
+                    className="footer-model-select"
+                    value={settings.model}
+                    onChange={e => saveSettings({ ...settings, model: e.target.value })}
+                  >
+                    <option value="qwen2.5-coder:3b">Qwen2.5 Coder 3B</option>
+                    <option value="qwen2.5:7b">Qwen 2.5 7B</option>
+                    <option value="llama3.2:3b">Llama 3.2 3B</option>
+                    <option value="mistral:7b">Mistral 7B</option>
+                  </select>
                 </div>
               </div>
             </>

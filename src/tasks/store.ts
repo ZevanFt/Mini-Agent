@@ -10,7 +10,7 @@
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import fs from 'fs';
-import type { Task, TaskStatus, TaskPriority, TaskResult, CreateTaskParams, UpdateTaskParams, ListTasksFilter } from './types.js';
+import type { Task, TaskStatus, TaskPriority, TaskResult } from './types.js';
 import { logger } from '../utils/logger.js';
 
 export class TaskStore {

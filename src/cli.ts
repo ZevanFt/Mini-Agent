@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import path from 'path';
-import { logger, setupTuiLogging, disableTuiLogging } from './utils/logger.js';
+import { setupTuiLogging, disableTuiLogging } from './utils/logger.js';
 import fs from 'fs';
 import { Agent } from './core/agent.js';
 import { ThinkingMode } from './core/thinking-mode.js';
@@ -32,6 +32,7 @@ import { EnhancedPermissionSystem } from './core/permissions.js';
 import { MiniAgentServer } from './web/server.js';
 import { createMCPTools } from './tools/mcp.js';
 import { MCPManager } from './mcp/manager.js';
+import { PlanModeManager } from './core/plan-mode-manager.js';
 import { LSPTool } from './tools/lsp.js';
 import { NotebookTool } from './tools/notebook.js';
 import { WorktreeTool } from './tools/worktree.js';
@@ -39,6 +40,9 @@ import { createShareTool } from './tools/share.js';
 import { ApplyPatchTool } from './tools/apply-patch.js';
 import { ReadImageTool } from './tools/read-image.js';
 import { McpSseServer } from './mcp/sse-transport.js';
+import { runDoctor } from './commands/doctor.js';
+import { installOllama } from './commands/install.js';
+import { pullModel, listModels, removeModel, showRecommendedModels } from './commands/models.js';
 
 const VERSION = '0.2.0';
 const MINIAGENT_DIR = path.join(process.cwd(), '.miniagent');
@@ -182,9 +186,9 @@ async function main(): Promise<void> {
         process.exit(1);
       });
 
-      // ── TUI 模式下先初始化日志到文件，禁止终端输出 ──
+      // TUI 模式下初始化日志到文件
       if (options.tui) {
-        const logPath = setupTuiLogging(MINIAGENT_DIR);
+        setupTuiLogging(MINIAGENT_DIR);
       }
 
       // TUI 模式下不打印 banner 和初始化信息
@@ -258,14 +262,15 @@ async function main(): Promise<void> {
       await taskManager.initialize();
 
       const askUserCallback = async (params: { question: string; options?: string[]; timeout?: number }): Promise<string> => {
-        console.log(chalk.yellow('\n⚡ Agent asks: ') + params.question);
+        console.log(chalk.yellow('\n Agent asks: ') + params.question);
         if (params.options && params.options.length > 0) {
           console.log(chalk.dim('   Options: ' + params.options.join(' | ')));
         }
-        
+
+        const readline = await import('readline');
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
         const timeout = (params.timeout || 300) * 1000;
-        
+
         return new Promise<string>((resolve) => {
           const timer = setTimeout(() => {
             rl.close();
@@ -300,7 +305,7 @@ async function main(): Promise<void> {
         agent.addTool(tool);
       }
 
-      const planModeManager = {};
+      const planModeManager = new PlanModeManager();
       const planModeTools = createPlanModeTools(planModeManager);
       for (const tool of planModeTools) {
         agent.addTool(tool);
@@ -953,6 +958,61 @@ async function main(): Promise<void> {
     });
 
   program
+    .command('doctor')
+    .description('Check environment status (Ollama, models, config)')
+    .action(async () => {
+      await runDoctor();
+    });
+
+  program
+    .command('install')
+    .description('Install Ollama or models')
+    .argument('<target>', 'What to install: "ollama" or "model <name>"')
+    .action(async (target: string) => {
+      if (target === 'ollama') {
+        await installOllama();
+      } else {
+        console.log(chalk.yellow('Usage: miniagent install model <name>'));
+        console.log(chalk.dim('  Example: miniagent install model qwen2.5-coder:3b\n'));
+      }
+    });
+
+  program
+    .command('models')
+    .description('Manage Ollama models')
+    .argument('<action>', 'Action: list, pull, rm, recommend')
+    .argument('[name]', 'Model name (for pull/rm)')
+    .action(async (action: string, name?: string) => {
+      switch (action) {
+        case 'list':
+          listModels();
+          break;
+        case 'pull':
+          if (!name) {
+            console.log(chalk.yellow('Usage: miniagent models pull <name>'));
+            console.log(chalk.dim('  Example: miniagent models pull qwen2.5-coder:3b\n'));
+            return;
+          }
+          await pullModel(name);
+          break;
+        case 'rm':
+          if (!name) {
+            console.log(chalk.yellow('Usage: miniagent models rm <name>'));
+            console.log(chalk.dim('  Example: miniagent models rm qwen2.5-coder:3b\n'));
+            return;
+          }
+          removeModel(name);
+          break;
+        case 'recommend':
+          showRecommendedModels();
+          break;
+        default:
+          console.log(chalk.yellow(`Unknown action: ${action}`));
+          console.log(chalk.dim('  Available: list, pull, rm, recommend\n'));
+      }
+    });
+
+  program
     .command('serve')
     .description('Start MiniAgent web server')
     .option('--port <number>', 'Port to listen on', '3000')
@@ -971,11 +1031,15 @@ async function main(): Promise<void> {
         projectDir: process.cwd(),
       });
 
-      const llm = createLLM(options.model, options.url);
-      const agent = new Agent({ llm, cwd: process.cwd(), verbose: options.verbose });
-      const mcpManager = new MCPManager(agent);
-      const projectConfig = ProjectConfigParser.load(process.cwd());
-      for (const tool of createMCPTools(mcpManager, projectConfig.mcpServers || {})) {
+      const llm = new OllamaAdapter({
+        model: options.model,
+        baseUrl: options.url,
+      });
+      const agent = new Agent({ llm, model: options.model, cwd: process.cwd(), verbose: options.verbose });
+
+      // Register MCP tools
+      const mcpManager = new MCPManager();
+      for (const tool of createMCPTools(mcpManager)) {
         agent.addTool(tool);
       }
       server.setAgent(agent);
@@ -1021,9 +1085,15 @@ async function main(): Promise<void> {
 
       const sseServer = new McpSseServer({ port, host: options.host });
 
-      const llm = createLLM(options.model, options.url);
-      const agent = new Agent({ llm, cwd: process.cwd(), verbose: options.verbose });
-      const mcpManager = new MCPManager(agent);
+      const llm = new OllamaAdapter({
+        model: options.model,
+        baseUrl: options.url,
+      });
+      const agent = new Agent({ llm, model: options.model, cwd: process.cwd(), verbose: options.verbose });
+      const mcpManager = new MCPManager();
+      for (const tool of createMCPTools(mcpManager)) {
+        agent.addTool(tool);
+      }
 
       agent.addTool(BashTool);
       agent.addTool(FileReadTool);
@@ -1031,7 +1101,7 @@ async function main(): Promise<void> {
       agent.addTool(GlobTool);
       agent.addTool(GrepTool);
 
-      sseServer.setMessageHandler(async (message, sessionId, sendResponse) => {
+      sseServer.setMessageHandler(async (message, _sessionId, sendResponse) => {
         const msg = message as { method?: string; params?: Record<string, unknown>; id?: string | number };
         try {
           if (msg.method === 'tools/list') {
@@ -1134,7 +1204,7 @@ async function main(): Promise<void> {
 
   program.parse();
 
-  const hasSubcommand = process.argv.some(arg => ['chat', 'run', 'tools', 'init', 'serve', 'help', 'mcp-serve'].includes(arg));
+  const hasSubcommand = process.argv.some(arg => ['chat', 'run', 'tools', 'init', 'serve', 'help', 'mcp-serve', 'doctor', 'install', 'models'].includes(arg));
 
   if (!hasSubcommand) {
     program.commands.find(c => c.name() === 'chat')?.parse([], { from: 'user' });

@@ -1,8 +1,6 @@
-import { readFileSync, writeFileSync, existsSync, renameSync, unlinkSync } from 'fs';
-import { execSync } from 'child_process';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import type { Tool, ToolResult } from './types.js';
 import path from 'path';
-import { tmpdir } from 'os';
 
 interface ApplyPatchParams {
   patch_text: string;
@@ -20,7 +18,6 @@ function parseUnifiedPatch(patchText: string): PatchFile[] {
     // Match diff header: diff --git a/path b/path or --- a/path or +++ b/path
     const diffMatch = line.match(/^diff --git a\/(.+?) b\/(.+?)$/);
     const minusMatch = line.match(/^--- (?:a\/)?(.+?)$/);
-    const plusMatch = line.match(/^\+\+\+ (?:b\/)?(.+?)$/);
 
     if (diffMatch) {
       const filePath = diffMatch[2];
@@ -126,7 +123,6 @@ function applyHunkToContent(content: string, hunk: PatchHunk): string {
 
   if (expectedSlice === expectedMatch) {
     // Replace at expected position
-    const replacement = newLines.join('\n');
     contentLines.splice(startLine, oldLines.length, ...newLines);
     return contentLines.join('\n');
   }
@@ -135,7 +131,6 @@ function applyHunkToContent(content: string, hunk: PatchHunk): string {
   for (let i = 0; i <= contentLines.length - oldLines.length; i++) {
     const slice = contentLines.slice(i, i + oldLines.length).join('\n');
     if (slice === expectedMatch) {
-      const replacement = newLines.join('\n');
       contentLines.splice(i, oldLines.length, ...newLines);
       return contentLines.join('\n');
     }

@@ -1,6 +1,5 @@
 import { logger } from '../utils/logger.js';
-import type { LLMAdapter } from '@/llm/base.js';
-import type { ChatParams } from '@/llm/base.js';
+import type { LLMAdapter } from '../llm/base.js';
 
 export interface CodeBlock {
   language: string;
@@ -89,8 +88,6 @@ export class CodeEnhancer {
    * 按函数/类边界切分，而非简单按行数
    */
   splitCodeBySyntax(code: string, language: string, maxChunkSize: number = 500): string[] {
-    const chunks: string[] = [];
-    
     if (language === 'javascript' || language === 'typescript') {
       return this.splitJSBySyntax(code, maxChunkSize);
     }
@@ -108,27 +105,14 @@ export class CodeEnhancer {
     const chunks: string[] = [];
     let currentChunk: string[] = [];
     let braceDepth = 0;
-    let inFunction = false;
-    let inClass = false;
 
     for (const line of lines) {
-      const trimmed = line.trim();
-      
       currentChunk.push(line);
       braceDepth += (line.match(/{/g) || []).length - (line.match(/}/g) || []).length;
-      
-      if (trimmed.startsWith('function ') || trimmed.startsWith('async function ') || 
-          trimmed.startsWith('const ') || trimmed.startsWith('let ') ||
-          trimmed.startsWith('class ') || trimmed.startsWith('export ')) {
-        inFunction = trimmed.includes('function') || trimmed.includes('=>');
-        inClass = trimmed.startsWith('class ');
-      }
       
       if (braceDepth === 0 && currentChunk.join('\n').length >= maxChunkSize / 2) {
         chunks.push(currentChunk.join('\n'));
         currentChunk = [];
-        inFunction = false;
-        inClass = false;
       }
     }
 
@@ -280,7 +264,7 @@ export class CodeEnhancer {
    */
   async reviewAndFix(
     code: string,
-    language: string,
+    _language: string,
     reviewFn: (code: string) => Promise<ValidationResult>,
     fixFn: (code: string, errors: string[]) => Promise<string>,
     maxCycles: number = 3

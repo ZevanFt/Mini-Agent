@@ -1,6 +1,6 @@
 import type { Tool } from '../tools/types.js';
 import { TaskManager } from '../tasks/index.js';
-import type { Task, CreateTaskParams } from '../tasks/types.js';
+import type { CreateTaskParams } from '../tasks/types.js';
 
 export function createTaskTools(taskManager: TaskManager): Tool[] {
   return [

@@ -24,7 +24,7 @@
  * 3. 支持渐进式披露（三层加载）
  */
 
-import { readFileSync, existsSync, statSync } from 'fs';
+import { readFileSync, existsSync, statSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 /**
@@ -149,7 +149,6 @@ export function parseSkillFile(content: string, directory: string): ParsedSkill 
   // 收集脚本
   const scripts: string[] = [];
   if (hasScripts) {
-    const { readdirSync } = require('fs');
     try {
       const files = readdirSync(scriptsDir);
       scripts.push(...files.map((f: string) => join(scriptsDir, f)));
@@ -159,7 +158,6 @@ export function parseSkillFile(content: string, directory: string): ParsedSkill 
   // 收集参考文件
   const references: string[] = [];
   if (hasReferences) {
-    const { readdirSync } = require('fs');
     try {
       const files = readdirSync(referencesDir);
       references.push(...files.filter((f: string) => f.endsWith('.md') || f.endsWith('.txt')).map((f: string) => join(referencesDir, f)));
@@ -169,7 +167,6 @@ export function parseSkillFile(content: string, directory: string): ParsedSkill 
   // 收集资源文件
   const assets: string[] = [];
   if (hasAssets) {
-    const { readdirSync } = require('fs');
     try {
       const files = readdirSync(assetsDir);
       assets.push(...files.map((f: string) => join(assetsDir, f)));
@@ -218,8 +215,6 @@ export function discoverSkills(rootDir: string): ParsedSkill[] {
   if (!existsSync(rootDir)) {
     return skills;
   }
-  
-  const { readdirSync, statSync } = require('fs');
   
   try {
     const entries = readdirSync(rootDir);

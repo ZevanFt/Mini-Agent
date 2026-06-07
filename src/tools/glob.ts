@@ -1,5 +1,5 @@
 import type { Tool } from '../tools/types.js';
-import { glob } from 'glob';
+import fg from 'fast-glob';
 
 interface GlobParams {
   pattern: string;
@@ -38,10 +38,11 @@ Returns a list of matching file paths.`,
     const { pattern, cwd = process.cwd(), ignore = [] } = params as unknown as GlobParams;
 
     try {
-      const files = await glob(pattern, {
-        cwd,
-        ignore: [...ignore, '**/node_modules/**', '**/.git/**'],
-        nodir: true,
+      const files = await fg(pattern, {
+        cwd: cwd as string,
+        ignore: [...(ignore as string[]), '**/node_modules/**', '**/.git/**'],
+        onlyFiles: true,
+        absolute: false,
       });
 
       return {

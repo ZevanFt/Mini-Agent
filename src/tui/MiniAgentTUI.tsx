@@ -55,7 +55,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   // useApp: 获取 Ink 应用控制，exit() 用于退出应用
   const { exit } = useApp();
   // useStdout: 获取标准输出流引用
-  const { stdout } = useStdout();
+  useStdout();
 
   // 使用 useMemo 缓存斜杠命令列表，避免每次渲染都重新创建
   const slashCommands = React.useMemo(() => createSlashCommands(), []);
@@ -154,40 +154,27 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         const args = spaceIdx > 0 ? text.substring(spaceIdx + 1) : ''; // 提取参数
         const cmd = slashCommands.find(c => c.name === cmdName); // 查找匹配的命令
         if (cmd && cmd.execute) {
-          const result = cmd.execute(args, { agent, tools: [], messageCount: 0 }); // 执行命令
+          const result = await cmd.execute(args, { agent, tools: [], messageCount: 0 }); // 执行命令
           if (result) {
-            const msg = (result as any).content || JSON.stringify(result); // 获取结果文本
+            const msg = (result as { content?: string }).content || JSON.stringify(result); // 获取结果文本
             setMessages(prev => [...prev, { role: 'assistant', content: msg, type: 'text' }]); // 添加响应消息
           }
         }
       } else {
-        // 处理普通对话
-
-        // 模拟 Thought 阶段（显示思考时间）
-        setMessages(prev => [
-          ...prev,
-          { role: 'assistant', content: '530ms', type: 'thought', duration: '530ms' },
-        ]);
-
-        // 模拟工具调用（显示读取文件）
-        setMessages(prev => [
-          ...prev,
-          {
-            role: 'assistant',
-            content: 'Read: some file',
-            type: 'tool',
-            toolName: 'Read',
-            duration: '339ms',
-          },
-        ]);
-
-        // 实际调用 Agent 对话接口
+        // 处理普通对话 — 直接调用 agent.chat() 流式输出
         const stream = agent.chat(text);
         let fullResponse = '';
+
         // 流式读取响应文本
         for await (const chunk of stream) {
-          fullResponse += chunk;
-          updateState(prev => ({ ...prev, currentResponse: fullResponse })); // 更新显示中的响应
+          if (chunk.type === 'done') {
+            break;
+          }
+
+          if (chunk.type === 'content' && chunk.content) {
+            fullResponse += chunk.content;
+            updateState(prev => ({ ...prev, currentResponse: fullResponse })); // 更新显示中的响应
+          }
         }
 
         if (fullResponse) {
@@ -460,12 +447,19 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     }
   });
 
-  // 计算输入框宽度：终端宽度的 35%
+  // ==================== 输入框宽度计算 ====================
+  // inputBoxWidth: 输入框整体宽度，占终端宽度的 35%（可调整此比例改变输入框大小）
   const inputBoxWidth = Math.floor(termWidth * 0.35);
-  // 内部可用宽度（减去 Ink 边框 2 字符 + paddingX={1} 左右各 1 字符 = 共减 4 字符）
+  // textWidth: 输入框内部可用文本宽度
+  // 计算方式：inputBoxWidth - 4，因为：
+  //   - Ink 的 borderStyle="single" 会在容器两侧各占 1 字符（│），共 2 字符
+  //   - 文本行左右各留 1 个空格作为内边距（padding），共 2 字符
+  //   - 合计减去 4 字符
+  // Math.max(xxx, 20) 确保最小宽度为 20，防止终端过窄时崩溃
   const textWidth = Math.max(inputBoxWidth - 4, 20);
-  // 虚线分隔符宽度
-  const dashWidth = Math.max(inputBoxWidth - 4, 20);
+  // dashWidth: 虚线分隔符的宽度，与起始页面子元素宽度一致
+  const dashWidth = Math.max(inputBoxWidth - 4, 20) + 2;
+  // dashLine: 生成虚线字符串，使用全角横线 '─'（U+2500）
   const dashLine = '─'.repeat(dashWidth);
   // 计算字符串的显示宽度（英文 1 字符，中文/emoji 2 字符）
   const getStringWidth = (str: string): number => {
@@ -477,6 +471,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     return width;
   };
   // 文本截断辅助函数：按显示宽度截断，返回 { text, charCount }
+  // 注意：charCount 是字符数（用于 slice），width 是显示宽度（用于计算）
   const truncateByWidth = (text: string, maxWidth: number): { text: string; charCount: number } => {
     let currentWidth = 0;
     let result = '';
@@ -508,13 +503,27 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             ))}
           </Box>
 
-          {/* 输入框容器：不设宽度，由子元素自然撑开 */}
-          <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingLeft={1} paddingRight={1}>
-            {/* 顶部留白 */}
-            <Text>{' '}</Text>
-            {/* 输入框文本行（每行宽度统一为 textWidth） */}
+          {/* 输入框容器：不设置宽度，由子元素自然撑开 */}
+          {/* 
+            flexDirection="column": 子元素垂直排列（从上到下）
+            borderStyle="single": 使用单线边框样式（┌─┐│└─┘），可选值：
+              - "single": 单线边框（默认）
+              - "double": 双线边框（═║）
+              - "round": 圆角边框（╭─╮│╰─╯）
+              - "bold": 粗线边框（┏━┓┃┗━┛）
+              - 不设此项：无边框
+            borderColor="gray": 边框颜色，可选值：
+              - "gray"/"grey": 灰色
+              - "white"/"black"
+              - "red"/"green"/"blue"/"yellow"/"cyan"/"magenta"
+              - "dimGray"/"brightRed" 等更多颜色
+          */}
+          <Box width={textWidth + 2} flexDirection="column" borderStyle="single" borderColor="gray">
+            <Box width={textWidth + 2}>
+              <Text>{' '}</Text>
+            </Box>
             {state.inputLines.flatMap((line, row) => [
-              <Box key={`line-${row}`} width={textWidth + 1}>
+              <Box key={`line-${row}`} width={textWidth + 2}>
                 <Text>{truncateByWidth(
                   row === state.cursorRow
                     ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
@@ -525,26 +534,21 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                   <Text dimColor>Ask anything...</Text>
                 )}
               </Box>,
-              // 行间距
-              <Box key={`gap-${row}`} width={textWidth + 1}>
+              <Box key={`gap-${row}`} width={textWidth + 2}>
                 <Text>{' '}</Text>
               </Box>
             ])}
-            {/* 底部留白 */}
-            <Box width={textWidth + 1}>
+            <Box width={textWidth + 2}>
               <Text>{' '}</Text>
             </Box>
-            {/* 模式信息行 */}
-            <Box width={textWidth + 1}>
+            <Box width={textWidth + 2}>
               <Text color="blue"> {currentMode} </Text>
-              <Text dimColor>· {modelName} {state.agentName}</Text>
+              <Text dimColor>· {truncateByWidth(`${modelName} ${state.agentName}`, textWidth - currentMode.length - 2).text}</Text>
             </Box>
-            {/* 虚线分隔符 */}
-            <Box width={textWidth + 1}>
+            <Box width={textWidth + 2}>
               <Text dimColor>{dashLine}</Text>
             </Box>
-            {/* 快捷键提示 */}
-            <Box width={textWidth + 1} justifyContent="flex-end">
+            <Box width={textWidth + 2} justifyContent="flex-end">
               <Text dimColor>tab agents  ctrl+p</Text>
             </Box>
           </Box>
@@ -597,16 +601,31 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             </Box>
           </Box>
           {/* 底部输入框：宽度 100%、水平垂直居中 */}
+          {/* 
+            width="100%": 占满父容器宽度
+            justifyContent="center": 水平居中子元素（输入框容器）
+            alignItems="center": 垂直居中子元素（输入框容器）
+          */}
           <Box width="100%" justifyContent="center" alignItems="center">
-            {/* 输入框容器：不设宽度，由子元素自然撑开 */}
-            <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingLeft={1} paddingRight={1}>
-              {/* 顶部留白 */}
-              <Box width={textWidth + 1}>
+            {/* 输入框容器 */}
+            {/* 
+              flexDirection="column": 子元素垂直排列
+              borderStyle="single": 单线边框样式（─│┌┐┘），可选值：
+                - "single"(默认): 单线边框
+                - "double": 双线边框（═║）
+                - "round": 圆角边框（╭─╮）
+                - "bold": 粗线边框（┏━）
+              borderColor="gray": 边框颜色（gray/red/green/blue/yellow/cyan/magenta/white 等）
+              width={textWidth + 2}: 容器宽度 = 内容区 + 边框，与起始页面保持一致
+            */}
+            <Box width={textWidth + 2} flexDirection="column" borderStyle="single" borderColor="gray">
+              {/* 顶部留白：用空格占一行高度 */}
+              <Box width={textWidth + 2}>
                 <Text>{' '}</Text>
               </Box>
               {/* 输入框文本行 */}
               {state.inputLines.flatMap((line, row) => [
-                <Box key={`line-${row}`} width={textWidth + 1}>
+                <Box key={`line-${row}`} width={textWidth + 2}>
                   <Text>{truncateByWidth(
                     row === state.cursorRow
                       ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
@@ -614,27 +633,34 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                     textWidth
                   ).text}</Text>
                 </Box>,
-                // 行间距
-                <Box key={`gap-${row}`} width={textWidth + 1}>
+                <Box key={`gap-${row}`} width={textWidth + 2}>
                   <Text>{' '}</Text>
                 </Box>
               ])}
-              {/* 底部留白 */}
-              <Box width={textWidth + 1}>
+              {/* 底部留白：与顶部留白对称 */}
+              <Box width={textWidth + 2}>
                 <Text>{' '}</Text>
               </Box>
-              {/* 模式信息行 */}
-              <Box width={textWidth + 1}>
+              {/* 模式信息行：显示当前模式和模型名称 */}
+              <Box width={textWidth + 2}>
+                {/* color="blue": 模式文字使用蓝色 */}
                 <Text color="blue"> {currentMode} </Text>
-                <Text dimColor>· {modelName} {state.agentName}</Text>
+                {/* 
+                  truncateByWidth(...): 截断模型名称
+                  textWidth - currentMode.length - 2: 
+                    - currentMode.length: 模式名称长度
+                    - 2: 模式两侧各 1 个空格
+                */}
+                <Text dimColor>{truncateByWidth(`· ${modelName} ${state.agentName}`, textWidth - currentMode.length - 2).text}</Text>
               </Box>
-              {/* 虚线分隔符 */}
-              <Box width={textWidth + 1}>
+              {/* 虚线分隔符：视觉分隔线 */}
+              <Box width={textWidth + 2}>
                 <Text dimColor>{dashLine}</Text>
               </Box>
-              {/* 快捷键提示 */}
-              <Box width={textWidth + 1} justifyContent="flex-end">
-                <Text dimColor>tab agents  ctrl+p</Text>
+              {/* 快捷键提示：显示可用快捷键 */}
+              {/* justifyContent="flex-end": 内容右对齐 */}
+              <Box width={textWidth + 2} justifyContent="flex-end">
+                <Text dimColor>{truncateByWidth('tab agents  ctrl+p', textWidth).text}</Text>
               </Box>
             </Box>
           </Box>

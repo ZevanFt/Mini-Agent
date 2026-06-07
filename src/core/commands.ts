@@ -40,11 +40,6 @@
 import type { ToolResult } from '../tools/types.js';
 import type { HookDispatcher } from './hooks.js';
 import type { SkillRegistry } from '../skills/skill-registry.js';
-import { fileURLToPath } from 'url';
-import path from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 /**
  * Slash Command 定义

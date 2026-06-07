@@ -1,13 +1,12 @@
-import type { Tool, ToolResult } from '../tools/types.js';
-import type { LLMAdapter, Message, ChatChunk } from '../llm/base.js';
-import type { Tool as ToolDef } from '../tools/types.js';
+import type { Tool } from '../tools/types.js';
+import type { LLMAdapter, Message } from '../llm/base.js';
 
 interface SubAgentOptions {
   llm: LLMAdapter;
   name: string;
   task: string;
   systemPrompt?: string;
-  tools?: ToolDef[];
+  tools?: Tool[];
   maxIterations?: number;
   cwd?: string;
 }
@@ -31,9 +30,7 @@ interface AgentToolParams {
 export class SubAgent {
   private llm: LLMAdapter;
   private name: string;
-  private task: string;
   private systemPrompt: string;
-  private tools: ToolDef[];
   private maxIterations: number;
   private messages: Message[] = [];
   private output: string = '';
@@ -41,11 +38,9 @@ export class SubAgent {
   constructor(options: SubAgentOptions) {
     this.llm = options.llm;
     this.name = options.name;
-    this.task = options.task;
     this.systemPrompt = options.systemPrompt || `You are a sub-agent named "${options.name}".
 Your task is: ${options.task}
 Complete the task fully and report back with a summary.`;
-    this.tools = options.tools || [];
     this.maxIterations = options.maxIterations || 15;
     this.messages = [{ role: 'user', content: options.task }];
   }

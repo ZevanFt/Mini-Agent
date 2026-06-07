@@ -24,4 +24,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'web/src'),
     },
   },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react/jsx-runtime'],
+    exclude: ['lucide-react'],
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+    },
+  },
 });

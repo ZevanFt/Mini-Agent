@@ -13,7 +13,7 @@
  * 7. CodeEnhancer - 统一入口，整合所有增强机制
  */
 
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
+import type { LLMAdapter } from '../../llm/base.js';
 
 /**
  * 代码块

@@ -228,7 +228,7 @@ function findProjectRoot(dir: string): string {
 
 function detectLSPServer(filePath: string): LSPServerConfig | null {
   const ext = path.extname(filePath).toLowerCase();
-  for (const [name, config] of Object.entries(LSP_SERVERS)) {
+  for (const [_name, config] of Object.entries(LSP_SERVERS)) {
     if (config.extensions.includes(ext)) {
       return { ...config, rootPath: findProjectRoot(path.dirname(filePath)) };
     }
@@ -918,7 +918,6 @@ Supported operations:
     }
 
     try {
-      let result: unknown;
       switch (operation) {
         case 'diagnostics': {
           const diagnostics = await client.getDiagnostics(absolutePath);

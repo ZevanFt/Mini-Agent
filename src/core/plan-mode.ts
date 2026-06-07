@@ -133,16 +133,6 @@ export interface GeneratePlanParams {
 }
 
 /**
- * 生成唯一 ID 的工具函数
- * 格式: plan_时间戳_随机字符串
- */
-function generateId(prefix: string = 'plan'): string {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2, 8);
-  return `${prefix}_${timestamp}_${random}`;
-}
-
-/**
  * 格式化计划为人类可读的文本
  * 
  * 用于向用户展示计划内容，让用户了解 Agent 的意图

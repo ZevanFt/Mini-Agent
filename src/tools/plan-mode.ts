@@ -19,24 +19,7 @@
  */
 
 import type { Tool, ToolResult, ToolProperty } from '../tools/types.js';
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function _unusedPlanModeManagerTypeCheck(): void {
-  // PlanModeManager may not exist; these types are for reference only
-  type _PlanModeState = string;
-  type _PlanModeManager = unknown;
-}
-
-interface PlanStep {
-  description: string;
-  tools?: string[];
-}
-
-interface EnterPlanModeParams {
-  title: string;
-  steps: PlanStep[];
-  risks?: string[];
-}
+import type { PlanModeManager } from '../core/plan-mode-manager.js';
 
 interface ExitPlanModeParams {
   reason: string;
@@ -49,7 +32,7 @@ interface ExitPlanModeParams {
  * 让 Agent 可以主动进入规划模式
  * 需要传入 manager 实例来操作规划状态
  */
-export function createEnterPlanModeTool(manager: unknown): Tool {
+export function createEnterPlanModeTool(manager: PlanModeManager): Tool {
   return {
     name: 'enter_plan_mode',
     description: `Enter planning mode to create a detailed execution plan.
@@ -86,14 +69,13 @@ The plan will be shown to the user for review before execution.`,
       required: ['title', 'steps'],
     },
 
-    async execute(params: Record<string, unknown>): Promise<ToolResult> {
-      const p = params as unknown as EnterPlanModeParams;
+    async execute(_params: Record<string, unknown>): Promise<ToolResult> {
       try {
-        const plan = (manager as any).getPlan?.();
+        const plan = manager.getPlan();
         if (plan) {
           return {
             success: true,
-            content: `已进入规划模式。\n\n计划: ${plan.title}\n\n${(manager as any).formatPlanText?.() ?? ''}\n\n等待用户批准...`,
+            content: `已进入规划模式。\n\n计划: ${plan.title}\n\n${manager.formatPlanText()}\n\n等待用户批准...`,
           };
         }
 
@@ -116,7 +98,7 @@ The plan will be shown to the user for review before execution.`,
  * 
  * 让 Agent 可以退出规划模式
  */
-export function createExitPlanModeTool(manager: unknown): Tool {
+export function createExitPlanModeTool(manager: PlanModeManager): Tool {
   return {
     name: 'exit_plan_mode',
     description: `Exit planning mode and return to normal conversation.
@@ -145,8 +127,8 @@ Use this when:
     async execute(params: Record<string, unknown>): Promise<ToolResult> {
       const p = params as unknown as ExitPlanModeParams;
       try {
-        const currentState = (manager as any).getState?.();
-        (manager as any).reset?.();
+        const currentState = manager.getState();
+        manager.reset();
 
         const summaryText = p.summary ? `\n\n摘要: ${p.summary}` : '';
 
@@ -169,7 +151,7 @@ Use this when:
  * 
  * 便捷函数，一次性返回所有 Plan Mode 工具
  */
-export function createPlanModeTools(manager: unknown): Tool[] {
+export function createPlanModeTools(manager: PlanModeManager): Tool[] {
   return [
     createEnterPlanModeTool(manager),
     createExitPlanModeTool(manager),

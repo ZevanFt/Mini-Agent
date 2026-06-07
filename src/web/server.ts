@@ -11,21 +11,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const WEB_ROOT = path.join(__dirname, '..', '..', 'web', 'dist');
-const WEB_DEV_ROOT = path.join(__dirname, '..', '..', 'web');
 
 export interface ServerOptions {
   port?: number;
   host?: string;
   password?: string;
   projectDir?: string;
-}
-
-function generateId(): string {
-  return `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function generateMsgId(): string {
-  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function generateToken(): string {
@@ -44,12 +35,17 @@ function getContentType(filePath: string): string {
   return 'application/octet-stream';
 }
 
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp', 'image/x-icon']);
+
 function serveStaticFile(res: ServerResponse, filePath: string, contentType: string): void {
   try {
-    const content = readFileSync(filePath, 'utf-8');
+    const isImage = IMAGE_TYPES.has(contentType);
+    const content = readFileSync(filePath, isImage ? undefined : 'utf-8');
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(content);
-  } catch {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'File not found';
+    logger.debug('Static file not found:', filePath, { error: message });
     res.writeHead(404);
     res.end('Not found');
   }
@@ -461,7 +457,13 @@ export class MiniAgentServer {
       tool_calls: m.tool_calls ? JSON.parse(m.tool_calls) : undefined,
     }));
 
+    if (!this.agent) {
+      jsonResponse(res, 500, { error: 'Agent not set' });
+      return;
+    }
+
     const llm = this.agent.getLLM();
+    logger.info('Chat LLM request', { sessionId, messageCount: llmMessages.length });
 
     // Use SSE-style chunked response for streaming
     res.setHeader('Content-Type', 'text/event-stream');
@@ -479,6 +481,7 @@ export class MiniAgentServer {
           sseSend(res, 'chunk', JSON.stringify({ content: chunk.content }));
         }
         if (chunk.type === 'tool_call' && chunk.toolCall) {
+          logger.info('Chat tool_call', { sessionId, toolName: chunk.toolCall.name });
           sseSend(res, 'tool_call', JSON.stringify({
             name: chunk.toolCall.name,
             arguments: chunk.toolCall.arguments,
@@ -493,14 +496,16 @@ export class MiniAgentServer {
         content: fullResponse,
       });
 
-      // Update session title if it's the first exchange
-      if (session.message_count <= 1 && session.name === 'New Session') {
-        await this.store.createSession({
-          name: fullResponse.substring(0, 50) || body.message.substring(0, 50),
-          message_count: 0,
-          tool_calls: 0,
-        });
-      }
+      logger.info('Chat response complete', { sessionId, responseLength: fullResponse.length });
+
+      // Update session message_count and title
+      const newTitle = session.name === 'New Session' && fullResponse
+        ? body.message.substring(0, 50)
+        : session.name;
+      await this.store.updateSession(sessionId, {
+        name: newTitle,
+        message_count: messages.length + 2,
+      });
 
       sseSend(res, 'done', JSON.stringify({ content: fullResponse, timestamp: Date.now() }));
     } catch (err: unknown) {

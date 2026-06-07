@@ -19,7 +19,7 @@ export class MockLLMAdapter implements LLMAdapter {
     ];
   }
 
-  async *chat(params: ChatParams): AsyncGenerator<ChatChunk> {
+  async *chat(_params: ChatParams): AsyncGenerator<ChatChunk> {
     const response = this.responses[this.callCount % this.responses.length];
     this.callCount++;
 
@@ -34,7 +34,7 @@ export class MockLLMAdapter implements LLMAdapter {
     yield { type: 'done' };
   }
 
-  async chatOnce(params: ChatParams): Promise<{ content: string; toolCalls?: any[] }> {
+  async chatOnce(_params: ChatParams): Promise<{ content: string; toolCalls?: any[] }> {
     const response = this.responses[this.callCount % this.responses.length];
     this.callCount++;
     return {

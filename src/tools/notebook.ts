@@ -70,7 +70,7 @@ function formatOutputs(cell: NotebookCell): string {
   if (!cell.outputs || cell.outputs.length === 0) return '(no output)';
 
   return cell.outputs
-    .map((out, i) => {
+    .map((out, _i) => {
       switch (out.output_type) {
         case 'stream':
           return `[stream:${out.name || 'stdout'}] ${Array.isArray(out.text) ? out.text.join('') : (out.text || '')}`;

@@ -7,9 +7,6 @@
   "bin": {
     "miniagent": "./dist/cli.js"
   },
-  "overrides": {
-    "lru-cache": "^11.0.0"
-  },
   "scripts": {
     "build": "bun run build:cli && bun run build:web",
     "build:cli": "bun build src/cli.ts --outdir dist --target node --format esm --external better-sqlite3 --external sqlite3 --external sqlite --external ollama --external terminal-kit --external express --external cors --external ws --external lru-cache --external chevrotain --external minimatch --external glob --external node-fetch --external diff --external zod --external chalk --external commander --external ink --external react",
@@ -19,6 +16,8 @@
     "serve": "bun run src/cli.ts serve",
     "check": "tsc --noEmit --project tsconfig.cli.json",
     "dev:web": "vite --config vite.web.config.ts",
+    "dev:serve": "nodemon --watch src --ext ts --exec \"bun run src/cli.ts serve --model qwen2.5-coder:3b --port 3000\"",
+    "dev:all": "concurrently \"bun run dev:serve\" \"bun run dev:web\"",
     "prepublishOnly": "bun run build:cli"
   },
   "files": [
@@ -47,7 +46,7 @@
     "url": "https://github.com/zevan/miniagent/issues"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "os": [
     "win32",
@@ -61,12 +60,15 @@
     "cors": "^2.8.5",
     "diff": "^7.0.0",
     "express": "^4.21.0",
-    "glob": "^10.4.0",
-    "ink": "^7.0.5",
+    "fast-glob": "^3.3.2",
+    "ink": "^5.0.1",
+    "lucide-react": "0.469.0",
     "minimatch": "^9.0.0",
     "node-fetch": "^3.3.2",
     "ollama": "^0.5.0",
-    "react": "^19.2.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "rxjs": "^7.8.2",
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1",
     "terminal-kit": "^3.1.2",
@@ -82,8 +84,13 @@
     "@types/react": "^19.2.15",
     "@types/ws": "^8.5.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^9.2.1",
+    "nodemon": "^3.1.14",
     "react-devtools-core": "^7.0.1",
     "typescript": "^5.3.3",
     "vite": "^5.0.12"
+  },
+  "overrides": {
+    "minipass": "^7.1.2"
   }
 }

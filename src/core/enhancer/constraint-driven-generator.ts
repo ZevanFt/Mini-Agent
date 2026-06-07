@@ -1,10 +1,17 @@
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
+import type { LLMAdapter, ChatParams } from '../../llm/base.js';
 import type {
   CodeBlock,
   ValidationResult,
   GenerationConstraints,
 } from './types.js';
-import { logger } from '@/utils/logger.js';
+import { logger } from '../../utils/logger.js';
+
+// ------------------------------------------------------------------
+// Constants
+// ------------------------------------------------------------------
+
+const EXTRACT_CONSTRAINTS_TEMPERATURE = 0.1;
+const GENERATE_WITH_CONSTRAINTS_TEMPERATURE = 0.2;
 
 /**
  * 约束驱动生成器
@@ -50,7 +57,7 @@ Return ONLY the JSON object, no explanation.`;
         { role: 'system', content: 'You are an expert at extracting technical constraints from requirements.' },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.1,
+      temperature: EXTRACT_CONSTRAINTS_TEMPERATURE,
     };
 
     const response = await this.llm.chatOnce(params);
@@ -145,7 +152,7 @@ Return ONLY the JSON object, no explanation.`;
         },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.2,
+      temperature: GENERATE_WITH_CONSTRAINTS_TEMPERATURE,
     };
 
     const response = await this.llm.chatOnce(params);
@@ -266,7 +273,7 @@ Return ONLY the JSON object, no explanation.`;
    * 计算约束满足度评分 (0-100)
    */
   private calculateScore(
-    valid: boolean,
+    _valid: boolean,
     errorCount: number,
     warningCount: number,
     totalLines: number,

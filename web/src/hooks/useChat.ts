@@ -19,10 +19,11 @@ export function useChat() {
 
   const loadMessages = useCallback(async (sessionId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/sessions/${sessionId}`);
-      const session = await res.json();
-      if (session.messages && session.messages.length > 0) {
-        const msgs: ChatMessage[] = session.messages.map((m: any) => ({
+      const res = await fetch(`${API_BASE}/sessions/${sessionId}/messages`);
+      const data = await res.json();
+      const msgs = data.messages || [];
+      if (msgs.length > 0) {
+        const chatMsgs: ChatMessage[] = msgs.map((m: any) => ({
           id: m.id,
           session_id: m.session_id,
           role: m.role,
@@ -30,10 +31,10 @@ export function useChat() {
           tool_calls: m.tool_calls,
           timestamp: m.created_at,
         }));
-        setMessages(msgs);
+        setMessages(chatMsgs);
 
         let totalInput = 0, totalOutput = 0;
-        msgs.forEach(msg => {
+        chatMsgs.forEach(msg => {
           if (msg.role === 'assistant' && msg.tokens) {
             totalInput += msg.tokens.input || 0;
             totalOutput += msg.tokens.output || 0;
@@ -46,6 +47,7 @@ export function useChat() {
       }
     } catch (err) {
       console.error('Failed to load messages:', err);
+      setMessages([]);
     }
   }, []);
 
@@ -111,6 +113,13 @@ export function useChat() {
                   fullContent += chunk.content;
                   setStreamContent(fullContent);
                 }
+              } else if (parsed.event === 'tool_call' && parsed.data) {
+                const toolCall = JSON.parse(parsed.data);
+                setMessages(prev => [...prev, {
+                  role: 'assistant',
+                  content: `🔧 Calling: ${toolCall.name}`,
+                  timestamp: Date.now(),
+                }]);
               } else if (parsed.event === 'done') {
                 const doneData = JSON.parse(parsed.data);
                 setMessages(prev => [...prev, { role: 'assistant', content: doneData.content || fullContent, timestamp: Date.now() }]);

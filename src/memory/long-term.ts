@@ -24,7 +24,7 @@
  * 我们采用类似但更灵活的方式：JSON 文件存储结构化数据。
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 
 /**
@@ -302,7 +302,6 @@ export class LongTermMemory {
     const filepath = join(this.dataDir, filename);
     
     try {
-      const { unlinkSync } = require('fs');
       unlinkSync(filepath);
     } catch {
       // 文件不存在或无法删除

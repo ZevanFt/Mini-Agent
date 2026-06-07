@@ -1,5 +1,5 @@
-import { logger } from '@/utils/logger';
-import type { LLMAdapter, ChatParams } from '@/llm/base.js';
+import { logger } from '../../utils/logger.js';
+import type { LLMAdapter, ChatParams } from '../../llm/base.js';
 
 // ------------------------------------------------------------------
 // Public interfaces
@@ -33,6 +33,8 @@ export interface EvaluationReport {
 // ------------------------------------------------------------------
 // Constants
 // ------------------------------------------------------------------
+
+const LLM_EVALUATION_MAX_TOKENS = 2000;
 
 const DEFAULT_CRITERIA: Required<EvaluationCriteria> = {
   readability: 1,
@@ -275,7 +277,7 @@ export class CodeEvaluator {
     return Math.max(0, Math.min(100, score));
   }
 
-  private evaluatePerformance(code: string, language: string): number {
+  private evaluatePerformance(code: string, _language: string): number {
     let score = 60;
 
     const nestedLoopDepth = this.countNestedLoops(code);
@@ -355,7 +357,7 @@ export class CodeEvaluator {
       const params: ChatParams = {
         messages: [{ role: 'user', content: combinedPrompt }],
         temperature: 0.2,
-        maxTokens: 2000,
+        maxTokens: LLM_EVALUATION_MAX_TOKENS,
       };
 
       const response = await this.llm.chatOnce(params);
@@ -431,8 +433,8 @@ export class CodeEvaluator {
 
   private generateRuleExplanation(
     criterion: string,
-    scoreA: number,
-    scoreB: number,
+    _scoreA: number,
+    _scoreB: number,
     ruleA: Record<string, number>,
     ruleB: Record<string, number>
   ): string {
@@ -529,7 +531,7 @@ export class CodeEvaluator {
     return { A: weaknessesA, B: weaknessesB };
   }
 
-  private strengthDescription(criterion: string, score: number, code: string, language: string): string {
+  private strengthDescription(criterion: string, score: number, _code: string, _language: string): string {
     const descriptions: Record<string, string> = {
       readability: `Highly readable with clear naming and structure (score: ${score})`,
       correctness: `Logically sound with no obvious errors (score: ${score})`,
@@ -541,7 +543,7 @@ export class CodeEvaluator {
     return descriptions[criterion] || `Strong ${criterion} (score: ${score})`;
   }
 
-  private weaknessDescription(criterion: string, score: number, code: string, language: string): string {
+  private weaknessDescription(criterion: string, score: number, _code: string, _language: string): string {
     const descriptions: Record<string, string> = {
       readability: `Poor readability - consider better naming and formatting (score: ${score})`,
       correctness: `Potential logic errors detected (score: ${score})`,
@@ -589,9 +591,8 @@ export class CodeEvaluator {
     let maxDepth = 0;
     let currentDepth = 0;
     const loopPattern = /\bfor\s*\(|\bwhile\s*\(/g;
-    let match: RegExpExecArray | null;
 
-    while ((match = loopPattern.exec(code)) !== null) {
+    while (loopPattern.exec(code) !== null) {
       currentDepth++;
       maxDepth = Math.max(maxDepth, currentDepth);
     }

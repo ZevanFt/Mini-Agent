@@ -1,7 +1,7 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { logger } from '@/utils/logger';
-import type { CodeSnippet } from './types';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, readdirSync } from 'fs';
+import { resolve, dirname, join, basename } from 'path';
+import { logger } from '../../utils/logger.js';
+import type { CodeSnippet } from './types.js';
 
 /**
  * Search filters for snippet queries
@@ -49,11 +49,11 @@ export class SnippetLibrary {
    * Load all snippet files from the snippet directory
    */
   public async loadFromDirectory(): Promise<number> {
-    const absoluteDir = path.resolve(this.snippetDir);
+    const absoluteDir = resolve(this.snippetDir);
 
-    if (!fs.existsSync(absoluteDir)) {
+    if (!existsSync(absoluteDir)) {
       logger.info(`Snippet directory not found: ${absoluteDir}, creating it`);
-      fs.mkdirSync(absoluteDir, { recursive: true });
+      mkdirSync(absoluteDir, { recursive: true });
       return 0;
     }
 
@@ -62,7 +62,7 @@ export class SnippetLibrary {
 
     for (const file of files) {
       try {
-        const content = fs.readFileSync(file, 'utf-8');
+        const content = readFileSync(file, 'utf-8');
         const snippet = this.parseSnippetFile(content, file);
         if (snippet) {
           this.snippets.set(snippet.id, snippet);
@@ -273,12 +273,12 @@ export class SnippetLibrary {
         snippets: this.getAllSnippets(),
       };
 
-      const dir = path.dirname(filePath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+      const dir = dirname(filePath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
       }
 
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
       logger.info(`Exported ${data.snippets.length} snippets to ${filePath}`);
       return true;
     } catch (error) {
@@ -292,7 +292,7 @@ export class SnippetLibrary {
    */
   public importLibrary(filePath: string, overwrite: boolean = false): number {
     try {
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const content = readFileSync(filePath, 'utf-8');
       const data = JSON.parse(content) as SnippetLibraryData;
 
       if (!data.snippets || !Array.isArray(data.snippets)) {
@@ -361,10 +361,10 @@ export class SnippetLibrary {
     const results: string[] = [];
 
     const walk = (currentDir: string) => {
-      const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+      const entries = readdirSync(currentDir, { withFileTypes: true });
 
       for (const entry of entries) {
-        const fullPath = path.join(currentDir, entry.name);
+        const fullPath = join(currentDir, entry.name);
 
         if (entry.isDirectory()) {
           walk(fullPath);
@@ -417,7 +417,7 @@ export class SnippetLibrary {
     const [, frontmatterRaw, codeBody] = match;
     const frontmatter = this.parseFrontmatter(frontmatterRaw);
 
-    const id = frontmatter.id || path.basename(filePath, '.snippet.md');
+    const id = frontmatter.id || basename(filePath, '.snippet.md');
     const name = frontmatter.name || id;
     const description = frontmatter.description || '';
     const language = frontmatter.language || 'plaintext';
@@ -439,7 +439,7 @@ export class SnippetLibrary {
       tags,
       variables,
       usage,
-      lastModified: fs.statSync(filePath).mtime.toISOString(),
+      lastModified: statSync(filePath).mtime.toISOString(),
     };
 
     return snippet;

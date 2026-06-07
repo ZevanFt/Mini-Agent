@@ -15,7 +15,7 @@ export function destroyTUI(): void {
   // Ink handles cleanup automatically
 }
 
-export async function initTUI({ agent, model, sessionId, cwd, version }: TUIOptions) {
+export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
   let cleanupFn: (() => void) | null = null;
 
   function start() {

@@ -94,7 +94,7 @@ export class FileWatcher {
       return;
     }
     try {
-      const watcher = fs.watch(dir, { recursive: false }, (eventType, filename) => {
+      const watcher = fs.watch(dir, { recursive: false }, (_eventType, filename) => {
         if (!filename || !this.watching) {
           return;
         }

@@ -22,6 +22,7 @@
 | **CLI 模块** | [cli/](./cli/) |
 | **Task 系统** | [tasks/](./tasks/) |
 | **Plan Mode** | [planmode/](./planmode/) |
+| **TUI 改进计划** | [tui-improvements.md](./tui-improvements.md) |
 
 ---
 

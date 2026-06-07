@@ -275,7 +275,7 @@ export class MCPManager {
     if (msg.method === 'prompts/list') {
       try {
         const prompts: Array<{ name: string; description?: string }> = [];
-        for (const [name, client] of this.clients) {
+        for (const [_name, client] of this.clients) {
           try {
             const serverPrompts = await client.listPrompts();
             for (const p of serverPrompts) {
@@ -368,7 +368,7 @@ export class MCPManager {
    */
   listServers(): MCPServerInfo[] {
     const result: MCPServerInfo[] = [];
-    for (const [name, client] of this.clients) {
+    for (const [_name, client] of this.clients) {
       result.push(client.getInfo());
     }
     return result;

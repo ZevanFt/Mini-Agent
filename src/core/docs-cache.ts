@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
-import { logger } from '@/utils/logger';
+import { logger } from '../utils/logger.js';
 
 export interface CacheConfig {
   enabled: boolean;
@@ -193,9 +193,9 @@ export class DocsCacheManager {
     
     const urlsToRemove: string[] = [];
     
-    for (const [url, entry] of this.index.entries) {
+    for (const [_url, entry] of this.index.entries) {
       if (this.isExpired(entry)) {
-        urlsToRemove.push(url);
+        urlsToRemove.push(_url);
       }
     }
 
@@ -213,7 +213,7 @@ export class DocsCacheManager {
     let totalSize = 0;
     let expiredCount = 0;
 
-    for (const [url, entry] of this.index.entries) {
+    for (const [_url, entry] of this.index.entries) {
       totalSize += Buffer.byteLength(entry.content, 'utf-8');
       
       if (this.isExpired(entry)) {

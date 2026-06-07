@@ -1,6 +1,8 @@
 import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
 import path from 'path';
+
+const DEFAULT_PORT = 3456;
 
 interface SessionData {
   id: string;
@@ -49,8 +51,7 @@ function listSessions(): string[] {
 function deleteSession(id: string): boolean {
   const filePath = path.join(SESSIONS_DIR, `${id}.json`);
   if (!existsSync(filePath)) return false;
-  const fs = require('fs');
-  fs.unlinkSync(filePath);
+  unlinkSync(filePath);
   return true;
 }
 
@@ -58,7 +59,7 @@ export class SessionServer {
   private state: ServerState;
   private server: ReturnType<typeof createServer> | null = null;
 
-  constructor(port: number = 3456) {
+  constructor(port: number = DEFAULT_PORT) {
     this.state = {
       sessions: new Map(),
       port,
@@ -242,13 +243,13 @@ export function createSessionClient(serverUrl: string = 'http://localhost:3456')
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, model }),
       });
-      return res.json();
+      return (await res.json()) as SessionData;
     },
 
     async getSession(id: string): Promise<SessionData | null> {
       const res = await fetch(`${serverUrl}/api/sessions/${id}`);
       if (res.status === 404) return null;
-      return res.json();
+      return (await res.json()) as SessionData;
     },
 
     async updateSession(id: string, data: Partial<SessionData>): Promise<SessionData | null> {
@@ -258,20 +259,20 @@ export function createSessionClient(serverUrl: string = 'http://localhost:3456')
         body: JSON.stringify(data),
       });
       if (res.status === 404) return null;
-      return res.json();
+      return (await res.json()) as SessionData;
     },
 
     async listSessions(): Promise<string[]> {
       const res = await fetch(`${serverUrl}/api/sessions`);
-      const data = await res.json();
-      return data.sessions as string[];
+      const data = (await res.json()) as { sessions: string[] };
+      return data.sessions;
     },
 
     async deleteSession(id: string): Promise<boolean> {
       const res = await fetch(`${serverUrl}/api/sessions/${id}`, {
         method: 'DELETE',
       });
-      const data = await res.json();
+      const data = (await res.json()) as { success: boolean };
       return data.success;
     },
 

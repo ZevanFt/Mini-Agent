@@ -1,6 +1,5 @@
 import type { Tool } from '../tools/types.js';
 import { readFileSync, existsSync } from 'fs';
-import path from 'path';
 
 interface FileReadParams {
   path: string;
