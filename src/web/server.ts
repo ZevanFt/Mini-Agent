@@ -757,10 +757,23 @@ export class MiniAgentServer {
     } else {
       // Normalize Windows drive paths: "C:" → "C:\"
       let normalized = scanPath;
-      if (process.platform === 'win32' && /^[A-Z]:$/.test(normalized)) {
-        normalized = normalized + '\\';
+      if (process.platform === 'win32') {
+        // Handle absolute Windows paths: "C:\xxx" or "C:/"
+        if (/^[A-Z]:[\/\\]/i.test(normalized)) {
+          // Already absolute, normalize slashes
+          normalized = normalized.replace(/\//g, '\\');
+          if (!normalized.endsWith('\\')) normalized += '\\';
+        } else if (/^[A-Z]:$/i.test(normalized)) {
+          // Bare drive letter
+          normalized = normalized + '\\';
+        } else {
+          // Relative path — resolve from cwd
+          normalized = path.resolve(normalized);
+        }
+      } else {
+        normalized = path.resolve(normalized);
       }
-      resolved = path.resolve(normalized);
+      resolved = normalized;
       scanRoot = resolved;
     }
 

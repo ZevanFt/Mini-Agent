@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Folder, ChevronRight, ChevronDown, ArrowUp } from 'lucide-react';
+import { X, Folder, ChevronRight, ChevronDown, ArrowUp, Loader2 } from 'lucide-react';
 
 interface FolderPickerProps {
   onSelect: (path: string) => void;
@@ -43,6 +43,7 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
   const t = i18nMap[language] || i18nMap.en;
   const [entries, setEntries] = useState<DirEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [currentPath, setCurrentPath] = useState('');
   const [parentPath, setParentPath] = useState('');
@@ -95,6 +96,12 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
       return;
     }
 
+    setLoadingPaths(prev => {
+      const next = new Set(prev);
+      next.add(dirPath);
+      return next;
+    });
+
     try {
       const url = new URL('/api/projects/scan', baseUrl || window.location.origin);
       url.searchParams.set('path', dirPath);
@@ -124,6 +131,12 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
       });
     } catch (err: any) {
       console.error('Expand error:', err);
+    } finally {
+      setLoadingPaths(prev => {
+        const next = new Set(prev);
+        next.delete(dirPath);
+        return next;
+      });
     }
   };
 
@@ -131,6 +144,7 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
 
   const renderEntry = (entry: DirEntry, depth: number = 0) => {
     const isExpanded = expanded.has(entry.path);
+    const isLoading = loadingPaths.has(entry.path);
     const hasChildren = entry.type === 'dir' && (isExpanded || (entry.children && entry.children.length > 0));
 
     return (
@@ -139,9 +153,8 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
           className="folder-picker-entry"
           style={{ paddingLeft: `${12 + depth * 16}px` }}
           onClick={() => {
-            if (entry.type === 'dir') {
+            if (entry.type === 'dir' && !isLoading) {
               if (isExpanded) {
-                // Collapse
                 setExpanded(prev => {
                   const next = new Set(prev);
                   next.delete(entry.path);
@@ -155,13 +168,19 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
         >
           {entry.type === 'dir' && (
             <span className="folder-picker-expand-icon">
-              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {isLoading ? (
+                <Loader2 size={14} className="folder-picker-spinner" />
+              ) : isExpanded ? (
+                <ChevronDown size={14} />
+              ) : (
+                <ChevronRight size={14} />
+              )}
             </span>
           )}
           <Folder size={14} className="folder-picker-icon" />
           <span
             className="folder-picker-entry-name"
-            onDoubleClick={() => entry.type === 'dir' && handleNavigate(entry.path)}
+            onDoubleClick={() => entry.type === 'dir' && !isLoading && handleNavigate(entry.path)}
           >
             {entry.name}
           </span>

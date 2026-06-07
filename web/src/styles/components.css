@@ -1578,6 +1578,24 @@
   color: var(--text-muted);
 }
 
+.folder-picker-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.folder-picker-entry {
+  transition: opacity 0.15s;
+}
+
+.folder-picker-entry:has(.folder-picker-spinner) {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .folder-picker-icon {
   width: 14px;
   height: 14px;
