@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Folder, FolderPlus, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import WelcomeScreen from './components/WelcomeScreen';
@@ -7,6 +6,7 @@ import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
 import SettingsModal from './components/SettingsModal';
 import AboutModal from './components/AboutModal';
+import FolderPicker from './components/FolderPicker';
 import { useSessions } from './hooks/useSessions';
 import { useChat } from './hooks/useChat';
 import { useSettings } from './hooks/useSettings';
@@ -46,6 +46,14 @@ const App: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [sidebarPanelOpen, setSidebarPanelOpen] = useState(true);
+  const [recentProjects, setRecentProjects] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('miniagent:recentProjects');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // 主题管理（从 settings 读取，通过 saveSettings 修改）
   const theme = settings.theme;
@@ -100,6 +108,11 @@ const App: React.FC = () => {
   const handleSelectProject = useCallback((project: string) => {
     setSelectedProject(project);
     setShowProjectPicker(false);
+    setRecentProjects(prev => {
+      const next = [project, ...prev.filter(p => p !== project)].slice(0, 10);
+      localStorage.setItem('miniagent:recentProjects', JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const currentSession = sessions.find(s => s.id === currentSessionId);
@@ -193,34 +206,12 @@ const App: React.FC = () => {
       )}
 
       {showProjectPicker && (
-        <div className="project-picker-overlay" onClick={() => setShowProjectPicker(false)}>
-          <div className="project-picker" onClick={e => e.stopPropagation()}>
-            <div className="project-picker-header">
-              <span>Select Project</span>
-              <button className="project-picker-close" onClick={() => setShowProjectPicker(false)}>
-                <X size={16} />
-              </button>
-            </div>
-            <input className="project-picker-search" placeholder="Search projects..." autoFocus />
-            <div className="project-picker-label">Recent Projects</div>
-            <div className="project-picker-list">
-              {selectedProject && (
-                <div className="project-picker-item active" onClick={() => handleSelectProject(selectedProject)}>
-                  <Folder size={14} />
-                  <span>{selectedProject}</span>
-                </div>
-              )}
-              <div className="project-picker-item" onClick={() => handleSelectProject('my-project')}>
-                <FolderPlus size={14} />
-                <span>my-project</span>
-              </div>
-              <div className="project-picker-item" onClick={() => handleSelectProject('demo-app')}>
-                <FolderPlus size={14} />
-                <span>demo-app</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <FolderPicker
+          onSelect={handleSelectProject}
+          onClose={() => setShowProjectPicker(false)}
+          language={settings.language}
+          recentProjects={recentProjects}
+        />
       )}
     </div>
   );
