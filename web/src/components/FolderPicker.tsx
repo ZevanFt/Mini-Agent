@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FolderOpen, Folder, ChevronRight, ChevronDown } from 'lucide-react';
+import { X, Folder, ChevronRight, ChevronDown, ArrowUp } from 'lucide-react';
 
 interface FolderPickerProps {
   onSelect: (path: string) => void;
@@ -23,7 +23,9 @@ const i18nMap: Record<string, Record<string, string>> = {
     recent: 'Recent Projects',
     no_recent: 'No recent projects',
     loading: 'Loading...',
-    select_folder: 'Select a folder to open',
+    no_entries: 'Empty folder',
+    root: 'Computer',
+    up: 'Parent folder',
   },
   zh: {
     title: '打开项目',
@@ -31,7 +33,9 @@ const i18nMap: Record<string, Record<string, string>> = {
     recent: '最近项目',
     no_recent: '暂无最近项目',
     loading: '加载中...',
-    select_folder: '选择要打开的文件夹',
+    no_entries: '空文件夹',
+    root: '计算机',
+    up: '返回上一级',
   },
 };
 
@@ -40,17 +44,22 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
   const [entries, setEntries] = useState<DirEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currentPath, setCurrentPath] = useState('');
+  const [parentPath, setParentPath] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const fetchEntries = async () => {
+  const fetchEntries = async (scanPath: string = '') => {
     setLoading(true);
     setError('');
     try {
       const url = new URL('/api/projects/scan', baseUrl || window.location.origin);
+      if (scanPath) url.searchParams.set('path', scanPath);
       const resp = await fetch(url.toString());
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = await resp.json();
       setEntries(data.entries || []);
+      setCurrentPath(data.currentPath || '');
+      setParentPath(data.parentPath || '');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -60,13 +69,15 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
 
   useEffect(() => { fetchEntries(); }, []);
 
-  const toggleExpand = (entryPath: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev);
-      if (next.has(entryPath)) next.delete(entryPath);
-      else next.add(entryPath);
-      return next;
-    });
+  const handleNavigate = (dirPath: string) => {
+    setExpanded(new Set());
+    fetchEntries(dirPath);
+  };
+
+  const handleGoUp = () => {
+    if (parentPath) {
+      handleNavigate(parentPath);
+    }
   };
 
   const handleSelect = (entryPath: string) => {
@@ -74,23 +85,86 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
     onClose();
   };
 
+  const expandDir = async (dirPath: string) => {
+    if (expanded.has(dirPath)) {
+      setExpanded(prev => {
+        const next = new Set(prev);
+        next.delete(dirPath);
+        return next;
+      });
+      return;
+    }
+
+    try {
+      const url = new URL('/api/projects/scan', baseUrl || window.location.origin);
+      url.searchParams.set('path', dirPath);
+      url.searchParams.set('depth', '1');
+      const resp = await fetch(url.toString());
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+
+      setEntries(prev => {
+        const updateEntries = (items: DirEntry[]): DirEntry[] =>
+          items.map(item => {
+            if (item.path === dirPath) {
+              return { ...item, children: data.entries || [] };
+            }
+            if (item.children) {
+              return { ...item, children: updateEntries(item.children) };
+            }
+            return item;
+          });
+        return updateEntries(prev);
+      });
+
+      setExpanded(prev => {
+        const next = new Set(prev);
+        next.add(dirPath);
+        return next;
+      });
+    } catch (err: any) {
+      console.error('Expand error:', err);
+    }
+  };
+
+  const isRoot = currentPath === '' || currentPath === '__DRIVES__';
+
   const renderEntry = (entry: DirEntry, depth: number = 0) => {
     const isExpanded = expanded.has(entry.path);
+    const hasChildren = entry.type === 'dir' && (isExpanded || (entry.children && entry.children.length > 0));
 
     return (
       <div key={entry.path}>
         <div
           className="folder-picker-entry"
           style={{ paddingLeft: `${12 + depth * 16}px` }}
-          onClick={() => entry.type === 'dir' ? toggleExpand(entry.path) : handleSelect(entry.path)}
+          onClick={() => {
+            if (entry.type === 'dir') {
+              if (isExpanded) {
+                // Collapse
+                setExpanded(prev => {
+                  const next = new Set(prev);
+                  next.delete(entry.path);
+                  return next;
+                });
+              } else {
+                expandDir(entry.path);
+              }
+            }
+          }}
         >
           {entry.type === 'dir' && (
             <span className="folder-picker-expand-icon">
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </span>
           )}
-          {entry.type === 'dir' ? <Folder size={14} className="folder-picker-icon" /> : null}
-          <span className="folder-picker-entry-name">{entry.name}</span>
+          <Folder size={14} className="folder-picker-icon" />
+          <span
+            className="folder-picker-entry-name"
+            onDoubleClick={() => entry.type === 'dir' && handleNavigate(entry.path)}
+          >
+            {entry.name}
+          </span>
           {entry.type === 'dir' && (
             <button
               className="folder-picker-select-btn"
@@ -100,7 +174,7 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
             </button>
           )}
         </div>
-        {entry.type === 'dir' && isExpanded && entry.children && (
+        {isExpanded && entry.children && entry.children.length > 0 && (
           <div className="folder-picker-children">
             {entry.children.map(child => renderEntry(child, depth + 1))}
           </div>
@@ -119,8 +193,26 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
           </button>
         </div>
 
+        {/* Path breadcrumb */}
+        <div className="folder-picker-path-bar">
+          {!isRoot ? (
+            <>
+              <button className="folder-picker-path-item" onClick={() => fetchEntries('')}>
+                {t.root}
+              </button>
+              <ChevronRight size={12} className="folder-picker-path-sep" />
+              <span className="folder-picker-path-current">{currentPath}</span>
+              <button className="folder-picker-up-btn" onClick={handleGoUp} title={t.up}>
+                <ArrowUp size={14} />
+              </button>
+            </>
+          ) : (
+            <span className="folder-picker-path-root">{t.root}</span>
+          )}
+        </div>
+
         <div className="folder-picker-body">
-          {recentProjects.length > 0 && (
+          {recentProjects.length > 0 && isRoot && (
             <>
               <div className="folder-picker-label">{t.recent}</div>
               <div className="folder-picker-recent-list">
@@ -139,13 +231,11 @@ const FolderPicker: React.FC<FolderPickerProps> = ({ onSelect, onClose, language
             </>
           )}
 
-          <div className="folder-picker-label">{t.browse}</div>
-
           {loading && <div className="folder-picker-loading">{t.loading}</div>}
           {error && <div className="folder-picker-error">{error}</div>}
 
           {!loading && !error && entries.length === 0 && (
-            <div className="folder-picker-empty">{t.no_recent}</div>
+            <div className="folder-picker-empty">{t.no_entries}</div>
           )}
 
           {!loading && entries.length > 0 && (

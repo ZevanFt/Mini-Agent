@@ -725,17 +725,14 @@ export class MiniAgentServer {
   // --- Project Directory Scan ---
   /**
    * Scan a directory on the server and return its folder structure.
-   * Supports pagination and depth limiting for large directories.
-   * Query params: `path` (relative), `depth` (default 2), `maxItems` (default 200)
+   * Supports full filesystem navigation — starts from the filesystem root
+   * or user-specified path. No restriction to projectDir.
+   * Query params: `path` (any absolute path), `depth` (default 1), `maxItems` (default 500)
    */
   private async handleProjectScan(_req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
-    const scanPath = url.searchParams.get('path') || this.options.projectDir;
-    const maxDepth = parseInt(url.searchParams.get('depth') || '2', 10);
-    const maxItems = parseInt(url.searchParams.get('maxItems') || '200', 10);
-
-    // Security: resolve path and ensure it's under projectDir
-    const resolved = path.resolve(scanPath);
-    const projectRoot = this.options.projectDir;
+    const scanPath = url.searchParams.get('path') || '';
+    const maxDepth = parseInt(url.searchParams.get('depth') || '1', 10);
+    const maxItems = parseInt(url.searchParams.get('maxItems') || '500', 10);
 
     interface DirEntry {
       name: string;
@@ -743,6 +740,64 @@ export class MiniAgentServer {
       type: 'dir' | 'file';
       children?: DirEntry[];
     }
+
+    // Resolve the scan path
+    let resolved: string;
+    let scanRoot: string;
+
+    if (!scanPath) {
+      // No path given — show filesystem roots (all drives on Windows, or / on Unix)
+      if (process.platform === 'win32') {
+        resolved = '__DRIVES__';
+        scanRoot = '__DRIVES__';
+      } else {
+        resolved = '/';
+        scanRoot = '/';
+      }
+    } else {
+      // Normalize Windows drive paths: "C:" → "C:\"
+      let normalized = scanPath;
+      if (process.platform === 'win32' && /^[A-Z]:$/.test(normalized)) {
+        normalized = normalized + '\\';
+      }
+      resolved = path.resolve(normalized);
+      scanRoot = resolved;
+    }
+
+    // Handle Windows drive listing
+    if (scanRoot === '__DRIVES__') {
+      // On Windows, enumerate available drives
+      const { execSync } = await import('child_process');
+      let drives: string[] = [];
+      try {
+        const output = execSync('wmic logicaldisk get name', { encoding: 'utf-8', timeout: 5000 });
+        drives = output
+          .split('\n')
+          .map((line: string) => line.trim())
+          .filter((line: string) => /^[A-Z]:$/.test(line));
+      } catch {
+        // Fallback: try common drive letters
+        drives = ['C:', 'D:', 'E:', 'F:', 'G:'];
+      }
+
+      const entries: DirEntry[] = drives.map(drive => ({
+        name: drive,
+        path: drive,
+        type: 'dir',
+      }));
+
+      logger.info('Drive listing', { drives });
+      jsonResponse(res, 200, {
+        path: '__DRIVES__',
+        currentPath: '',
+        entries,
+        maxDepth,
+      });
+      return;
+    }
+
+    // Get parent path for navigation
+    const parentPath = path.dirname(resolved);
 
     const scanDir = (dir: string, depth: number): DirEntry[] => {
       if (depth > maxDepth) return [];
@@ -809,6 +864,8 @@ export class MiniAgentServer {
     logger.info('Project scan', { path: resolved, depth: maxDepth, entries: entries.length });
     jsonResponse(res, 200, {
       path: resolved,
+      currentPath: resolved,
+      parentPath,
       entries,
       maxDepth,
     });
