@@ -10,8 +10,14 @@ credentials.json
 
 # 用户级配置（不同机器不同）
 .miniagent/memory/
+.miniagent/sessions/
+.miniagent/history/
 .miniagent/config.local.json
-local_llm/configs/ollama.env
+.miniagent/*.db
+.miniagent/*.db-*
+.miniagent/*.log
+.miniagent/crash.log
+.miniagent/update-cache.json
 local_llm/configs/ollama.env
 
 # 构建产物

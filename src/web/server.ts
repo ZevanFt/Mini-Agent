@@ -339,7 +339,7 @@ export class MiniAgentServer {
         metadata: body.metadata || {},
       });
       logger.info('Session created', { id: session.id, title });
-      jsonResponse(res, 201, {
+      jsonResponse(res, 200, {
         id: session.id,
         title: session.name,
         message_count: session.message_count,
