@@ -28,6 +28,7 @@ interface TUIState {
   cursorCol: number;         // 光标所在列索引
   showSlashMenu: boolean;    // 是否显示斜杠命令菜单
   slashFilter: string;       // 斜杠命令过滤关键词
+  slashIndex: number;        // 命令面板当前选中项
   isProcessing: boolean;     // 是否正在处理请求
   currentResponse: string;   // 当前正在流式输出的响应文本
 }
@@ -70,6 +71,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     cursorCol: 0,           // 光标初始在第 0 列
     showSlashMenu: false,   // 默认不显示斜杠菜单
     slashFilter: '',        // 默认无过滤关键词
+    slashIndex: 0,          // 默认选中第一条命令
     isProcessing: false,    // 默认未在处理
     currentResponse: '',    // 默认无响应文本
   });
@@ -117,6 +119,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const modelName = model;
   // 是否已经有过对话（消息数大于 0）
   const hasConversation = messages.length > 0;
+  const filteredSlashCommands = slashCommands.filter(cmd =>
+    cmd.name.includes(state.slashFilter) || cmd.description?.includes(state.slashFilter)
+  );
+  const visibleSlashCommands = filteredSlashCommands.slice(0, 8);
 
   // 状态更新辅助函数：接收一个 updater 函数，基于旧状态计算新状态
   const updateState = useCallback((updater: (prev: TUIState) => TUIState) => {
@@ -263,23 +269,36 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         ...prev,
         showSlashMenu: !prev.showSlashMenu,
         slashFilter: '', // 重置过滤关键词
+        slashIndex: 0,
       }));
       return;
     }
 
     // 斜杠菜单打开时的输入处理
     if (state.showSlashMenu) {
+      if (key.upArrow) {
+        updateState(prev => ({
+          ...prev,
+          slashIndex: Math.max(0, prev.slashIndex - 1),
+        }));
+        return;
+      }
+      if (key.downArrow) {
+        updateState(prev => ({
+          ...prev,
+          slashIndex: Math.min(Math.max(visibleSlashCommands.length - 1, 0), prev.slashIndex + 1),
+        }));
+        return;
+      }
       if (isEnterKey) {
-        // Enter 键：选中过滤后的第一个命令
-        const cmds = slashCommands.filter(cmd =>
-          cmd.name.includes(state.slashFilter) || cmd.description?.includes(state.slashFilter)
-        );
-        if (cmds.length === 1) {
+        // Enter 键：选中当前高亮命令
+        const selected = visibleSlashCommands[state.slashIndex] || visibleSlashCommands[0];
+        if (selected) {
           updateState(prev => ({
             ...prev,
-            inputLines: ['/' + cmds[0].name], // 填充命令到输入框
+            inputLines: ['/' + selected.name], // 填充命令到输入框
             cursorRow: 0,
-            cursorCol: cmds[0].name.length + 1, // 光标移到命令后面
+            cursorCol: selected.name.length + 1, // 光标移到命令后面
             showSlashMenu: false,
           }));
         }
@@ -292,7 +311,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       }
       if (input.length === 1 && input >= ' ' && input !== '\u007f') {
         // 可打印字符：追加到过滤关键词
-        updateState(prev => ({ ...prev, slashFilter: prev.slashFilter + input }));
+        updateState(prev => ({ ...prev, slashFilter: prev.slashFilter + input, slashIndex: 0 }));
       }
       return;
     }
@@ -550,6 +569,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     // 最外层容器：纵向布局、宽度 100%、高度使用终端实际行数（明确数值）
     // Ink 不支持 height="100%"，需要用明确的数值
     <Box flexDirection="column" width={termWidth} height={termHeight}>
+      <Box justifyContent="space-between">
+        <Text color="cyan"> MiniAgent </Text>
+        <Text dimColor>{truncateByWidth(`${modelName} · ${currentMode}`, Math.max(16, termWidth - 24)).text}</Text>
+      </Box>
       {/* 主内容区域：命令面板打开时切换为不透明的模态屏幕，避免底层文字干扰 */}
       {state.showSlashMenu ? (
         <Box flexDirection="column" width={termWidth} flexGrow={1}>
@@ -575,12 +598,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                 <Text>{state.slashFilter || 'type command name...'}</Text>
               </Box>
               <Box marginTop={1} flexDirection="column">
-                {slashCommands
-                  .filter(cmd => cmd.name.includes(state.slashFilter) || cmd.description?.includes(state.slashFilter))
-                  .slice(0, 8)
+                {visibleSlashCommands
                   .map((cmd, i) => (
                     <Box key={i} justifyContent="space-between">
-                      <Text color={i === 0 ? 'green' : 'cyan'}>{i === 0 ? '› ' : '  '}/{cmd.name}</Text>
+                      <Text color={i === state.slashIndex ? 'green' : 'cyan'}>{i === state.slashIndex ? '› ' : '  '}/{cmd.name}</Text>
                       <Text dimColor>{truncateByWidth(cmd.description || '', Math.max(20, termWidth - 38)).text}</Text>
                     </Box>
                   ))}
