@@ -320,13 +320,17 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
+    const navigationKey = key as typeof key & { home?: boolean; end?: boolean };
+    const isHomeKey = navigationKey.home || input === '\u001b[H' || input === '\u001bOH' || input === '\u001b[1~';
+    const isEndKey = navigationKey.end || input === '\u001b[F' || input === '\u001bOF' || input === '\u001b[4~';
+
     // Home 键：光标移到行首
-    if (key.home) {
+    if (isHomeKey) {
       updateState(prev => ({ ...prev, cursorCol: 0 }));
       return;
     }
     // End 键：光标移到行尾
-    if (key.end) {
+    if (isEndKey) {
       updateState(prev => ({ ...prev, cursorCol: prev.inputLines[prev.cursorRow].length }));
       return;
     }

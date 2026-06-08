@@ -1,5 +1,5 @@
 import type { LLMAdapter, ChatParams, Message, ChatChunk, ChatUsage } from './base.js';
-import ollama from 'ollama';
+import ollama, { Ollama } from 'ollama';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -95,11 +95,13 @@ interface OllamaOptions {
 }
 
 export class OllamaAdapter implements LLMAdapter {
+  private client: Ollama;
   private model: string;
   private temperature: number;
   private maxTokens: number;
 
   constructor(options: OllamaOptions) {
+    this.client = options.baseUrl ? new Ollama({ host: options.baseUrl }) : ollama;
     this.model = options.model;
     this.temperature = options.temperature ?? 0.7;
     this.maxTokens = options.maxTokens ?? 4096;
@@ -108,7 +110,7 @@ export class OllamaAdapter implements LLMAdapter {
   async *chat(params: ChatParams): AsyncGenerator<ChatChunk> {
     const messages = this.buildMessages(params);
 
-    const response = await ollama.chat({
+    const response = await this.client.chat({
       model: this.model,
       messages: messages.map(m => ({
         role: m.role,
@@ -179,7 +181,7 @@ export class OllamaAdapter implements LLMAdapter {
   async chatOnce(params: ChatParams): Promise<{ content: string; toolCalls?: any[] }> {
     const messages = this.buildMessages(params);
 
-    const response = await ollama.chat({
+    const response = await this.client.chat({
       model: this.model,
       messages: messages.map(m => ({
         role: m.role,

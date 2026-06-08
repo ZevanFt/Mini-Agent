@@ -92,6 +92,7 @@ export function useChat() {
       const decoder = new TextDecoder();
       let buffer = '';
       let fullContent = '';
+      let currentEvent = 'message';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -102,48 +103,41 @@ export function useChat() {
         buffer = lines.pop() || '';
 
         for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim();
+            continue;
+          }
+
           if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6);
+            const dataStr = line.slice(6).trim();
             try {
               const parsed = JSON.parse(dataStr);
 
-              if (parsed.event === 'chunk' && parsed.data) {
-                const chunk = JSON.parse(parsed.data);
-                if (chunk.content) {
-                  fullContent += chunk.content;
-                  setStreamContent(fullContent);
-                }
-              } else if (parsed.event === 'tool_call' && parsed.data) {
-                const toolCall = JSON.parse(parsed.data);
+              if (currentEvent === 'chunk' && parsed.content) {
+                fullContent += parsed.content;
+                setStreamContent(fullContent);
+              } else if (currentEvent === 'tool_call') {
                 setMessages(prev => [...prev, {
                   role: 'assistant',
-                  content: `🔧 Calling: ${toolCall.name}`,
+                  content: `Calling tool: ${parsed.name}`,
                   timestamp: Date.now(),
                 }]);
-              } else if (parsed.event === 'done') {
-                const doneData = JSON.parse(parsed.data);
-                setMessages(prev => [...prev, { role: 'assistant', content: doneData.content || fullContent, timestamp: Date.now() }]);
-                const outputTokens = Math.ceil((doneData.content || fullContent).length / 4);
+              } else if (currentEvent === 'done') {
+                const content = parsed.content || fullContent;
+                setMessages(prev => [...prev, { role: 'assistant', content, timestamp: Date.now() }]);
+                const outputTokens = Math.ceil(content.length / 4);
                 setUsage(prev => ({ ...prev, output: prev.output + outputTokens, total: prev.total + outputTokens }));
                 setStreamContent('');
-              } else if (parsed.event === 'error') {
-                const errData = JSON.parse(parsed.data);
-                setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${errData.error || 'Stream error'}`, timestamp: Date.now() }]);
+              } else if (currentEvent === 'error') {
+                setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${parsed.error || 'Stream error'}`, timestamp: Date.now() }]);
                 setStreamContent('');
               }
             } catch {
               // parse error, skip
+            } finally {
+              currentEvent = 'message';
             }
           }
-        }
-      }
-
-      // If stream ended without 'done' event but has content
-      if (fullContent && !messages.some(m => m.role === 'assistant' && m.content === fullContent)) {
-        // Check if assistant msg was already added
-        const existingAssistant = messages.find(m => m.role === 'assistant' && m.content === fullContent);
-        if (!existingAssistant) {
-          // Already handled in done event
         }
       }
 
@@ -159,7 +153,7 @@ export function useChat() {
       setStreamContent('');
       abortRef.current = null;
     }
-  }, [isLoading, messages]);
+  }, [isLoading]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
