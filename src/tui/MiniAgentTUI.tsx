@@ -569,10 +569,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     // 最外层容器：纵向布局、宽度 100%、高度使用终端实际行数（明确数值）
     // Ink 不支持 height="100%"，需要用明确的数值
     <Box flexDirection="column" width={termWidth} height={termHeight}>
-      <Box justifyContent="space-between">
-        <Text color="cyan"> MiniAgent </Text>
-        <Text dimColor>{truncateByWidth(`${modelName} · ${currentMode}`, Math.max(16, termWidth - 24)).text}</Text>
-      </Box>
       {/* 主内容区域：命令面板打开时切换为不透明的模态屏幕，避免底层文字干扰 */}
       {state.showSlashMenu ? (
         <Box flexDirection="column" width={termWidth} flexGrow={1}>
@@ -783,6 +779,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           {/* 右侧：侧边栏，固定宽度 30 字符，使用 #141414 底色 */}
           <Box width={sidebarWidth} flexDirection="column" paddingX={2} borderLeft>
             <Text bold backgroundColor="#141414">{sidebarLine('Context')}</Text>
+            <Text dimColor backgroundColor="#141414">{sidebarLine(modelName)}</Text>
+            <Text dimColor backgroundColor="#141414">{sidebarLine(`${currentMode} mode`)}</Text>
+            <Text backgroundColor="#141414">{sidebarLine()}</Text>
             <Text dimColor backgroundColor="#141414">{sidebarLine(`${tokensUsed.toLocaleString()} tokens`)}</Text>
             <Text dimColor backgroundColor="#141414">{sidebarLine(`${tokenPercent}% used`)}</Text>
             <Text dimColor backgroundColor="#141414">{sidebarLine(`${totalCost} spent`)}</Text>
