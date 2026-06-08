@@ -131,7 +131,7 @@ async function main(): Promise<void> {
     .command('chat')
     .description('Start interactive chat')
     .option('-m, --model <name>', 'Model name', 'qwen2.5-coder:3b')
-    .option('-u, --url <url>', 'Ollama server URL', 'http://localhost:11434')
+    .option('-u, --url <url>', 'Ollama server URL', 'http://127.0.0.1:11434')
     .option('-v, --verbose', 'Verbose output', false)
     .option('-s, --session <id>', 'Session ID')
     .option('--list-sessions', 'List all sessions')
@@ -906,7 +906,7 @@ async function main(): Promise<void> {
     .description('Single execution')
     .argument('<message>', 'Message to send')
     .option('-m, --model <name>', 'Model name', 'qwen2.5-coder:3b')
-    .option('-u, --url <url>', 'Ollama server URL', 'http://localhost:11434')
+    .option('-u, --url <url>', 'Ollama server URL', 'http://127.0.0.1:11434')
     .option('-v, --verbose', 'Verbose output', false)
     .action(async (message, options) => {
       const llm = new OllamaAdapter({
@@ -1018,7 +1018,7 @@ async function main(): Promise<void> {
     .option('--port <number>', 'Port to listen on', '3000')
     .option('--host <string>', 'Host to bind to', '127.0.0.1')
     .option('--model <model>', 'LLM model to use', 'qwen2.5-coder:3b')
-    .option('--url <url>', 'Ollama server URL', 'http://localhost:11434')
+    .option('--url <url>', 'Ollama server URL', 'http://127.0.0.1:11434')
     .option('--ui-password <string>', 'Password to protect web UI')
     .option('--verbose', 'Verbose output', false)
     .action(async (options) => {
@@ -1076,7 +1076,7 @@ async function main(): Promise<void> {
     .option('--port <number>', 'Port to listen on', '8080')
     .option('--host <string>', 'Host to bind to', '127.0.0.1')
     .option('--model <model>', 'LLM model to use', 'qwen2.5-coder:3b')
-    .option('--url <url>', 'Ollama server URL', 'http://localhost:11434')
+    .option('--url <url>', 'Ollama server URL', 'http://127.0.0.1:11434')
     .option('-v, --verbose', 'Verbose output', false)
     .action(async (options) => {
       console.log(chalk.cyan.bold('\n🔌 Starting MCP SSE Server...'));

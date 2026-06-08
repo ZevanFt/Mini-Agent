@@ -19,9 +19,10 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
   let cleanupFn: (() => void) | null = null;
 
   function start() {
-    // Enter alternate screen buffer and hide cursor
+    // Enter alternate screen buffer. Keep the native cursor visible so IME
+    // candidate windows have a better anchor in Windows terminals.
     // This completely isolates the TUI from the shell
-    process.stdout.write('\x1b[?1049h\x1b[?25l');
+    process.stdout.write('\x1b[?1049h\x1b[?25h');
 
     const app = React.createElement(MiniAgentTUI, {
       agent,
