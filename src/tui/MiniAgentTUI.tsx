@@ -316,6 +316,11 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
+    if (key.ctrl && input.toLowerCase() === 'k') {
+      updateState(prev => ({ ...prev, inputLines: [''], cursorRow: 0, cursorCol: 0, historyIndex: null, showSlashMenu: false }));
+      return;
+    }
+
     if (key.ctrl && input.toLowerCase() === 'r') {
       if (lastUserPrompt && !state.isProcessing) {
         setMessages(prev => {
@@ -409,6 +414,16 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       if (input.length === 1 && input >= ' ' && input !== '\u007f') {
         // 可打印字符：追加到过滤关键词
         updateState(prev => {
+          if (prev.slashMenuMode === 'inline' && input === ' ' && prev.slashFilter.length > 0) {
+            const text = `/${prev.slashFilter} `;
+            return {
+              ...prev,
+              showSlashMenu: false,
+              inputLines: [text],
+              cursorRow: 0,
+              cursorCol: text.length,
+            };
+          }
           const nextFilter = prev.slashFilter + input;
           if (prev.slashMenuMode !== 'inline') return { ...prev, slashFilter: nextFilter, slashIndex: 0 };
           return {
@@ -686,6 +701,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const chatTextWidth = Math.max(chatInputBoxWidth - 3, 20);
   const composerContentWidth = chatInputBoxWidth - 1;
   const startCommandMenuWidth = textWidth + 2;
+  const maxComposerInputLines = 5;
+  const composerInputStart = Math.max(0, state.cursorRow - maxComposerInputLines + 1);
+  const visibleInputLines = state.inputLines.slice(composerInputStart, composerInputStart + maxComposerInputLines);
   // dashWidth: 虚线分隔符的宽度，与起始页面子元素宽度一致
   const dashWidth = Math.max(inputBoxWidth - 4, 20) + 2;
   // dashLine: 生成虚线字符串，使用全角横线 '─'（U+2500）
@@ -739,8 +757,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (width < 24) return 'Enter send';
     if (width < 42) return 'Ctrl+P commands   Enter send';
     if (width < 62) return '↑↓ history   Ctrl+P commands   Enter send';
-    if (width < 82) return '↑↓ history   Ctrl+P commands   Ctrl+R retry   Enter send';
-    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+R retry   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear   Enter send';
+    if (width < 82) return '↑↓ history   Ctrl+P commands   Ctrl+K clear input   Enter send';
+    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+R retry   Ctrl+K clear input   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear chat   Enter send';
   };
   const menuHint = (width: number) => width < 38 ? 'Enter select   Esc close' : '↑↓ move   Enter select   Esc close';
   const inputLineText = (line: string, row: number, textWidth: number, lineWidth = textWidth + 2) => {
@@ -784,7 +802,11 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const slashHasMoreAbove = slashWindowStart > 0;
   const slashHasMoreBelow = slashWindowStart + visibleSlashCommands.length < filteredSlashCommands.length;
   const slashScrollHint = `${slashHasMoreAbove ? '↑' : ' '} ${slashHasMoreBelow ? '↓' : ' '}`;
-  const promptStateLabel = state.historyIndex !== null ? 'history' : promptStash ? 'draft' : '';
+  const promptStateLabel = [
+    state.historyIndex !== null ? 'history' : '',
+    promptStash ? 'draft' : '',
+    state.inputLines.length > maxComposerInputLines ? `${state.inputLines.length} lines` : '',
+  ].filter(Boolean).join(' ');
   const lastUserPrompt = [...messages].reverse().find(msg => msg.role === 'user')?.content;
   const renderCommandRows = (
     rows: typeof visibleSlashRows,
@@ -827,8 +849,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     return labelLines + contentLines + durationLines + verticalPaddingLines + 1;
   };
   const inlineMenuRows = state.showSlashMenu && state.slashMenuMode === 'inline' ? Math.min(inlineSlashRows.length + 6, 13) : 0;
-  const messageLineBudget = Math.max(4, termHeight - state.inputLines.length * 2 - inlineMenuRows - 10);
-  const composerRows = state.inputLines.length * 2 + 4 + inlineMenuRows;
+  const visibleInputLineCount = visibleInputLines.length;
+  const messageLineBudget = Math.max(4, termHeight - visibleInputLineCount * 2 - inlineMenuRows - 10);
+  const composerRows = visibleInputLineCount * 2 + 4 + inlineMenuRows;
   const messagePaneHeight = Math.max(3, termHeight - composerRows - 3);
   let usedMessageLines = 0;
   let visibleMessageStart = messages.length;
@@ -989,14 +1012,17 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             <Box width={textWidth + 2}>
               <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
             </Box>
-            {state.inputLines.flatMap((line, row) => [
+            {visibleInputLines.flatMap((line, visibleRow) => {
+              const row = composerInputStart + visibleRow;
+              return [
               <Box key={`line-${row}`} width={textWidth + 2}>
                 <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row, textWidth)}</Text>
               </Box>,
               <Box key={`gap-${row}`} width={textWidth + 2}>
                 <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
               </Box>
-            ])}
+            ];
+            })}
             <Box width={textWidth + 2}>
               <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
             </Box>
@@ -1119,14 +1145,17 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                 <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(composerContentWidth)}</Text>
               </Box>
               {/* 输入框文本行 */}
-              {state.inputLines.flatMap((line, row) => [
+              {visibleInputLines.flatMap((line, visibleRow) => {
+                const row = composerInputStart + visibleRow;
+                return [
                   <Box key={`line-${row}`} width={composerContentWidth}>
                   <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row, chatTextWidth, composerContentWidth)}</Text>
                 </Box>,
                   <Box key={`gap-${row}`} width={composerContentWidth}>
                   <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(composerContentWidth)}</Text>
                 </Box>
-              ])}
+              ];
+              })}
               {/* 底部留白：与顶部留白对称 */}
                 <Box width={composerContentWidth}>
                 <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(composerContentWidth)}</Text>
