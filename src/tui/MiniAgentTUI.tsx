@@ -55,6 +55,7 @@ interface TUIState {
   showTimeline: boolean;     // 是否显示会话时间线
   timelineIndex: number;     // 当前选中的时间线消息索引
   timelineDetail: boolean;   // 是否显示选中消息详情
+  timelineDetailOffset: number; // 时间线详情滚动位置
   historyIndex: number | null; // 当前浏览的历史输入索引
 }
 
@@ -106,6 +107,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     showTimeline: false,    // 默认不显示会话时间线
     timelineIndex: 0,       // 默认选中第一条时间线消息
     timelineDetail: false,  // 默认显示时间线列表
+    timelineDetailOffset: 0,// 默认详情滚动到顶部
     historyIndex: null,     // 默认不浏览历史输入
   });
   // 已使用的 token 数量（初始值 55373）
@@ -353,15 +355,21 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
     if (state.showTimeline) {
       if (key.upArrow) {
-        updateState(prev => ({ ...prev, timelineIndex: Math.max(0, prev.timelineIndex - 1) }));
+        updateState(prev => prev.timelineDetail
+          ? { ...prev, timelineDetailOffset: Math.max(0, prev.timelineDetailOffset - 1) }
+          : { ...prev, timelineIndex: Math.max(0, prev.timelineIndex - 1), timelineDetailOffset: 0 }
+        );
         return;
       }
       if (key.downArrow) {
-        updateState(prev => ({ ...prev, timelineIndex: Math.min(Math.max(messages.length - 1, 0), prev.timelineIndex + 1) }));
+        updateState(prev => prev.timelineDetail
+          ? { ...prev, timelineDetailOffset: prev.timelineDetailOffset + 1 }
+          : { ...prev, timelineIndex: Math.min(Math.max(messages.length - 1, 0), prev.timelineIndex + 1), timelineDetailOffset: 0 }
+        );
         return;
       }
       if (isEnterKey && messages.length > 0) {
-        updateState(prev => ({ ...prev, timelineDetail: !prev.timelineDetail }));
+        updateState(prev => ({ ...prev, timelineDetail: !prev.timelineDetail, timelineDetailOffset: 0 }));
         return;
       }
       if (input.toLowerCase() === 'i' && messages[state.timelineIndex]) {
@@ -371,6 +379,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           ...prev,
           showTimeline: false,
           timelineDetail: false,
+          timelineDetailOffset: 0,
           inputLines: lines,
           cursorRow: lines.length - 1,
           cursorCol: lines.at(-1)?.length || 0,
@@ -381,13 +390,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       if (input.toLowerCase() === 'r' && messages[state.timelineIndex]?.role === 'user' && !state.isProcessing) {
         const retryText = messages[state.timelineIndex].content;
         setMessages(prev => prev.slice(0, state.timelineIndex));
-        updateState(prev => ({ ...prev, showTimeline: false, timelineDetail: false }));
+        updateState(prev => ({ ...prev, showTimeline: false, timelineDetail: false, timelineDetailOffset: 0 }));
         handleProcessInput(retryText);
         return;
       }
       if (key.escape || input === 'escape' || input === '\u001b') {
         updateState(prev => prev.timelineDetail
-          ? { ...prev, timelineDetail: false }
+          ? { ...prev, timelineDetail: false, timelineDetailOffset: 0 }
           : { ...prev, showTimeline: false }
         );
       }
@@ -440,6 +449,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         ...prev,
         showTimeline: true,
         timelineDetail: false,
+        timelineDetailOffset: 0,
         timelineIndex: Math.max(0, messages.length - 1),
         showSlashMenu: false,
       }));
@@ -965,6 +975,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     const preview = msg.content.replace(/\s+/g, ' ').trim();
     return { index: messageIndex, text: `${absoluteIndex}. ${label} ${TUI_GLYPHS.bullet} ${preview}` };
   });
+  const timelineDetailWidth = Math.min(termWidth - 14, 66);
+  const timelineDetailHeight = 14;
+  const timelineDetailLines = selectedTimelineMessage ? wrapByWidth(selectedTimelineMessage.content, timelineDetailWidth) : [];
+  const timelineDetailMaxOffset = Math.max(0, timelineDetailLines.length - timelineDetailHeight);
+  const timelineDetailOffset = Math.min(state.timelineDetailOffset, timelineDetailMaxOffset);
+  const timelineDetailVisibleLines = timelineDetailLines.slice(timelineDetailOffset, timelineDetailOffset + timelineDetailHeight);
+  const timelineDetailScrollHint = `${timelineDetailOffset > 0 ? '↑' : ' '} ${timelineDetailOffset < timelineDetailMaxOffset ? '↓' : ' '}`;
   const renderCommandRows = (
     rows: typeof visibleSlashRows,
     width: number,
@@ -1100,7 +1117,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                 <Box flexDirection="column">
                   <Text color={TUI_THEME.warning}>{selectedTimelineMessage.role === 'user' ? 'User' : selectedTimelineMessage.type === 'error' ? 'MiniAgent Error' : 'MiniAgent'} #{state.timelineIndex + 1}</Text>
                   <Text>{''}</Text>
-                  {wrapByWidth(selectedTimelineMessage.content, Math.min(termWidth - 14, 66)).slice(0, 14).map((line, i) => (
+                  {timelineDetailVisibleLines.map((line, i) => (
                     <Text key={`timeline-detail-${i}`}>{line}</Text>
                   ))}
                 </Box>
@@ -1115,7 +1132,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               ))}
             </Box>
             <Box marginTop={1} justifyContent="space-between">
-              <Text dimColor>{state.timelineDetail ? 'I insert  R retry user' : '↑↓ move  Enter detail  I insert'}</Text>
+              <Text dimColor>{state.timelineDetail ? `${timelineDetailScrollHint} scroll  I insert  R retry user` : '↑↓ move  Enter detail  I insert'}</Text>
               <Text dimColor>{state.timelineDetail ? 'Esc back' : 'R retry user  Esc close'}</Text>
             </Box>
           </Box>
