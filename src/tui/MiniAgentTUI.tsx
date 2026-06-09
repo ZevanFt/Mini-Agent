@@ -1,6 +1,6 @@
 // React 基础 hooks
 import React, { useState, useEffect, useCallback } from 'react';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 // Ink TUI 框架的组件和 hooks
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
@@ -111,6 +111,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
   const [promptStash, setPromptStash] = useState<string | null>(null);
   const [lastExportPath, setLastExportPath] = useState<string | null>(null);
+  const promptStoreDir = path.join(cwd, '.miniagent', 'history');
+  const promptHistoryPath = path.join(promptStoreDir, 'tui-prompts.json');
+  const promptStashPath = path.join(promptStoreDir, 'tui-draft.txt');
   // 终端宽度（字符数），默认 120
   const [termWidth, setTermWidth] = useState(120);
   // 终端高度（行数），默认 30
@@ -131,6 +134,32 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       process.stdout.off('resize', updateDimensions); // 组件卸载时解绑
     };
   }, []); // 空依赖数组
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadPromptState() {
+      try {
+        const rawHistory = await readFile(promptHistoryPath, 'utf8');
+        const parsed = JSON.parse(rawHistory) as unknown;
+        if (!cancelled && Array.isArray(parsed)) {
+          setPromptHistory(parsed.filter((item): item is string => typeof item === 'string').slice(-100));
+        }
+      } catch {
+        // Missing history is fine on first run.
+      }
+
+      try {
+        const rawDraft = await readFile(promptStashPath, 'utf8');
+        if (!cancelled && rawDraft.trim()) setPromptStash(rawDraft);
+      } catch {
+        // Missing draft is fine on first run.
+      }
+    }
+    loadPromptState();
+    return () => {
+      cancelled = true;
+    };
+  }, [promptHistoryPath, promptStashPath]);
 
   // 计算当前模式名称（从 AGENT_MODES 数组中取）
   const currentMode = AGENT_MODES[state.modeIndex];
@@ -177,6 +206,16 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     setLastExportPath(filePath);
   }, [cwd, currentMode, messages, modelName]);
 
+  const persistPromptHistory = useCallback(async (history: string[]) => {
+    await mkdir(promptStoreDir, { recursive: true });
+    await writeFile(promptHistoryPath, JSON.stringify(history.slice(-100), null, 2), 'utf8');
+  }, [promptHistoryPath, promptStoreDir]);
+
+  const persistPromptStash = useCallback(async (draft: string | null) => {
+    await mkdir(promptStoreDir, { recursive: true });
+    await writeFile(promptStashPath, draft || '', 'utf8');
+  }, [promptStashPath, promptStoreDir]);
+
   // 处理用户输入的文本（发送给 Agent 并获取响应）
   const handleProcessInput = useCallback(async (text: string) => {
     if (!text.trim()) return; // 空输入直接返回
@@ -189,7 +228,11 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     };
     setMessages(prev => [...prev, userMsg]); // 添加到消息列表
     setTokensUsed(prev => prev + Math.floor(text.length / 4)); // 估算 token 消耗
-    setPromptHistory(prev => prev.at(-1) === text ? prev : [...prev, text]);
+    setPromptHistory(prev => {
+      const next = prev.at(-1) === text ? prev : [...prev, text].slice(-100);
+      persistPromptHistory(next).catch(() => {});
+      return next;
+    });
 
     // 更新状态：标记为处理中、清空响应文本、重置输入框和光标
     updateState(prev => ({
@@ -278,7 +321,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         currentResponse: '',
       }));
     }
-  }, [agent, messages, slashCommands, updateState]); // 依赖：agent 实例、命令列表、状态更新函数
+  }, [agent, messages, persistPromptHistory, slashCommands, updateState]); // 依赖：agent 实例、命令列表、状态更新函数
 
   // 注册键盘输入处理
   useInput((input, key) => {
@@ -372,7 +415,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
     if (key.ctrl && input.toLowerCase() === 'u') {
       const currentText = state.inputLines.join('\n');
-      if (currentText.trim()) setPromptStash(currentText);
+      if (currentText.trim()) {
+        setPromptStash(currentText);
+        persistPromptStash(currentText).catch(() => {});
+      }
       updateState(prev => ({ ...prev, inputLines: [''], cursorRow: 0, cursorCol: 0, historyIndex: null, showSlashMenu: false }));
       return;
     }
@@ -388,6 +434,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           historyIndex: null,
           showSlashMenu: false,
         }));
+        setPromptStash(null);
+        persistPromptStash(null).catch(() => {});
       }
       return;
     }
@@ -921,7 +969,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarLine('System'), bold: true },
     { text: sidebarRule(), dim: true },
     { text: sidebarLine(pill('Slash ready')), color: TUI_THEME.success },
-    { text: sidebarLine(promptStash ? 'Draft stashed' : 'No draft'), dim: !promptStash, color: promptStash ? TUI_THEME.warning : undefined },
+    { text: sidebarLine(promptStash ? 'Draft saved' : 'No draft'), dim: !promptStash, color: promptStash ? TUI_THEME.warning : undefined },
     { text: sidebarLine(lastUserPrompt ? 'Retry ready' : 'No retry'), dim: !lastUserPrompt, color: lastUserPrompt ? TUI_THEME.success : undefined },
     { text: sidebarLine(lastExportPath ? 'Exported session' : 'Ctrl+E export'), dim: !lastExportPath, color: lastExportPath ? TUI_THEME.success : undefined },
     { text: sidebarLine('0 LSP'), dim: true },
