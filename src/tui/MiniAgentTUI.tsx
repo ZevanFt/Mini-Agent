@@ -10,6 +10,23 @@ import { createSlashCommands } from '../core/commands.js';
 // Agent 模式列表：Build（构建模式）和 Plan（规划模式）
 const AGENT_MODES = ['Build', 'Plan'] as const;
 
+const TUI_THEME = {
+  accent: 'cyan',
+  muted: 'gray',
+  panel: '#141414',
+  selected: '#1f1f1f',
+  logo: '#0078d7',
+  success: 'green',
+  warning: 'yellow',
+} as const;
+
+const TUI_GLYPHS = {
+  selected: '›',
+  divider: '─',
+  mask: '░',
+  bullet: '·',
+} as const;
+
 // TUI 组件接收的 props 类型定义
 interface TUIProps {
   agent: Agent;              // Agent 实例，用于处理对话
@@ -27,10 +44,12 @@ interface TUIState {
   cursorRow: number;         // 光标所在行索引
   cursorCol: number;         // 光标所在列索引
   showSlashMenu: boolean;    // 是否显示斜杠命令菜单
+  slashMenuMode: 'modal' | 'inline'; // modal=Ctrl+P 全屏命令面板，inline=/ 输入框上方选择框
   slashFilter: string;       // 斜杠命令过滤关键词
   slashIndex: number;        // 命令面板当前选中项
   isProcessing: boolean;     // 是否正在处理请求
   currentResponse: string;   // 当前正在流式输出的响应文本
+  showExitConfirm: boolean;  // 是否显示退出确认框
 }
 
 // 对话消息类型定义
@@ -51,6 +70,8 @@ const LOGO_LINES: string[] = [
   '██      ██  ██  ██   ████  ██         ██   ██   ██████   ███████  ██   ████     ██    ',
 ];
 
+const LOGO_SPLIT_INDEX = 41;
+
 // TUI 主组件：渲染整个终端用户界面
 export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   // useApp: 获取 Ink 应用控制，exit() 用于退出应用
@@ -70,10 +91,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     cursorRow: 0,           // 光标初始在第 0 行
     cursorCol: 0,           // 光标初始在第 0 列
     showSlashMenu: false,   // 默认不显示斜杠菜单
+    slashMenuMode: 'modal', // 默认 Ctrl+P 模态面板
     slashFilter: '',        // 默认无过滤关键词
     slashIndex: 0,          // 默认选中第一条命令
     isProcessing: false,    // 默认未在处理
     currentResponse: '',    // 默认无响应文本
+    showExitConfirm: false, // 默认不显示退出确认框
   });
   // 已使用的 token 数量（初始值 55373）
   const [tokensUsed, setTokensUsed] = useState(55373);
@@ -85,9 +108,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [termWidth, setTermWidth] = useState(120);
   // 终端高度（行数），默认 30
   const [termHeight, setTermHeight] = useState(30);
-  // 光标闪烁状态：true=显示，false=隐藏
-  const [cursorVisible, setCursorVisible] = useState(true);
-
   // 监听终端窗口大小变化，实时更新 termWidth 和 termHeight
   useEffect(() => {
     const updateDimensions = () => {
@@ -105,14 +125,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     };
   }, []); // 空依赖数组
 
-  // 光标闪烁定时器：每 530ms 切换一次显示/隐藏
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCursorVisible(prev => !prev);
-    }, 530);
-    return () => clearInterval(timer); // 组件卸载时清除
-  }, []); // 空依赖数组
-
   // 计算当前模式名称（从 AGENT_MODES 数组中取）
   const currentMode = AGENT_MODES[state.modeIndex];
   // 显示完整模型名，避免用户不清楚当前实际使用的 Ollama model/tag。
@@ -122,7 +134,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const filteredSlashCommands = slashCommands.filter(cmd =>
     cmd.name.includes(state.slashFilter) || cmd.description?.includes(state.slashFilter)
   );
-  const visibleSlashCommands = filteredSlashCommands.slice(0, 8);
+  const slashWindowSize = 8;
+  const slashWindowStart = Math.max(
+    0,
+    Math.min(state.slashIndex - slashWindowSize + 1, Math.max(0, filteredSlashCommands.length - slashWindowSize))
+  );
+  const visibleSlashCommands = filteredSlashCommands.slice(slashWindowStart, slashWindowStart + slashWindowSize);
 
   // 状态更新辅助函数：接收一个 updater 函数，基于旧状态计算新状态
   const updateState = useCallback((updater: (prev: TUIState) => TUIState) => {
@@ -239,10 +256,22 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     const isHomeKey = navigationKey.home || input === '\u001b[H' || input === '\u001bOH' || input === '\u001b[1~';
     const isEndKey = navigationKey.end || input === '\u001b[F' || input === '\u001bOF' || input === '\u001b[4~';
 
-    // Ctrl+C 或 Ctrl+D：退出应用
+    if (state.showExitConfirm) {
+      if (isEnterKey || input.toLowerCase() === 'y') {
+        exit();
+        onExit();
+        return;
+      }
+      if (key.escape || input === 'escape' || input === '\u001b' || input.toLowerCase() === 'n') {
+        updateState(prev => ({ ...prev, showExitConfirm: false }));
+        return;
+      }
+      return;
+    }
+
+    // Ctrl+C 或 Ctrl+D：先显示退出确认框
     if (key.ctrl && (input === 'c' || input === 'd')) {
-      exit();
-      onExit();
+      updateState(prev => ({ ...prev, showExitConfirm: true, showSlashMenu: false }));
       return;
     }
 
@@ -268,6 +297,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       updateState(prev => ({
         ...prev,
         showSlashMenu: !prev.showSlashMenu,
+        slashMenuMode: 'modal',
         slashFilter: '', // 重置过滤关键词
         slashIndex: 0,
       }));
@@ -286,13 +316,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       if (key.downArrow) {
         updateState(prev => ({
           ...prev,
-          slashIndex: Math.min(Math.max(visibleSlashCommands.length - 1, 0), prev.slashIndex + 1),
+          slashIndex: Math.min(Math.max(filteredSlashCommands.length - 1, 0), prev.slashIndex + 1),
         }));
         return;
       }
       if (isEnterKey) {
         // Enter 键：选中当前高亮命令
-        const selected = visibleSlashCommands[state.slashIndex] || visibleSlashCommands[0];
+        const selected = filteredSlashCommands[state.slashIndex] || filteredSlashCommands[0];
         if (selected) {
           updateState(prev => ({
             ...prev,
@@ -306,12 +336,34 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       }
       if (isBackspaceKey) {
         // 退格键：删除过滤关键词最后一个字符
-        updateState(prev => ({ ...prev, slashFilter: prev.slashFilter.slice(0, -1) }));
+        updateState(prev => {
+          if (prev.slashMenuMode !== 'inline') return { ...prev, slashFilter: prev.slashFilter.slice(0, -1) };
+          const nextFilter = prev.slashFilter.slice(0, -1);
+          return {
+            ...prev,
+            slashFilter: nextFilter,
+            slashIndex: 0,
+            inputLines: [`/${nextFilter}`],
+            cursorRow: 0,
+            cursorCol: nextFilter.length + 1,
+          };
+        });
         return;
       }
       if (input.length === 1 && input >= ' ' && input !== '\u007f') {
         // 可打印字符：追加到过滤关键词
-        updateState(prev => ({ ...prev, slashFilter: prev.slashFilter + input, slashIndex: 0 }));
+        updateState(prev => {
+          const nextFilter = prev.slashFilter + input;
+          if (prev.slashMenuMode !== 'inline') return { ...prev, slashFilter: nextFilter, slashIndex: 0 };
+          return {
+            ...prev,
+            slashFilter: nextFilter,
+            slashIndex: 0,
+            inputLines: [`/${nextFilter}`],
+            cursorRow: 0,
+            cursorCol: nextFilter.length + 1,
+          };
+        });
       }
       return;
     }
@@ -450,6 +502,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         const newLines = [...prev.inputLines];
         const currentLine = newLines[prev.cursorRow];
         const newText = currentLine.slice(0, prev.cursorCol) + input + currentLine.slice(prev.cursorCol);
+        const opensInlineSlash = input === '/' && prev.inputLines.length === 1 && prev.cursorRow === 0 && prev.cursorCol === 0;
         
         // 检查当前行是否超过最大显示宽度
         if (getStringWidth(newText) > textWidth) {
@@ -498,6 +551,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             inputLines: newLines,
             cursorRow: prev.cursorRow + 1,
             cursorCol: newLines[prev.cursorRow + 1] ? newLines[prev.cursorRow + 1].length : 0,
+            showSlashMenu: opensInlineSlash ? true : prev.showSlashMenu,
+            slashMenuMode: opensInlineSlash ? 'inline' : prev.slashMenuMode,
+            slashFilter: opensInlineSlash ? '' : prev.slashFilter,
+            slashIndex: opensInlineSlash ? 0 : prev.slashIndex,
           };
         } else {
           // 正常插入
@@ -506,6 +563,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             ...prev,
             inputLines: newLines,
             cursorCol: prev.cursorCol + input.length, // 光标右移
+            showSlashMenu: opensInlineSlash ? true : prev.showSlashMenu,
+            slashMenuMode: opensInlineSlash ? 'inline' : prev.slashMenuMode,
+            slashFilter: opensInlineSlash ? '' : prev.slashFilter,
+            slashIndex: opensInlineSlash ? 0 : prev.slashIndex,
           };
         }
       });
@@ -515,9 +576,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   // ==================== 输入框宽度计算 ====================
   // inputBoxWidth: 输入框整体宽度，占终端宽度的 35%（可调整此比例改变输入框大小）
   const inputBoxWidth = Math.floor(termWidth * 0.35);
-  const sidebarWidth = 30;
-  const chatAreaWidth = Math.max(termWidth - sidebarWidth - 4, 40);
-  const chatInputBoxWidth = Math.floor(chatAreaWidth * 0.95);
+  const sidebarWidth = termWidth >= 120 ? 42 : 32;
+  const chatAreaWidth = Math.max(termWidth - sidebarWidth, 40);
+  const chatComposerMarginX = 2;
+  const chatInputBoxWidth = Math.max(24, chatAreaWidth - chatComposerMarginX * 2);
   // textWidth: 输入框内部可用文本宽度
   // 计算方式：inputBoxWidth - 4，因为：
   //   - Ink 的 borderStyle="single" 会在容器两侧各占 1 字符（│），共 2 字符
@@ -525,11 +587,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   //   - 合计减去 4 字符
   // Math.max(xxx, 20) 确保最小宽度为 20，防止终端过窄时崩溃
   const textWidth = Math.max(inputBoxWidth - 4, 20);
-  const chatTextWidth = Math.max(chatInputBoxWidth - 4, 20);
+  const chatTextWidth = Math.max(chatInputBoxWidth - 3, 20);
+  const composerContentWidth = chatInputBoxWidth - 1;
   // dashWidth: 虚线分隔符的宽度，与起始页面子元素宽度一致
   const dashWidth = Math.max(inputBoxWidth - 4, 20) + 2;
   // dashLine: 生成虚线字符串，使用全角横线 '─'（U+2500）
-  const dashLine = '─'.repeat(dashWidth);
+  const dashLine = TUI_GLYPHS.divider.repeat(dashWidth);
   // 计算字符串的显示宽度（英文 1 字符，中文/emoji 2 字符）
   const getStringWidth = (str: string): number => {
     let width = 0;
@@ -556,70 +619,194 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     const clipped = truncateByWidth(text, width).text;
     return clipped + ' '.repeat(Math.max(0, width - getStringWidth(clipped)));
   };
-  const sidebarLine = (text = '') => fillByWidth(text, sidebarWidth - 4);
+  const wrapByWidth = (text: string, width: number): string[] => {
+    if (!text) return [''];
+    const lines: string[] = [];
+    for (const rawLine of text.split('\n')) {
+      let remaining = rawLine;
+      while (getStringWidth(remaining) > width) {
+        const chunk = truncateByWidth(remaining, width);
+        lines.push(chunk.text);
+        remaining = remaining.slice(chunk.charCount);
+      }
+      lines.push(remaining);
+    }
+    return lines;
+  };
+  const sidebarPaddingX = 2;
+  const sidebarInnerWidth = Math.max(12, sidebarWidth - sidebarPaddingX * 2 - 1);
+  const sidebarLine = (text = '') => fillByWidth(text, sidebarInnerWidth);
+  const sidebarRule = () => sidebarLine(TUI_GLYPHS.divider.repeat(sidebarInnerWidth));
+  const pill = (text: string) => ` ${text} `;
+  const composerHint = (width: number) => {
+    if (width < 24) return 'Enter send';
+    if (width < 42) return 'Ctrl+P commands   Enter send';
+    return 'Tab mode   Ctrl+P commands   Enter send';
+  };
+  const inputLineText = (line: string, row: number, textWidth: number, lineWidth = textWidth + 2) => {
+    const caret = '▌';
+    const content = row === 0 && row === state.cursorRow && state.cursorCol === 0 && line === ''
+      ? `${caret} Ask anything...`
+      : row === state.cursorRow
+        ? line.slice(0, state.cursorCol) + caret + line.slice(state.cursorCol)
+        : line;
+    return fillByWidth(truncateByWidth(content, textWidth).text, lineWidth);
+  };
+  const commandCategory = (name: string) => {
+    if (['help', 'compact', 'clear', 'new', 'save', 'resume', 'restart', 'quit'].includes(name)) return 'Session';
+    if (['init', 'status', 'diff', 'undo', 'redo', 'add-dir', 'files', 'context'].includes(name)) return 'Project';
+    if (['plan', 'approve', 'skip', 'review', 'commit', 'test', 'retry', 'explain', 'loop', 'batch'].includes(name)) return 'Workflow';
+    if (['tools', 'config', 'permissions', 'model', 'mcp', 'version', 'reset'].includes(name)) return 'Tools';
+    if (['skills', 'skill', 'hooks', 'plugins'].includes(name)) return 'Skills';
+    if (['memory', 'history', 'checkpoints', 'rewind', 'branch'].includes(name)) return 'Memory';
+    if (['security-review', 'simplify', 'debug', 'copy'].includes(name)) return 'Quality';
+    if (['git', 'github', 'share', 'export'].includes(name)) return 'Git';
+    if (['thinking', 'format', 'background', 'vim', 'insights'].includes(name)) return 'TUI';
+    if (['doctor', 'bug', 'docs', 'connect'].includes(name)) return 'Diagnostics';
+    if (['login', 'logout', 'privacy-settings'].includes(name)) return 'Auth';
+    return 'Command';
+  };
   const modalWidth = Math.min(termWidth - 8, 76);
-  const modalRows = 13;
-  const modalTopPad = Math.max(0, Math.floor((termHeight - modalRows - 1) / 2));
-  const modalBottomPad = Math.max(0, termHeight - modalTopPad - modalRows - 1);
-  const maskLine = '░'.repeat(termWidth);
-  const modalSideMaskWidth = Math.max(0, Math.floor((termWidth - modalWidth) / 2));
-  const modalSideMask = '░'.repeat(modalSideMaskWidth);
+  const modalContentWidth = Math.max(20, modalWidth - 6);
+  const messageLineCount = (msg: Message) => {
+    const contentLines = wrapByWidth(msg.content, chatTextWidth).length;
+    const labelLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' ? 1 : 0;
+    const durationLines = msg.type === 'thought' && msg.duration ? 1 : 0;
+    return labelLines + contentLines + durationLines + 1;
+  };
+  const messageLineBudget = Math.max(4, termHeight - state.inputLines.length * 2 - 10);
+  const composerRows = state.inputLines.length * 2 + 4;
+  const messagePaneHeight = Math.max(3, termHeight - composerRows - 3);
+  let usedMessageLines = 0;
+  let visibleMessageStart = messages.length;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const nextLineCount = messageLineCount(messages[i]);
+    if (visibleMessageStart < messages.length && usedMessageLines + nextLineCount > messageLineBudget) break;
+    usedMessageLines += nextLineCount;
+    visibleMessageStart = i;
+  }
+  const hiddenMessageCount = visibleMessageStart;
+  const visibleMessages = messages.slice(visibleMessageStart);
+  const sidebarRows = [
+    { text: sidebarLine('Session'), bold: true },
+    { text: sidebarRule(), dim: true },
+    { text: sidebarLine('MiniAgent Chat'), color: TUI_THEME.accent },
+    { text: sidebarLine(`${messages.length} messages`), dim: true },
+    { text: sidebarLine() },
+    { text: sidebarLine('Model'), bold: true },
+    { text: sidebarRule(), dim: true },
+    { text: sidebarLine(modelName), dim: true },
+    { text: sidebarLine(pill(currentMode)), color: TUI_THEME.accent },
+    { text: sidebarLine() },
+    { text: sidebarLine('Context'), bold: true },
+    { text: sidebarRule(), dim: true },
+    { text: sidebarLine(`${tokensUsed.toLocaleString()} tokens`), dim: true },
+    { text: sidebarLine(`${tokenPercent}% used`), dim: true },
+    { text: sidebarLine(`${totalCost} spent`), dim: true },
+    { text: sidebarLine() },
+    { text: sidebarLine('System'), bold: true },
+    { text: sidebarRule(), dim: true },
+    { text: sidebarLine(pill('Slash ready')), color: TUI_THEME.success },
+    { text: sidebarLine('0 LSP'), dim: true },
+    { text: sidebarLine() },
+    { text: sidebarLine(`• MiniAgent ${version}`), color: TUI_THEME.success },
+    { text: sidebarLine('by Zevan'), dim: true },
+  ];
+  const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length);
+  const footerRight = state.showSlashMenu && state.slashMenuMode === 'modal' ? '↑↓ move  Enter select  Esc close' : hasConversation ? '• 0 LSP  /status' : version;
+  const footerRightWidth = getStringWidth(footerRight);
+  const footerLeftWidth = Math.max(10, termWidth - footerRightWidth - 2);
 
   return (
     // 最外层容器：纵向布局、宽度 100%、高度使用终端实际行数（明确数值）
     // Ink 不支持 height="100%"，需要用明确的数值
     <Box flexDirection="column" width={termWidth} height={termHeight}>
       {/* 主内容区域：命令面板打开时切换为不透明的模态屏幕，避免底层文字干扰 */}
-      {state.showSlashMenu ? (
-        <Box flexDirection="column" width={termWidth} flexGrow={1}>
-          {Array.from({ length: modalTopPad }).map((_, i) => (
-            <Text key={`modal-mask-top-${i}`} color="gray" dimColor>{maskLine}</Text>
-          ))}
-          <Box width={termWidth} justifyContent="center">
-            {modalSideMaskWidth > 0 && <Text color="gray" dimColor>{modalSideMask}</Text>}
+      {state.showExitConfirm ? (
+        <Box width={termWidth} height={termHeight - 1} alignItems="center" justifyContent="center">
+          <Box
+            flexDirection="column"
+            width={Math.min(termWidth - 8, 54)}
+            borderStyle="round"
+            borderColor={TUI_THEME.warning}
+            paddingX={2}
+            paddingY={1}
+          >
+            <Text color={TUI_THEME.warning} bold>Exit MiniAgent?</Text>
+            <Box marginTop={1}>
+              <Text>Current TUI session will close.</Text>
+            </Box>
+            <Box marginTop={1} justifyContent="space-between">
+              <Text dimColor>Enter / Y confirm</Text>
+              <Text dimColor>Esc / N cancel</Text>
+            </Box>
+          </Box>
+        </Box>
+      ) : state.showSlashMenu && state.slashMenuMode === 'modal' ? (
+        <Box width={termWidth} height={termHeight - 1} alignItems="center" justifyContent="center">
             <Box
               flexDirection="column"
               width={modalWidth}
               borderStyle="round"
-              borderColor="cyan"
+              borderColor={TUI_THEME.accent}
               paddingX={2}
               paddingY={1}
             >
               <Box justifyContent="space-between">
-                <Text color="cyan" bold>Command Palette</Text>
-                <Text dimColor>Esc close</Text>
-              </Box>
-              <Box marginTop={1}>
-                <Text dimColor>Search </Text>
-                <Text>{state.slashFilter || 'type command name...'}</Text>
+                <Text color={TUI_THEME.accent} bold>Command Palette</Text>
+                <Text dimColor>{filteredSlashCommands.length > 0 ? `${state.slashIndex + 1}/${filteredSlashCommands.length}` : '0 commands'}</Text>
               </Box>
               <Box marginTop={1} flexDirection="column">
+                <Text dimColor>Search</Text>
+                <Text backgroundColor={TUI_THEME.panel}>{fillByWidth(` ${state.slashFilter || 'type command name...'}`, modalContentWidth)}</Text>
+              </Box>
+              <Box marginTop={1} flexDirection="column">
+                {visibleSlashCommands.length === 0 && (
+                  <Text dimColor>{fillByWidth('No commands found', modalContentWidth)}</Text>
+                )}
                 {visibleSlashCommands
-                  .map((cmd, i) => (
-                    <Box key={i} justifyContent="space-between">
-                      <Text color={i === state.slashIndex ? 'green' : 'cyan'}>{i === state.slashIndex ? '› ' : '  '}/{cmd.name}</Text>
-                      <Text dimColor>{truncateByWidth(cmd.description || '', Math.max(20, termWidth - 38)).text}</Text>
-                    </Box>
-                  ))}
+                  .map((cmd, i) => {
+                    const selected = slashWindowStart + i === state.slashIndex;
+                    const commandText = `${selected ? TUI_GLYPHS.selected : ' '} /${cmd.name}`;
+                    const category = commandCategory(cmd.name);
+                    const categoryText = `[${category}]`;
+                    const descriptionWidth = Math.max(0, modalContentWidth - getStringWidth(commandText) - getStringWidth(categoryText) - 4);
+                    const row = `${commandText}  ${truncateByWidth(cmd.description || '', descriptionWidth).text}`;
+                    return (
+                      <Box key={i} width={modalContentWidth} justifyContent="space-between">
+                        <Text
+                          color={selected ? 'white' : TUI_THEME.accent}
+                          backgroundColor={selected ? TUI_THEME.selected : undefined}
+                        >{fillByWidth(row, modalContentWidth - getStringWidth(categoryText))}</Text>
+                        <Text
+                          dimColor={!selected}
+                          color={selected ? TUI_THEME.warning : undefined}
+                          backgroundColor={selected ? TUI_THEME.selected : undefined}
+                        >{categoryText}</Text>
+                      </Box>
+                    );
+                  })}
+              </Box>
+              <Box marginTop={1} justifyContent="space-between">
+                <Text dimColor>↑↓ move</Text>
+                <Text dimColor>Enter select   Esc close</Text>
               </Box>
             </Box>
-            {modalSideMaskWidth > 0 && <Text color="gray" dimColor>{modalSideMask}</Text>}
-          </Box>
-          {Array.from({ length: modalBottomPad }).map((_, i) => (
-            <Text key={`modal-mask-bottom-${i}`} color="gray" dimColor>{maskLine}</Text>
-          ))}
         </Box>
       ) : !hasConversation ? (
         // 起始页面：Logo + 输入框，垂直居中显示
         // flexGrow={1}：占满除状态栏外的所有剩余空间
         // justifyContent="center"：内部子元素垂直居中
         // alignItems="center"：内部子元素水平居中
-        <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1}>
+        <Box flexDirection="column" alignItems="center" justifyContent="center" height={termHeight - 1}>
           {/* Logo 区域：显示 ASCII 艺术字，使用 #0078d7 蓝色 */}
           <Box flexDirection="column" alignItems="center" marginBottom={1}>
             {/* 遍历 Logo 每一行，使用固定颜色 #0078d7 */}
             {LOGO_LINES.map((line, i) => (
-              <Text key={i} color="#0078d7">{line}</Text>
+              <Box key={i}>
+                <Text color={TUI_THEME.logo}>{line.slice(0, LOGO_SPLIT_INDEX)}</Text>
+                <Text color={TUI_THEME.accent}>{line.slice(LOGO_SPLIT_INDEX)}</Text>
+              </Box>
             ))}
           </Box>
 
@@ -638,171 +825,204 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               - "red"/"green"/"blue"/"yellow"/"cyan"/"magenta"
               - "dimGray"/"brightRed" 等更多颜色
           */}
-          <Box width={textWidth + 2} flexDirection="column" borderStyle="single" borderColor="gray">
+          <Box width={textWidth + 2} flexDirection="column">
             <Box width={textWidth + 2}>
-              <Text>{' '}</Text>
+              <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
             </Box>
             {state.inputLines.flatMap((line, row) => [
               <Box key={`line-${row}`} width={textWidth + 2}>
-                <Text>{truncateByWidth(
-                  row === state.cursorRow
-                    ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
-                    : line,
-                  textWidth
-                ).text}</Text>
-                {row === 0 && row === state.cursorRow && state.cursorCol === 0 && line === '' && (
-                  <Text dimColor>Ask anything...</Text>
-                )}
+                <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row, textWidth)}</Text>
               </Box>,
               <Box key={`gap-${row}`} width={textWidth + 2}>
-                <Text>{' '}</Text>
+                <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
               </Box>
             ])}
             <Box width={textWidth + 2}>
-              <Text>{' '}</Text>
+              <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
             </Box>
             <Box width={textWidth + 2}>
-              <Text color="blue"> {currentMode} </Text>
-              <Text dimColor>· {truncateByWidth(`${modelName} ${state.agentName}`, textWidth - currentMode.length - 2).text}</Text>
+              <Text color="white" backgroundColor={TUI_THEME.selected}> {currentMode} </Text>
+              <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(`${TUI_GLYPHS.bullet} ${truncateByWidth(`${modelName} ${state.agentName}`, textWidth - currentMode.length - 4).text}`, textWidth - currentMode.length)}</Text>
             </Box>
             <Box width={textWidth + 2}>
-              <Text dimColor>{dashLine}</Text>
+              <Text dimColor backgroundColor={TUI_THEME.panel}>{dashLine}</Text>
             </Box>
             <Box width={textWidth + 2} justifyContent="flex-end">
-              <Text dimColor>tab agents  ctrl+p</Text>
+              <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(composerHint(textWidth), textWidth + 2).text, textWidth + 2)}</Text>
             </Box>
           </Box>
         </Box>
       ) : (
         // 对话页面：左侧消息/输入框 + 右侧上下贯穿 sidebar
-        <Box flexDirection="row" flexGrow={1}>
-          <Box flexDirection="column" flexGrow={1}>
+        <Box flexDirection="row" height={termHeight - 1}>
+          <Box flexDirection="column" width={chatAreaWidth}>
             {/* 左侧：对话消息列表，左右 padding 2 字符 */}
-            <Box flexDirection="column" flexGrow={1} paddingX={2}>
+            <Box flexDirection="column" width={chatAreaWidth} height={messagePaneHeight} paddingX={2}>
               {/* 遍历消息列表 */}
-              {messages.map((msg, i) => (
+              {hiddenMessageCount > 0 && (
+                <Box marginBottom={1}>
+                  <Text dimColor>{hiddenMessageCount} earlier messages hidden</Text>
+                </Box>
+              )}
+              {visibleMessages.map((msg, i) => (
                 // 每条消息容器：纵向排列、底部间距 1 行
-                <Box key={i} flexDirection="column" marginBottom={1}>
-                  {/* 用户消息：单线边框、蓝色、左右 padding 1 字符、白色文本 */}
+                <Box key={hiddenMessageCount + i} flexDirection="column" marginBottom={1}>
+                  {/* 用户消息：使用灰底块，避免和应用主色抢视觉层级 */}
                   {msg.role === 'user' && (
-                    <Box paddingX={1}>
-                      <Text color="white" backgroundColor="#141414"> {msg.content} </Text>
+                    <Box flexDirection="column">
+                      <Text dimColor>User</Text>
+                      <Text backgroundColor={TUI_THEME.panel}>{fillByWidth('', chatTextWidth + 2)}</Text>
+                      {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
+                        <Text key={lineIndex} color="white" backgroundColor={TUI_THEME.panel}> {fillByWidth(line, chatTextWidth)} </Text>
+                      ))}
+                      <Text backgroundColor={TUI_THEME.panel}>{fillByWidth('', chatTextWidth + 2)}</Text>
                     </Box>
                   )}
                   {/* 助手思考消息：黄色文本、显示耗时 */}
                   {msg.role === 'assistant' && msg.type === 'thought' && (
-                    <Box><Text color="yellow">+ Thought: {msg.duration}</Text></Box>
+                    <Box flexDirection="column">
+                      <Text color={TUI_THEME.warning}>MiniAgent thinking</Text>
+                      <Text>{''}</Text>
+                      <Text dimColor>{msg.duration}</Text>
+                      <Text>{''}</Text>
+                    </Box>
                   )}
                   {/* 助手工具调用消息：绿色文本、显示工具名和内容 */}
                   {msg.role === 'assistant' && msg.type === 'tool' && (
-                    <Box><Text color="green">→ {msg.toolName}: {msg.content}</Text></Box>
+                    <Box flexDirection="column">
+                      <Text color={TUI_THEME.success}>Tool {TUI_GLYPHS.bullet} {msg.toolName}</Text>
+                      <Text>{''}</Text>
+                      {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
+                        <Text key={lineIndex} dimColor>{line}</Text>
+                      ))}
+                      <Text>{''}</Text>
+                    </Box>
                   )}
                   {/* 助手普通文本消息：直接显示内容 */}
                   {msg.role === 'assistant' && msg.type === 'text' && (
-                    <Box><Text>{msg.content}</Text></Box>
+                    <Box flexDirection="column">
+                      <Text color={TUI_THEME.accent}>MiniAgent</Text>
+                      <Text>{''}</Text>
+                      {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
+                        <Text key={lineIndex}>{line}</Text>
+                      ))}
+                      <Text>{''}</Text>
+                    </Box>
                   )}
                 </Box>
               ))}
               {/* 流式响应中：显示正在输出的文本 */}
               {state.isProcessing && state.currentResponse && (
-                <Box><Text>{state.currentResponse}</Text></Box>
+                <Box flexDirection="column">
+                  <Text color={TUI_THEME.accent}>MiniAgent</Text>
+                  <Text>{''}</Text>
+                  {wrapByWidth(state.currentResponse, chatTextWidth).map((line, lineIndex) => (
+                    <Text key={lineIndex}>{line}</Text>
+                  ))}
+                  <Text>{''}</Text>
+                </Box>
               )}
               {state.isProcessing && !state.currentResponse && (
-                <Box><Text color="cyan">MiniAgent is thinking...</Text></Box>
+                <Box><Text color={TUI_THEME.accent}>MiniAgent is thinking...</Text></Box>
               )}
             </Box>
-            {/* 底部输入框：仅占左侧聊天区 95%，水平居中 */}
-          {/* 
-            width="100%": 占满父容器宽度
-            justifyContent="center": 水平居中子元素（输入框容器）
-            alignItems="center": 垂直居中子元素（输入框容器）
-          */}
-            <Box width="100%" justifyContent="center" alignItems="center">
-            {/* 输入框容器 */}
-            {/* 
-              flexDirection="column": 子元素垂直排列
-              borderStyle="single": 单线边框样式（─│┌┐┘），可选值：
-                - "single"(默认): 单线边框
-                - "double": 双线边框（═║）
-                - "round": 圆角边框（╭─╮）
-                - "bold": 粗线边框（┏━）
-              borderColor="gray": 边框颜色（gray/red/green/blue/yellow/cyan/magenta/white 等）
-              width={chatTextWidth + 2}: 容器宽度 = 左侧聊天区的 95%，与右侧 sidebar 分离
-            */}
-              <Box width={chatTextWidth + 2} flexDirection="column">
+            {state.showSlashMenu && state.slashMenuMode === 'inline' && (
+              <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
+                <Box justifyContent="space-between">
+                  <Text color={TUI_THEME.accent}>Commands</Text>
+                  <Text dimColor>{filteredSlashCommands.length > 0 ? `${state.slashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
+                </Box>
+                {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
+                {visibleSlashCommands.slice(0, 5).map((cmd, i) => {
+                  const selected = slashWindowStart + i === state.slashIndex;
+                  const category = commandCategory(cmd.name);
+                  const lineWidth = Math.max(20, chatInputBoxWidth - 4);
+                  const label = `${selected ? TUI_GLYPHS.selected : ' '} /${cmd.name}`;
+                  const suffix = `[${category}]`;
+                  const descriptionWidth = Math.max(0, lineWidth - getStringWidth(label) - getStringWidth(suffix) - 4);
+                  return (
+                    <Box key={cmd.name} justifyContent="space-between">
+                      <Text color={selected ? 'white' : TUI_THEME.accent} backgroundColor={selected ? TUI_THEME.selected : undefined}>{fillByWidth(`${label}  ${truncateByWidth(cmd.description, descriptionWidth).text}`, lineWidth - getStringWidth(suffix))}</Text>
+                      <Text dimColor={!selected} color={selected ? TUI_THEME.warning : undefined} backgroundColor={selected ? TUI_THEME.selected : undefined}>{suffix}</Text>
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+            <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} marginBottom={1}>
+              <Text color="#5969E0">┃</Text>
+              <Box width={chatInputBoxWidth - 1} flexDirection="column">
               {/* 顶部留白：用空格占一行高度 */}
-                <Box width={chatTextWidth + 2}>
-                <Text backgroundColor="#141414">{' '.repeat(chatTextWidth + 2)}</Text>
+                <Box width={composerContentWidth}>
+                <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(composerContentWidth)}</Text>
               </Box>
               {/* 输入框文本行 */}
               {state.inputLines.flatMap((line, row) => [
-                  <Box key={`line-${row}`} width={chatTextWidth + 2}>
-                  <Text backgroundColor="#141414">{fillByWidth(truncateByWidth(
-                    row === state.cursorRow
-                      ? line.slice(0, state.cursorCol) + (cursorVisible ? '█' : ' ') + line.slice(state.cursorCol)
-                      : line,
-                    chatTextWidth
-                  ).text, chatTextWidth + 2)}</Text>
+                  <Box key={`line-${row}`} width={composerContentWidth}>
+                  <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row, chatTextWidth, composerContentWidth)}</Text>
                 </Box>,
-                  <Box key={`gap-${row}`} width={chatTextWidth + 2}>
-                  <Text backgroundColor="#141414">{' '.repeat(chatTextWidth + 2)}</Text>
+                  <Box key={`gap-${row}`} width={composerContentWidth}>
+                  <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(composerContentWidth)}</Text>
                 </Box>
               ])}
               {/* 底部留白：与顶部留白对称 */}
-                <Box width={chatTextWidth + 2}>
-                <Text backgroundColor="#141414">{' '.repeat(chatTextWidth + 2)}</Text>
+                <Box width={composerContentWidth}>
+                <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(composerContentWidth)}</Text>
               </Box>
               {/* 模式信息行：显示当前模式和模型名称 */}
-                <Box width={chatTextWidth + 2}>
+                <Box width={composerContentWidth}>
                 {/* color="blue": 模式文字使用蓝色 */}
-                <Text color="blue" backgroundColor="#141414"> {currentMode} </Text>
+                <Text color="white" backgroundColor={TUI_THEME.selected}> {currentMode} </Text>
                 {/* 
                   truncateByWidth(...): 截断模型名称
                   textWidth - currentMode.length - 2: 
                     - currentMode.length: 模式名称长度
                     - 2: 模式两侧各 1 个空格
                 */}
-                <Text dimColor backgroundColor="#141414">{fillByWidth(truncateByWidth(`· ${modelName} ${state.agentName}`, chatTextWidth - currentMode.length - 2).text, chatTextWidth - currentMode.length)}</Text>
+                <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${state.agentName}`, composerContentWidth - currentMode.length - 2).text, composerContentWidth - currentMode.length)}</Text>
               </Box>
               {/* 虚线分隔符：视觉分隔线 */}
-                <Box width={chatTextWidth + 2}>
-                  <Text dimColor backgroundColor="#141414">{'─'.repeat(chatTextWidth + 2)}</Text>
+                <Box width={composerContentWidth}>
+                  <Text dimColor backgroundColor={TUI_THEME.panel}>{TUI_GLYPHS.divider.repeat(composerContentWidth)}</Text>
               </Box>
               {/* 快捷键提示：显示可用快捷键 */}
               {/* justifyContent="flex-end": 内容右对齐 */}
-                <Box width={chatTextWidth + 2} justifyContent="flex-end">
-                  <Text dimColor backgroundColor="#141414">{fillByWidth(truncateByWidth('tab agents  ctrl+p', chatTextWidth).text, chatTextWidth + 2)}</Text>
+                <Box width={composerContentWidth} justifyContent="flex-end">
+                  <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(composerHint(chatTextWidth), composerContentWidth)}</Text>
               </Box>
             </Box>
           </Box>
           </Box>
-          {/* 右侧：侧边栏，固定宽度 30 字符，使用 #141414 底色 */}
-          <Box width={sidebarWidth} flexDirection="column" paddingX={2} borderLeft>
-            <Text bold backgroundColor="#141414">{sidebarLine('Context')}</Text>
-            <Text dimColor backgroundColor="#141414">{sidebarLine(modelName)}</Text>
-            <Text dimColor backgroundColor="#141414">{sidebarLine(`${currentMode} mode`)}</Text>
-            <Text backgroundColor="#141414">{sidebarLine()}</Text>
-            <Text dimColor backgroundColor="#141414">{sidebarLine(`${tokensUsed.toLocaleString()} tokens`)}</Text>
-            <Text dimColor backgroundColor="#141414">{sidebarLine(`${tokenPercent}% used`)}</Text>
-            <Text dimColor backgroundColor="#141414">{sidebarLine(`${totalCost} spent`)}</Text>
-            <Text backgroundColor="#141414">{sidebarLine()}</Text>
-            {/* LSP 标题，顶部间距 2 行 */}
-            <Text bold backgroundColor="#141414">{sidebarLine('LSP')}</Text>
-            <Text dimColor backgroundColor="#141414">{sidebarLine('LSPs are disabled')}</Text>
-            {Array.from({ length: Math.max(0, termHeight - 10) }).map((_, i) => (
-              <Text key={`sidebar-fill-${i}`} backgroundColor="#141414">{sidebarLine()}</Text>
+          {/* 右侧：侧边栏，固定宽度，内部使用 padding 保持内容不贴边 */}
+          <Box width={sidebarWidth} flexDirection="column" paddingX={sidebarPaddingX} paddingY={1}>
+            {sidebarRows.map((row, i) => (
+              <Text
+                key={`sidebar-row-${i}`}
+                bold={row.bold}
+                color={row.color}
+                dimColor={row.dim}
+                backgroundColor={TUI_THEME.panel}
+              >{row.text}</Text>
+            ))}
+            {Array.from({ length: sidebarFillRows }).map((_, i) => (
+              <Text key={`sidebar-fill-${i}`} backgroundColor={TUI_THEME.panel}>{sidebarLine()}</Text>
             ))}
           </Box>
         </Box>
       )}
 
-      {/* 底部状态栏：横向排列，space-between 两端对齐 */}
-      <Box justifyContent="space-between">
-        {/* 左侧：当前工作目录 + git 分支 */}
-        <Text dimColor>{state.showSlashMenu ? 'Palette' : truncateByWidth(`${cwd}:main`, Math.max(12, termWidth - 48)).text}</Text>
-        {/* 无对话时：显示版本号 */}
-        {!hasConversation && !state.showSlashMenu && <Text dimColor>{version}</Text>}
-        {state.showSlashMenu && <Text dimColor>Enter select  Esc close</Text>}
+      <Box width={termWidth} height={1}>
+        <Text dimColor>{fillByWidth(state.showSlashMenu && state.slashMenuMode === 'modal' ? 'Palette' : `${cwd}:main`, footerLeftWidth)}</Text>
+        {state.showSlashMenu && state.slashMenuMode === 'modal' ? (
+          <Text dimColor>{truncateByWidth(footerRight, footerRightWidth).text}</Text>
+        ) : hasConversation ? (
+          <>
+            <Text color={TUI_THEME.success}>•</Text>
+            <Text dimColor>{truncateByWidth(' 0 LSP  /status', Math.max(0, termWidth - footerLeftWidth - 1)).text}</Text>
+          </>
+        ) : (
+          <Text dimColor>{truncateByWidth(version, footerRightWidth).text}</Text>
+        )}
       </Box>
     </Box>
   );
