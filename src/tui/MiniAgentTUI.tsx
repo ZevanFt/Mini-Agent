@@ -53,6 +53,8 @@ interface TUIState {
   currentResponse: string;   // 当前正在流式输出的响应文本
   showExitConfirm: boolean;  // 是否显示退出确认框
   showTimeline: boolean;     // 是否显示会话时间线
+  timelineIndex: number;     // 当前选中的时间线消息索引
+  timelineDetail: boolean;   // 是否显示选中消息详情
   historyIndex: number | null; // 当前浏览的历史输入索引
 }
 
@@ -102,6 +104,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     currentResponse: '',    // 默认无响应文本
     showExitConfirm: false, // 默认不显示退出确认框
     showTimeline: false,    // 默认不显示会话时间线
+    timelineIndex: 0,       // 默认选中第一条时间线消息
+    timelineDetail: false,  // 默认显示时间线列表
     historyIndex: null,     // 默认不浏览历史输入
   });
   // 已使用的 token 数量（初始值 55373）
@@ -348,8 +352,23 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     }
 
     if (state.showTimeline) {
+      if (key.upArrow) {
+        updateState(prev => ({ ...prev, timelineIndex: Math.max(0, prev.timelineIndex - 1) }));
+        return;
+      }
+      if (key.downArrow) {
+        updateState(prev => ({ ...prev, timelineIndex: Math.min(Math.max(messages.length - 1, 0), prev.timelineIndex + 1) }));
+        return;
+      }
+      if (isEnterKey && messages.length > 0) {
+        updateState(prev => ({ ...prev, timelineDetail: !prev.timelineDetail }));
+        return;
+      }
       if (key.escape || input === 'escape' || input === '\u001b') {
-        updateState(prev => ({ ...prev, showTimeline: false }));
+        updateState(prev => prev.timelineDetail
+          ? { ...prev, timelineDetail: false }
+          : { ...prev, showTimeline: false }
+        );
       }
       return;
     }
@@ -396,7 +415,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     }
 
     if (key.ctrl && input.toLowerCase() === 't') {
-      updateState(prev => ({ ...prev, showTimeline: true, showSlashMenu: false }));
+      updateState(prev => ({
+        ...prev,
+        showTimeline: true,
+        timelineDetail: false,
+        timelineIndex: Math.max(0, messages.length - 1),
+        showSlashMenu: false,
+      }));
       return;
     }
 
@@ -908,11 +933,16 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     state.inputLines.length > maxComposerInputLines ? `${state.inputLines.length} lines` : '',
   ].filter(Boolean).join(' ');
   const lastUserPrompt = [...messages].reverse().find(msg => msg.role === 'user')?.content;
-  const timelineRows = messages.slice(-12).map((msg, i) => {
-    const absoluteIndex = Math.max(0, messages.length - 12) + i + 1;
+  const timelineWindowSize = 12;
+  const timelineWindowStart = Math.max(0, Math.min(state.timelineIndex - timelineWindowSize + 1, Math.max(0, messages.length - timelineWindowSize)));
+  const visibleTimelineMessages = messages.slice(timelineWindowStart, timelineWindowStart + timelineWindowSize);
+  const selectedTimelineMessage = messages[state.timelineIndex];
+  const timelineRows = visibleTimelineMessages.map((msg, i) => {
+    const messageIndex = timelineWindowStart + i;
+    const absoluteIndex = messageIndex + 1;
     const label = msg.role === 'user' ? 'User' : msg.type === 'error' ? 'Error' : msg.type === 'tool' ? `Tool ${msg.toolName || ''}`.trim() : 'MiniAgent';
     const preview = msg.content.replace(/\s+/g, ' ').trim();
-    return `${absoluteIndex}. ${label} ${TUI_GLYPHS.bullet} ${preview}`;
+    return { index: messageIndex, text: `${absoluteIndex}. ${label} ${TUI_GLYPHS.bullet} ${preview}` };
   });
   const renderCommandRows = (
     rows: typeof visibleSlashRows,
@@ -1045,15 +1075,27 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               <Text dimColor>{messages.length} messages</Text>
             </Box>
             <Box marginTop={1} flexDirection="column">
-              {timelineRows.length === 0 ? (
+              {state.timelineDetail && selectedTimelineMessage ? (
+                <Box flexDirection="column">
+                  <Text color={TUI_THEME.warning}>{selectedTimelineMessage.role === 'user' ? 'User' : selectedTimelineMessage.type === 'error' ? 'MiniAgent Error' : 'MiniAgent'} #{state.timelineIndex + 1}</Text>
+                  <Text>{''}</Text>
+                  {wrapByWidth(selectedTimelineMessage.content, Math.min(termWidth - 14, 66)).slice(0, 14).map((line, i) => (
+                    <Text key={`timeline-detail-${i}`}>{line}</Text>
+                  ))}
+                </Box>
+              ) : timelineRows.length === 0 ? (
                 <Text dimColor>No messages yet</Text>
-              ) : timelineRows.map((row, i) => (
-                <Text key={`timeline-${i}`}>{truncateByWidth(row, Math.min(termWidth - 14, 66)).text}</Text>
+              ) : timelineRows.map((row) => (
+                <Text
+                  key={`timeline-${row.index}`}
+                  color={row.index === state.timelineIndex ? 'white' : undefined}
+                  backgroundColor={row.index === state.timelineIndex ? TUI_THEME.selected : undefined}
+                >{fillByWidth(`${row.index === state.timelineIndex ? TUI_GLYPHS.selected : ' '} ${truncateByWidth(row.text, Math.min(termWidth - 18, 62)).text}`, Math.min(termWidth - 14, 66))}</Text>
               ))}
             </Box>
             <Box marginTop={1} justifyContent="space-between">
-              <Text dimColor>Recent messages</Text>
-              <Text dimColor>Esc close</Text>
+              <Text dimColor>{state.timelineDetail ? 'Message detail' : '↑↓ move  Enter detail'}</Text>
+              <Text dimColor>{state.timelineDetail ? 'Esc back' : 'Esc close'}</Text>
             </Box>
           </Box>
         </Box>
