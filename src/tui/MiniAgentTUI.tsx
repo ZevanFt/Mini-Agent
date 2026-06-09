@@ -10,6 +10,8 @@ import type { Agent } from '../core/agent.js';
 // 斜杠命令工厂函数
 import { createSlashCommands } from '../core/commands.js';
 import { renderCommandRows } from './primitives/CommandRows.js';
+import { DialogFrame, DialogHeader } from './primitives/DialogFrame.js';
+import { NoticeText, type NoticeState } from './primitives/Notice.js';
 import { TUI_GLYPHS, TUI_THEME } from './primitives/theme.js';
 import { fillByWidth, getStringWidth, truncateByWidth, wrapByWidth } from './primitives/text.js';
 
@@ -109,7 +111,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [lastCopyStatus, setLastCopyStatus] = useState<'idle' | 'copied' | 'fallback'>('idle');
   const [lastForkIndex, setLastForkIndex] = useState<number | null>(null);
   const [forkUndoMessages, setForkUndoMessages] = useState<Message[] | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<NoticeState | null>(null);
   const promptStoreDir = path.join(cwd, '.miniagent', 'history');
   const promptHistoryPath = path.join(promptStoreDir, 'tui-prompts.json');
   const promptStashPath = path.join(promptStoreDir, 'tui-draft.txt');
@@ -199,7 +201,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     ].join('\n');
     await writeFile(filePath, content, 'utf8');
     setLastExportPath(filePath);
-    setNotice(`Exported ${path.basename(filePath)}`);
+    setNotice({ message: `Exported ${path.basename(filePath)}`, level: 'success' });
   }, [cwd, currentMode, messages, modelName]);
 
   const persistPromptHistory = useCallback(async (history: string[]) => {
@@ -401,7 +403,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           cursorCol: lines.at(-1)?.length || 0,
           historyIndex: null,
         }));
-        setNotice('Inserted timeline message');
+        setNotice({ message: 'Inserted timeline message', level: 'success' });
         return;
       }
       if (input.toLowerCase() === 'c' && messages[state.timelineIndex]) {
@@ -409,7 +411,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         copyToClipboard(text)
           .then(() => {
             setLastCopyStatus('copied');
-            setNotice('Copied message');
+            setNotice({ message: 'Copied message', level: 'success' });
           })
           .catch(() => {
             const lines = text.split('\n');
@@ -424,7 +426,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               historyIndex: null,
             }));
             setLastCopyStatus('fallback');
-            setNotice('Clipboard unavailable; inserted message');
+            setNotice({ message: 'Clipboard unavailable; inserted message', level: 'warning' });
           });
         return;
       }
@@ -435,7 +437,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           return prev.slice(0, forkIndex + 1);
         });
         setLastForkIndex(forkIndex + 1);
-        setNotice(`Forked at #${forkIndex + 1}`);
+        setNotice({ message: `Forked at #${forkIndex + 1}`, level: 'warning' });
         updateState(prev => ({
           ...prev,
           showTimeline: false,
@@ -451,7 +453,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         setMessages(forkUndoMessages);
         setForkUndoMessages(null);
         setLastForkIndex(null);
-        setNotice('Restored fork');
+        setNotice({ message: 'Restored fork', level: 'success' });
         updateState(prev => ({
           ...prev,
           showTimeline: false,
@@ -465,7 +467,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         const retryText = messages[state.timelineIndex].content;
         setMessages(prev => prev.slice(0, state.timelineIndex));
         updateState(prev => ({ ...prev, showTimeline: false, timelineDetail: false, timelineDetailOffset: 0 }));
-        setNotice('Retrying selected message');
+        setNotice({ message: 'Retrying selected message', level: 'info' });
         handleProcessInput(retryText);
         return;
       }
@@ -516,7 +518,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (key.ctrl && input.toLowerCase() === 'l') {
       setMessages([]);
       updateState(prev => ({ ...prev, currentResponse: '', isProcessing: false, historyIndex: null }));
-      setNotice('Cleared chat');
+      setNotice({ message: 'Cleared chat', level: 'warning' });
       return;
     }
 
@@ -534,7 +536,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
     if (key.ctrl && input.toLowerCase() === 'e') {
       handleExportConversation().catch(err => {
-        setNotice('Export failed');
+        setNotice({ message: 'Export failed', level: 'error' });
         setMessages(prev => [...prev, {
           role: 'assistant',
           type: 'error',
@@ -546,7 +548,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
     if (key.ctrl && input.toLowerCase() === 'k') {
       updateState(prev => ({ ...prev, inputLines: [''], cursorRow: 0, cursorCol: 0, historyIndex: null, showSlashMenu: false }));
-      setNotice('Cleared input');
+      setNotice({ message: 'Cleared input', level: 'warning' });
       return;
     }
 
@@ -566,7 +568,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       if (currentText.trim()) {
         setPromptStash(currentText);
         persistPromptStash(currentText).catch(() => {});
-        setNotice('Draft saved');
+        setNotice({ message: 'Draft saved', level: 'success' });
       }
       updateState(prev => ({ ...prev, inputLines: [''], cursorRow: 0, cursorCol: 0, historyIndex: null, showSlashMenu: false }));
       return;
@@ -585,7 +587,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         }));
         setPromptStash(null);
         persistPromptStash(null).catch(() => {});
-        setNotice('Draft restored');
+        setNotice({ message: 'Draft restored', level: 'success' });
       }
       return;
     }
@@ -620,7 +622,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             slashFilter: '',
             slashIndex: 0,
           }));
-          if (state.slashMenuMode === 'inline') setNotice(`Selected /${selected.name}`);
+          if (state.slashMenuMode === 'inline') setNotice({ message: `Selected /${selected.name}`, level: 'success' });
         }
         return;
       }
@@ -1121,7 +1123,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarLine('by Zevan'), dim: true },
   ];
   const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length - sidebarFooterRows.length);
-  const footerRight = notice || (state.showSlashMenu && state.slashMenuMode === 'modal' ? '↑↓ move  Enter select  Esc close' : hasConversation ? '• 0 LSP  /status' : version);
+  const footerRight = notice?.message || (state.showSlashMenu && state.slashMenuMode === 'modal' ? '↑↓ move  Enter select  Esc close' : hasConversation ? '• 0 LSP  /status' : version);
   const footerRightWidth = getStringWidth(footerRight);
   const footerLeftWidth = Math.max(10, termWidth - footerRightWidth - 2);
 
@@ -1131,16 +1133,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     <Box flexDirection="column" width={termWidth} height={termHeight}>
       {/* 主内容区域：命令面板打开时切换为不透明的模态屏幕，避免底层文字干扰 */}
       {state.showExitConfirm ? (
-        <Box width={termWidth} height={termHeight - 1} alignItems="center" justifyContent="center">
-          <Box
-            flexDirection="column"
-            width={Math.min(termWidth - 8, 54)}
-            borderStyle="round"
-            borderColor={TUI_THEME.warning}
-            paddingX={2}
-            paddingY={1}
-          >
-            <Text color={TUI_THEME.warning} bold>Exit MiniAgent?</Text>
+        <DialogFrame termWidth={termWidth} termHeight={termHeight} width={54} borderColor={TUI_THEME.warning}>
+            <DialogHeader title="Exit MiniAgent?" color={TUI_THEME.warning} />
             <Box marginTop={1}>
               <Text>Current TUI session will close.</Text>
             </Box>
@@ -1148,22 +1142,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               <Text dimColor>Enter / Y confirm</Text>
               <Text dimColor>Esc / N cancel</Text>
             </Box>
-          </Box>
-        </Box>
+        </DialogFrame>
       ) : state.showTimeline ? (
-        <Box width={termWidth} height={termHeight - 1} alignItems="center" justifyContent="center">
-          <Box
-            flexDirection="column"
-            width={Math.min(termWidth - 8, 72)}
-            borderStyle="round"
-            borderColor={TUI_THEME.accent}
-            paddingX={2}
-            paddingY={1}
-          >
-            <Box justifyContent="space-between">
-              <Text color={TUI_THEME.accent} bold>Session Timeline</Text>
-              <Text dimColor>{messages.length > 0 ? `${timelineScrollHint} ${state.timelineIndex + 1}/${messages.length}` : '0 messages'}</Text>
-            </Box>
+        <DialogFrame termWidth={termWidth} termHeight={termHeight} width={72}>
+            <DialogHeader title="Session Timeline" meta={messages.length > 0 ? `${timelineScrollHint} ${state.timelineIndex + 1}/${messages.length}` : '0 messages'} />
             <Box marginTop={1} flexDirection="column">
               {state.timelineDetail && selectedTimelineMessage ? (
                 <Box flexDirection="column">
@@ -1187,22 +1169,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               <Text dimColor>{state.timelineDetail ? `${timelineDetailScrollHint} scroll  C copy  I insert  F fork` : '↑↓ move  Home/End  Enter detail  C copy'}</Text>
               <Text dimColor>{state.timelineDetail ? 'R retry  U undo  Esc back' : 'I insert  R retry  F fork  U undo  Esc close'}</Text>
             </Box>
-          </Box>
-        </Box>
+        </DialogFrame>
       ) : state.showSlashMenu && state.slashMenuMode === 'modal' ? (
-        <Box width={termWidth} height={termHeight - 1} alignItems="center" justifyContent="center">
-            <Box
-              flexDirection="column"
-              width={modalWidth}
-              borderStyle="round"
-              borderColor={TUI_THEME.accent}
-              paddingX={2}
-              paddingY={1}
-            >
-              <Box justifyContent="space-between">
-                <Text color={TUI_THEME.accent} bold>Command Palette</Text>
-                <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0 commands'}</Text>
-              </Box>
+        <DialogFrame termWidth={termWidth} termHeight={termHeight} width={modalWidth}>
+              <DialogHeader title="Command Palette" meta={filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0 commands'} />
               <Box marginTop={1} flexDirection="column">
                 <Text dimColor>Search</Text>
                 <Text backgroundColor={TUI_THEME.panel}>{fillByWidth(` ${state.slashFilter || 'type command name...'}`, modalContentWidth)}</Text>
@@ -1223,8 +1193,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                   <Text dimColor>{fillByWidth(truncateByWidth(selectedSlashCommand.description, modalContentWidth).text, modalContentWidth)}</Text>
                 </Box>
               )}
-            </Box>
-        </Box>
+        </DialogFrame>
       ) : !hasConversation ? (
         // 起始页面：Logo + 输入框，垂直居中显示
         // flexGrow={1}：占满除状态栏外的所有剩余空间
@@ -1480,7 +1449,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       <Box width={termWidth} height={1}>
         <Text dimColor>{fillByWidth(state.showSlashMenu && state.slashMenuMode === 'modal' ? 'Palette' : `${cwd}:main`, footerLeftWidth)}</Text>
         {notice ? (
-          <Text color={TUI_THEME.warning}>{truncateByWidth(notice, footerRightWidth).text}</Text>
+          <NoticeText notice={notice} width={footerRightWidth} />
         ) : state.showSlashMenu && state.slashMenuMode === 'modal' ? (
           <Text dimColor>{truncateByWidth(footerRight, footerRightWidth).text}</Text>
         ) : hasConversation ? (
