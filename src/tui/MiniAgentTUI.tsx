@@ -364,6 +364,27 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         updateState(prev => ({ ...prev, timelineDetail: !prev.timelineDetail }));
         return;
       }
+      if (input.toLowerCase() === 'i' && messages[state.timelineIndex]) {
+        const text = messages[state.timelineIndex].content;
+        const lines = text.split('\n');
+        updateState(prev => ({
+          ...prev,
+          showTimeline: false,
+          timelineDetail: false,
+          inputLines: lines,
+          cursorRow: lines.length - 1,
+          cursorCol: lines.at(-1)?.length || 0,
+          historyIndex: null,
+        }));
+        return;
+      }
+      if (input.toLowerCase() === 'r' && messages[state.timelineIndex]?.role === 'user' && !state.isProcessing) {
+        const retryText = messages[state.timelineIndex].content;
+        setMessages(prev => prev.slice(0, state.timelineIndex));
+        updateState(prev => ({ ...prev, showTimeline: false, timelineDetail: false }));
+        handleProcessInput(retryText);
+        return;
+      }
       if (key.escape || input === 'escape' || input === '\u001b') {
         updateState(prev => prev.timelineDetail
           ? { ...prev, timelineDetail: false }
@@ -1094,8 +1115,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               ))}
             </Box>
             <Box marginTop={1} justifyContent="space-between">
-              <Text dimColor>{state.timelineDetail ? 'Message detail' : '↑↓ move  Enter detail'}</Text>
-              <Text dimColor>{state.timelineDetail ? 'Esc back' : 'Esc close'}</Text>
+              <Text dimColor>{state.timelineDetail ? 'I insert  R retry user' : '↑↓ move  Enter detail  I insert'}</Text>
+              <Text dimColor>{state.timelineDetail ? 'Esc back' : 'R retry user  Esc close'}</Text>
             </Box>
           </Box>
         </Box>
