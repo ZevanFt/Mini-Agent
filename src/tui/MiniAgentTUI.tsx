@@ -630,17 +630,21 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         }));
         return;
       }
-      if (isEnterKey) {
-        // Enter 键：选中当前高亮命令
+      if (isEnterKey || key.tab) {
+        // Modal 中填充命令；inline 中补全为可继续输入参数的形式。
         const selected = filteredSlashCommands[state.slashIndex] || filteredSlashCommands[0];
         if (selected) {
+          const commandText = state.slashMenuMode === 'inline' ? `/${selected.name} ` : `/${selected.name}`;
           updateState(prev => ({
             ...prev,
-            inputLines: ['/' + selected.name], // 填充命令到输入框
+            inputLines: [commandText],
             cursorRow: 0,
-            cursorCol: selected.name.length + 1, // 光标移到命令后面
+            cursorCol: commandText.length,
             showSlashMenu: false,
+            slashFilter: '',
+            slashIndex: 0,
           }));
+          if (state.slashMenuMode === 'inline') setNotice(`Selected /${selected.name}`);
         }
         return;
       }
@@ -1020,7 +1024,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (width < 82) return '↑↓ history   Ctrl+P commands   Ctrl+K clear input   Enter send';
     return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+T timeline   Ctrl+R retry   Ctrl+E export   Ctrl+K clear input   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear chat   Enter send';
   };
-  const menuHint = (width: number) => width < 38 ? 'Enter select   Esc close' : '↑↓ move   Enter select   Esc close';
+  const menuHint = (width: number) => width < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close';
   const inputLineText = (line: string, row: number, textWidth: number, lineWidth = textWidth + 2) => {
     const caret = '▌';
     const content = row === 0 && row === state.cursorRow && state.cursorCol === 0 && line === ''
