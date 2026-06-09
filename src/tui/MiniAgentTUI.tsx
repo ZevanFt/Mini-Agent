@@ -316,6 +316,17 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
+    if (key.ctrl && input.toLowerCase() === 'r') {
+      if (lastUserPrompt && !state.isProcessing) {
+        setMessages(prev => {
+          const lastUserIndex = prev.map(msg => msg.role).lastIndexOf('user');
+          return lastUserIndex >= 0 ? prev.slice(0, lastUserIndex) : prev;
+        });
+        handleProcessInput(lastUserPrompt);
+      }
+      return;
+    }
+
     if (key.ctrl && input.toLowerCase() === 'u') {
       const currentText = state.inputLines.join('\n');
       if (currentText.trim()) setPromptStash(currentText);
@@ -728,8 +739,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (width < 24) return 'Enter send';
     if (width < 42) return 'Ctrl+P commands   Enter send';
     if (width < 62) return '↑↓ history   Ctrl+P commands   Enter send';
-    if (width < 82) return '↑↓ history   Ctrl+P commands   Ctrl+U stash   Enter send';
-    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear   Enter send';
+    if (width < 82) return '↑↓ history   Ctrl+P commands   Ctrl+R retry   Enter send';
+    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+R retry   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear   Enter send';
   };
   const menuHint = (width: number) => width < 38 ? 'Enter select   Esc close' : '↑↓ move   Enter select   Esc close';
   const inputLineText = (line: string, row: number, textWidth: number, lineWidth = textWidth + 2) => {
@@ -774,6 +785,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const slashHasMoreBelow = slashWindowStart + visibleSlashCommands.length < filteredSlashCommands.length;
   const slashScrollHint = `${slashHasMoreAbove ? '↑' : ' '} ${slashHasMoreBelow ? '↓' : ' '}`;
   const promptStateLabel = state.historyIndex !== null ? 'history' : promptStash ? 'draft' : '';
+  const lastUserPrompt = [...messages].reverse().find(msg => msg.role === 'user')?.content;
   const renderCommandRows = (
     rows: typeof visibleSlashRows,
     width: number,
@@ -849,6 +861,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarRule(), dim: true },
     { text: sidebarLine(pill('Slash ready')), color: TUI_THEME.success },
     { text: sidebarLine(promptStash ? 'Draft stashed' : 'No draft'), dim: !promptStash, color: promptStash ? TUI_THEME.warning : undefined },
+    { text: sidebarLine(lastUserPrompt ? 'Retry ready' : 'No retry'), dim: !lastUserPrompt, color: lastUserPrompt ? TUI_THEME.success : undefined },
     { text: sidebarLine('0 LSP'), dim: true },
   ];
   const sidebarFooterRows = [
