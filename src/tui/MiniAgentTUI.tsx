@@ -107,6 +107,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   // 总花费金额
   const [totalCost] = useState('$0.02');
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
+  const [promptStash, setPromptStash] = useState<string | null>(null);
   // 终端宽度（字符数），默认 120
   const [termWidth, setTermWidth] = useState(120);
   // 终端高度（行数），默认 30
@@ -312,6 +313,28 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (key.ctrl && input.toLowerCase() === 'l') {
       setMessages([]);
       updateState(prev => ({ ...prev, currentResponse: '', isProcessing: false, historyIndex: null }));
+      return;
+    }
+
+    if (key.ctrl && input.toLowerCase() === 'u') {
+      const currentText = state.inputLines.join('\n');
+      if (currentText.trim()) setPromptStash(currentText);
+      updateState(prev => ({ ...prev, inputLines: [''], cursorRow: 0, cursorCol: 0, historyIndex: null, showSlashMenu: false }));
+      return;
+    }
+
+    if (key.ctrl && input.toLowerCase() === 'y') {
+      if (promptStash) {
+        const lines = promptStash.split('\n');
+        updateState(prev => ({
+          ...prev,
+          inputLines: lines,
+          cursorRow: lines.length - 1,
+          cursorCol: lines.at(-1)?.length || 0,
+          historyIndex: null,
+          showSlashMenu: false,
+        }));
+      }
       return;
     }
 
@@ -705,7 +728,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (width < 24) return 'Enter send';
     if (width < 42) return 'Ctrl+P commands   Enter send';
     if (width < 62) return '↑↓ history   Ctrl+P commands   Enter send';
-    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+L clear   Enter send';
+    if (width < 82) return '↑↓ history   Ctrl+P commands   Ctrl+U stash   Enter send';
+    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear   Enter send';
   };
   const menuHint = (width: number) => width < 38 ? 'Enter select   Esc close' : '↑↓ move   Enter select   Esc close';
   const inputLineText = (line: string, row: number, textWidth: number, lineWidth = textWidth + 2) => {
@@ -823,6 +847,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarLine('System'), bold: true },
     { text: sidebarRule(), dim: true },
     { text: sidebarLine(pill('Slash ready')), color: TUI_THEME.success },
+    { text: sidebarLine(promptStash ? 'Draft stashed' : 'No draft'), dim: !promptStash, color: promptStash ? TUI_THEME.warning : undefined },
     { text: sidebarLine('0 LSP'), dim: true },
   ];
   const sidebarFooterRows = [
