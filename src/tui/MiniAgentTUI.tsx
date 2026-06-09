@@ -14,7 +14,9 @@ import { DialogFrame, DialogHeader } from './primitives/DialogFrame.js';
 import { NoticeText, type NoticeState } from './primitives/Notice.js';
 import { getScrollWindow, scrollHint } from './primitives/ScrollWindow.js';
 import { TUI_GLYPHS, TUI_THEME } from './primitives/theme.js';
+import { TimelineDialog } from './primitives/TimelineDialog.js';
 import { fillByWidth, getStringWidth, truncateByWidth, wrapByWidth } from './primitives/text.js';
+import type { Message } from './types.js';
 
 // Agent 模式列表：Build（构建模式）和 Plan（规划模式）
 const AGENT_MODES = ['Build', 'Plan'] as const;
@@ -47,15 +49,6 @@ interface TUIState {
   timelineDetail: boolean;   // 是否显示选中消息详情
   timelineDetailOffset: number; // 时间线详情滚动位置
   historyIndex: number | null; // 当前浏览的历史输入索引
-}
-
-// 对话消息类型定义
-interface Message {
-  role: 'user' | 'assistant';                    // 消息角色：用户或助手
-  content: string;                               // 消息内容
-  type?: 'thought' | 'tool' | 'code' | 'text' | 'error';  // 消息类型：思考/工具/代码/文本/错误
-  toolName?: string;                             // 工具名称（仅 tool 类型使用）
-  duration?: string;                             // 耗时（仅 thought/tool 类型使用）
 }
 
 // 固定 Logo（ASCII 艺术字），使用 #0078d7 蓝色
@@ -1040,26 +1033,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     state.inputLines.length > maxComposerInputLines ? `${state.inputLines.length} lines` : '',
   ].filter(Boolean).join(' ');
   const lastUserPrompt = [...messages].reverse().find(msg => msg.role === 'user')?.content;
-  const timelineWindowSize = 12;
-  const timelineWindow = getScrollWindow(messages, state.timelineIndex, timelineWindowSize);
-  const timelineWindowStart = timelineWindow.start;
-  const visibleTimelineMessages = timelineWindow.items;
-  const timelineScrollHint = scrollHint(timelineWindow.hasMoreAbove, timelineWindow.hasMoreBelow);
-  const selectedTimelineMessage = messages[state.timelineIndex];
-  const timelineRows = visibleTimelineMessages.map((msg, i) => {
-    const messageIndex = timelineWindowStart + i;
-    const absoluteIndex = messageIndex + 1;
-    const label = msg.role === 'user' ? 'User' : msg.type === 'error' ? 'Error' : msg.type === 'tool' ? `Tool ${msg.toolName || ''}`.trim() : 'MiniAgent';
-    const preview = msg.content.replace(/\s+/g, ' ').trim();
-    return { index: messageIndex, text: `${absoluteIndex}. ${label} ${TUI_GLYPHS.bullet} ${preview}` };
-  });
-  const timelineDetailWidth = Math.min(termWidth - 14, 66);
-  const timelineDetailHeight = 14;
-  const timelineDetailLines = selectedTimelineMessage ? wrapByWidth(selectedTimelineMessage.content, timelineDetailWidth) : [];
-  const timelineDetailMaxOffset = Math.max(0, timelineDetailLines.length - timelineDetailHeight);
-  const timelineDetailOffset = Math.min(state.timelineDetailOffset, timelineDetailMaxOffset);
-  const timelineDetailVisibleLines = timelineDetailLines.slice(timelineDetailOffset, timelineDetailOffset + timelineDetailHeight);
-  const timelineDetailScrollHint = `${timelineDetailOffset > 0 ? '↑' : ' '} ${timelineDetailOffset < timelineDetailMaxOffset ? '↓' : ' '}`;
   const modalWidth = Math.min(termWidth - 8, 76);
   const modalContentWidth = Math.max(20, modalWidth - 6);
   const messageLineCount = (msg: Message) => {
@@ -1140,32 +1113,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             </Box>
         </DialogFrame>
       ) : state.showTimeline ? (
-        <DialogFrame termWidth={termWidth} termHeight={termHeight} width={72}>
-            <DialogHeader title="Session Timeline" meta={messages.length > 0 ? `${timelineScrollHint} ${state.timelineIndex + 1}/${messages.length}` : '0 messages'} />
-            <Box marginTop={1} flexDirection="column">
-              {state.timelineDetail && selectedTimelineMessage ? (
-                <Box flexDirection="column">
-                  <Text color={TUI_THEME.warning}>{selectedTimelineMessage.role === 'user' ? 'User' : selectedTimelineMessage.type === 'error' ? 'MiniAgent Error' : 'MiniAgent'} #{state.timelineIndex + 1}</Text>
-                  <Text>{''}</Text>
-                  {timelineDetailVisibleLines.map((line, i) => (
-                    <Text key={`timeline-detail-${i}`}>{line}</Text>
-                  ))}
-                </Box>
-              ) : timelineRows.length === 0 ? (
-                <Text dimColor>No messages yet</Text>
-              ) : timelineRows.map((row) => (
-                <Text
-                  key={`timeline-${row.index}`}
-                  color={row.index === state.timelineIndex ? 'white' : undefined}
-                  backgroundColor={row.index === state.timelineIndex ? TUI_THEME.selected : undefined}
-                >{fillByWidth(`${row.index === state.timelineIndex ? TUI_GLYPHS.selected : ' '} ${truncateByWidth(row.text, Math.min(termWidth - 18, 62)).text}`, Math.min(termWidth - 14, 66))}</Text>
-              ))}
-            </Box>
-            <Box marginTop={1} justifyContent="space-between">
-              <Text dimColor>{state.timelineDetail ? `${timelineDetailScrollHint} scroll  C copy  I insert  F fork` : '↑↓ move  Home/End  Enter detail  C copy'}</Text>
-              <Text dimColor>{state.timelineDetail ? 'R retry  U undo  Esc back' : 'I insert  R retry  F fork  U undo  Esc close'}</Text>
-            </Box>
-        </DialogFrame>
+        <TimelineDialog
+          messages={messages}
+          timelineIndex={state.timelineIndex}
+          timelineDetail={state.timelineDetail}
+          timelineDetailOffset={state.timelineDetailOffset}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
       ) : state.showSlashMenu && state.slashMenuMode === 'modal' ? (
         <DialogFrame termWidth={termWidth} termHeight={termHeight} width={modalWidth}>
               <DialogHeader title="Command Palette" meta={filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0 commands'} />
