@@ -123,6 +123,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [lastCopyStatus, setLastCopyStatus] = useState<'idle' | 'copied' | 'fallback'>('idle');
   const [lastForkIndex, setLastForkIndex] = useState<number | null>(null);
   const [forkUndoMessages, setForkUndoMessages] = useState<Message[] | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const promptStoreDir = path.join(cwd, '.miniagent', 'history');
   const promptHistoryPath = path.join(promptStoreDir, 'tui-prompts.json');
   const promptStashPath = path.join(promptStoreDir, 'tui-draft.txt');
@@ -173,6 +174,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     };
   }, [promptHistoryPath, promptStashPath]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 2500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   // 计算当前模式名称（从 AGENT_MODES 数组中取）
   const currentMode = AGENT_MODES[state.modeIndex];
   // 显示完整模型名，避免用户不清楚当前实际使用的 Ollama model/tag。
@@ -216,6 +223,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     ].join('\n');
     await writeFile(filePath, content, 'utf8');
     setLastExportPath(filePath);
+    setNotice(`Exported ${path.basename(filePath)}`);
   }, [cwd, currentMode, messages, modelName]);
 
   const persistPromptHistory = useCallback(async (history: string[]) => {
@@ -417,12 +425,16 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           cursorCol: lines.at(-1)?.length || 0,
           historyIndex: null,
         }));
+        setNotice('Inserted timeline message');
         return;
       }
       if (input.toLowerCase() === 'c' && messages[state.timelineIndex]) {
         const text = messages[state.timelineIndex].content;
         copyToClipboard(text)
-          .then(() => setLastCopyStatus('copied'))
+          .then(() => {
+            setLastCopyStatus('copied');
+            setNotice('Copied message');
+          })
           .catch(() => {
             const lines = text.split('\n');
             updateState(prev => ({
@@ -436,6 +448,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               historyIndex: null,
             }));
             setLastCopyStatus('fallback');
+            setNotice('Clipboard unavailable; inserted message');
           });
         return;
       }
@@ -446,6 +459,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           return prev.slice(0, forkIndex + 1);
         });
         setLastForkIndex(forkIndex + 1);
+        setNotice(`Forked at #${forkIndex + 1}`);
         updateState(prev => ({
           ...prev,
           showTimeline: false,
@@ -461,6 +475,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         setMessages(forkUndoMessages);
         setForkUndoMessages(null);
         setLastForkIndex(null);
+        setNotice('Restored fork');
         updateState(prev => ({
           ...prev,
           showTimeline: false,
@@ -474,6 +489,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         const retryText = messages[state.timelineIndex].content;
         setMessages(prev => prev.slice(0, state.timelineIndex));
         updateState(prev => ({ ...prev, showTimeline: false, timelineDetail: false, timelineDetailOffset: 0 }));
+        setNotice('Retrying selected message');
         handleProcessInput(retryText);
         return;
       }
@@ -524,6 +540,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (key.ctrl && input.toLowerCase() === 'l') {
       setMessages([]);
       updateState(prev => ({ ...prev, currentResponse: '', isProcessing: false, historyIndex: null }));
+      setNotice('Cleared chat');
       return;
     }
 
@@ -541,6 +558,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
     if (key.ctrl && input.toLowerCase() === 'e') {
       handleExportConversation().catch(err => {
+        setNotice('Export failed');
         setMessages(prev => [...prev, {
           role: 'assistant',
           type: 'error',
@@ -552,6 +570,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
     if (key.ctrl && input.toLowerCase() === 'k') {
       updateState(prev => ({ ...prev, inputLines: [''], cursorRow: 0, cursorCol: 0, historyIndex: null, showSlashMenu: false }));
+      setNotice('Cleared input');
       return;
     }
 
@@ -571,6 +590,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       if (currentText.trim()) {
         setPromptStash(currentText);
         persistPromptStash(currentText).catch(() => {});
+        setNotice('Draft saved');
       }
       updateState(prev => ({ ...prev, inputLines: [''], cursorRow: 0, cursorCol: 0, historyIndex: null, showSlashMenu: false }));
       return;
@@ -589,6 +609,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         }));
         setPromptStash(null);
         persistPromptStash(null).catch(() => {});
+        setNotice('Draft restored');
       }
       return;
     }
@@ -1158,7 +1179,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarLine('by Zevan'), dim: true },
   ];
   const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length - sidebarFooterRows.length);
-  const footerRight = state.showSlashMenu && state.slashMenuMode === 'modal' ? '↑↓ move  Enter select  Esc close' : hasConversation ? '• 0 LSP  /status' : version;
+  const footerRight = notice || (state.showSlashMenu && state.slashMenuMode === 'modal' ? '↑↓ move  Enter select  Esc close' : hasConversation ? '• 0 LSP  /status' : version);
   const footerRightWidth = getStringWidth(footerRight);
   const footerLeftWidth = Math.max(10, termWidth - footerRightWidth - 2);
 
@@ -1516,7 +1537,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
       <Box width={termWidth} height={1}>
         <Text dimColor>{fillByWidth(state.showSlashMenu && state.slashMenuMode === 'modal' ? 'Palette' : `${cwd}:main`, footerLeftWidth)}</Text>
-        {state.showSlashMenu && state.slashMenuMode === 'modal' ? (
+        {notice ? (
+          <Text color={TUI_THEME.warning}>{truncateByWidth(notice, footerRightWidth).text}</Text>
+        ) : state.showSlashMenu && state.slashMenuMode === 'modal' ? (
           <Text dimColor>{truncateByWidth(footerRight, footerRightWidth).text}</Text>
         ) : hasConversation ? (
           <>
