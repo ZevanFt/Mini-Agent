@@ -52,6 +52,7 @@ interface TUIState {
   isProcessing: boolean;     // 是否正在处理请求
   currentResponse: string;   // 当前正在流式输出的响应文本
   showExitConfirm: boolean;  // 是否显示退出确认框
+  showTimeline: boolean;     // 是否显示会话时间线
   historyIndex: number | null; // 当前浏览的历史输入索引
 }
 
@@ -100,6 +101,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     isProcessing: false,    // 默认未在处理
     currentResponse: '',    // 默认无响应文本
     showExitConfirm: false, // 默认不显示退出确认框
+    showTimeline: false,    // 默认不显示会话时间线
     historyIndex: null,     // 默认不浏览历史输入
   });
   // 已使用的 token 数量（初始值 55373）
@@ -345,6 +347,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
+    if (state.showTimeline) {
+      if (key.escape || input === 'escape' || input === '\u001b') {
+        updateState(prev => ({ ...prev, showTimeline: false }));
+      }
+      return;
+    }
+
     // Ctrl+C 或 Ctrl+D：先显示退出确认框
     if (key.ctrl && (input === 'c' || input === 'd')) {
       updateState(prev => ({ ...prev, showExitConfirm: true, showSlashMenu: false }));
@@ -383,6 +392,11 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (key.ctrl && input.toLowerCase() === 'l') {
       setMessages([]);
       updateState(prev => ({ ...prev, currentResponse: '', isProcessing: false, historyIndex: null }));
+      return;
+    }
+
+    if (key.ctrl && input.toLowerCase() === 't') {
+      updateState(prev => ({ ...prev, showTimeline: true, showSlashMenu: false }));
       return;
     }
 
@@ -844,7 +858,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (width < 42) return 'Ctrl+P commands   Enter send';
     if (width < 62) return '↑↓ history   Ctrl+P commands   Enter send';
     if (width < 82) return '↑↓ history   Ctrl+P commands   Ctrl+K clear input   Enter send';
-    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+R retry   Ctrl+E export   Ctrl+K clear input   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear chat   Enter send';
+    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+T timeline   Ctrl+R retry   Ctrl+E export   Ctrl+K clear input   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear chat   Enter send';
   };
   const menuHint = (width: number) => width < 38 ? 'Enter select   Esc close' : '↑↓ move   Enter select   Esc close';
   const inputLineText = (line: string, row: number, textWidth: number, lineWidth = textWidth + 2) => {
@@ -894,6 +908,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     state.inputLines.length > maxComposerInputLines ? `${state.inputLines.length} lines` : '',
   ].filter(Boolean).join(' ');
   const lastUserPrompt = [...messages].reverse().find(msg => msg.role === 'user')?.content;
+  const timelineRows = messages.slice(-12).map((msg, i) => {
+    const absoluteIndex = Math.max(0, messages.length - 12) + i + 1;
+    const label = msg.role === 'user' ? 'User' : msg.type === 'error' ? 'Error' : msg.type === 'tool' ? `Tool ${msg.toolName || ''}`.trim() : 'MiniAgent';
+    const preview = msg.content.replace(/\s+/g, ' ').trim();
+    return `${absoluteIndex}. ${label} ${TUI_GLYPHS.bullet} ${preview}`;
+  });
   const renderCommandRows = (
     rows: typeof visibleSlashRows,
     width: number,
@@ -972,6 +992,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarLine(promptStash ? 'Draft saved' : 'No draft'), dim: !promptStash, color: promptStash ? TUI_THEME.warning : undefined },
     { text: sidebarLine(lastUserPrompt ? 'Retry ready' : 'No retry'), dim: !lastUserPrompt, color: lastUserPrompt ? TUI_THEME.success : undefined },
     { text: sidebarLine(lastExportPath ? 'Exported session' : 'Ctrl+E export'), dim: !lastExportPath, color: lastExportPath ? TUI_THEME.success : undefined },
+    { text: sidebarLine('Ctrl+T timeline'), dim: true },
     { text: sidebarLine('0 LSP'), dim: true },
   ];
   const sidebarFooterRows = [
@@ -1006,6 +1027,33 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             <Box marginTop={1} justifyContent="space-between">
               <Text dimColor>Enter / Y confirm</Text>
               <Text dimColor>Esc / N cancel</Text>
+            </Box>
+          </Box>
+        </Box>
+      ) : state.showTimeline ? (
+        <Box width={termWidth} height={termHeight - 1} alignItems="center" justifyContent="center">
+          <Box
+            flexDirection="column"
+            width={Math.min(termWidth - 8, 72)}
+            borderStyle="round"
+            borderColor={TUI_THEME.accent}
+            paddingX={2}
+            paddingY={1}
+          >
+            <Box justifyContent="space-between">
+              <Text color={TUI_THEME.accent} bold>Session Timeline</Text>
+              <Text dimColor>{messages.length} messages</Text>
+            </Box>
+            <Box marginTop={1} flexDirection="column">
+              {timelineRows.length === 0 ? (
+                <Text dimColor>No messages yet</Text>
+              ) : timelineRows.map((row, i) => (
+                <Text key={`timeline-${i}`}>{truncateByWidth(row, Math.min(termWidth - 14, 66)).text}</Text>
+              ))}
+            </Box>
+            <Box marginTop={1} justifyContent="space-between">
+              <Text dimColor>Recent messages</Text>
+              <Text dimColor>Esc close</Text>
             </Box>
           </Box>
         </Box>
