@@ -666,16 +666,30 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (['login', 'logout', 'privacy-settings'].includes(name)) return 'Auth';
     return 'Command';
   };
+  const visibleSlashRows = visibleSlashCommands.flatMap((cmd, i) => {
+    const category = commandCategory(cmd.name);
+    const previous = i > 0 ? commandCategory(visibleSlashCommands[i - 1].name) : undefined;
+    const rows: Array<{ type: 'header'; category: string } | { type: 'command'; command: typeof cmd; index: number; category: string }> = [];
+    if (category !== previous) rows.push({ type: 'header', category });
+    rows.push({ type: 'command', command: cmd, index: slashWindowStart + i, category });
+    return rows;
+  });
+  const inlineSlashRows = visibleSlashRows.filter((row, i, rows) => {
+    if (row.type === 'command') return rows.slice(0, i + 1).filter(item => item.type === 'command').length <= 5;
+    return rows.slice(i + 1).some(item => item.type === 'command');
+  });
   const modalWidth = Math.min(termWidth - 8, 76);
   const modalContentWidth = Math.max(20, modalWidth - 6);
   const messageLineCount = (msg: Message) => {
     const contentLines = wrapByWidth(msg.content, chatTextWidth).length;
     const labelLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' ? 1 : 0;
     const durationLines = msg.type === 'thought' && msg.duration ? 1 : 0;
-    return labelLines + contentLines + durationLines + 1;
+    const verticalPaddingLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' ? 2 : 0;
+    return labelLines + contentLines + durationLines + verticalPaddingLines + 1;
   };
-  const messageLineBudget = Math.max(4, termHeight - state.inputLines.length * 2 - 10);
-  const composerRows = state.inputLines.length * 2 + 4;
+  const inlineMenuRows = state.showSlashMenu && state.slashMenuMode === 'inline' ? Math.min(inlineSlashRows.length + 4, 11) : 0;
+  const messageLineBudget = Math.max(4, termHeight - state.inputLines.length * 2 - inlineMenuRows - 10);
+  const composerRows = state.inputLines.length * 2 + 4 + inlineMenuRows;
   const messagePaneHeight = Math.max(3, termHeight - composerRows - 3);
   let usedMessageLines = 0;
   let visibleMessageStart = messages.length;
@@ -708,11 +722,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarRule(), dim: true },
     { text: sidebarLine(pill('Slash ready')), color: TUI_THEME.success },
     { text: sidebarLine('0 LSP'), dim: true },
-    { text: sidebarLine() },
+  ];
+  const sidebarFooterRows = [
+    { text: sidebarRule(), dim: true },
     { text: sidebarLine(`• MiniAgent ${version}`), color: TUI_THEME.success },
     { text: sidebarLine('by Zevan'), dim: true },
   ];
-  const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length);
+  const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length - sidebarFooterRows.length);
   const footerRight = state.showSlashMenu && state.slashMenuMode === 'modal' ? '↑↓ move  Enter select  Esc close' : hasConversation ? '• 0 LSP  /status' : version;
   const footerRightWidth = getStringWidth(footerRight);
   const footerLeftWidth = Math.max(10, termWidth - footerRightWidth - 2);
@@ -764,20 +780,23 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                 {visibleSlashCommands.length === 0 && (
                   <Text dimColor>{fillByWidth('No commands found', modalContentWidth)}</Text>
                 )}
-                {visibleSlashCommands
-                  .map((cmd, i) => {
-                    const selected = slashWindowStart + i === state.slashIndex;
+                {visibleSlashRows
+                  .map((row, i) => {
+                    if (row.type === 'header') {
+                      return <Text key={`header-${row.category}-${i}`} color={TUI_THEME.warning}>{i === 0 ? row.category : ` ${row.category}`}</Text>;
+                    }
+                    const cmd = row.command;
+                    const selected = row.index === state.slashIndex;
                     const commandText = `${selected ? TUI_GLYPHS.selected : ' '} /${cmd.name}`;
-                    const category = commandCategory(cmd.name);
-                    const categoryText = `[${category}]`;
+                    const categoryText = `[${row.category}]`;
                     const descriptionWidth = Math.max(0, modalContentWidth - getStringWidth(commandText) - getStringWidth(categoryText) - 4);
-                    const row = `${commandText}  ${truncateByWidth(cmd.description || '', descriptionWidth).text}`;
+                    const line = `${commandText}  ${truncateByWidth(cmd.description || '', descriptionWidth).text}`;
                     return (
-                      <Box key={i} width={modalContentWidth} justifyContent="space-between">
+                      <Box key={cmd.name} width={modalContentWidth} justifyContent="space-between">
                         <Text
                           color={selected ? 'white' : TUI_THEME.accent}
                           backgroundColor={selected ? TUI_THEME.selected : undefined}
-                        >{fillByWidth(row, modalContentWidth - getStringWidth(categoryText))}</Text>
+                        >{fillByWidth(line, modalContentWidth - getStringWidth(categoryText))}</Text>
                         <Text
                           dimColor={!selected}
                           color={selected ? TUI_THEME.warning : undefined}
@@ -933,12 +952,15 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                   <Text dimColor>{filteredSlashCommands.length > 0 ? `${state.slashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
                 </Box>
                 {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
-                {visibleSlashCommands.slice(0, 5).map((cmd, i) => {
-                  const selected = slashWindowStart + i === state.slashIndex;
-                  const category = commandCategory(cmd.name);
+                {inlineSlashRows.map((row, i) => {
+                  if (row.type === 'header') {
+                    return <Text key={`inline-header-${row.category}-${i}`} color={TUI_THEME.warning}>{i === 0 ? row.category : ` ${row.category}`}</Text>;
+                  }
+                  const cmd = row.command;
+                  const selected = row.index === state.slashIndex;
                   const lineWidth = Math.max(20, chatInputBoxWidth - 4);
                   const label = `${selected ? TUI_GLYPHS.selected : ' '} /${cmd.name}`;
-                  const suffix = `[${category}]`;
+                  const suffix = `[${row.category}]`;
                   const descriptionWidth = Math.max(0, lineWidth - getStringWidth(label) - getStringWidth(suffix) - 4);
                   return (
                     <Box key={cmd.name} justifyContent="space-between">
@@ -1006,6 +1028,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             ))}
             {Array.from({ length: sidebarFillRows }).map((_, i) => (
               <Text key={`sidebar-fill-${i}`} backgroundColor={TUI_THEME.panel}>{sidebarLine()}</Text>
+            ))}
+            {sidebarFooterRows.map((row, i) => (
+              <Text
+                key={`sidebar-footer-${i}`}
+                color={row.color}
+                dimColor={row.dim}
+                backgroundColor={TUI_THEME.panel}
+              >{row.text}</Text>
             ))}
           </Box>
         </Box>
