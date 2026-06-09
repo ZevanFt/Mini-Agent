@@ -1,5 +1,7 @@
 // React 基础 hooks
 import React, { useState, useEffect, useCallback } from 'react';
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
 // Ink TUI 框架的组件和 hooks
 import { Box, Text, useInput, useApp, useStdout } from 'ink';
 // Agent 类型定义
@@ -108,6 +110,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [totalCost] = useState('$0.02');
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
   const [promptStash, setPromptStash] = useState<string | null>(null);
+  const [lastExportPath, setLastExportPath] = useState<string | null>(null);
   // 终端宽度（字符数），默认 120
   const [termWidth, setTermWidth] = useState(120);
   // 终端高度（行数），默认 30
@@ -149,6 +152,30 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const updateState = useCallback((updater: (prev: TUIState) => TUIState) => {
     setState(prev => updater(prev));
   }, []);
+
+  const handleExportConversation = useCallback(async () => {
+    if (messages.length === 0) return;
+    const exportDir = path.join(cwd, '.miniagent', 'sessions');
+    await mkdir(exportDir, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filePath = path.join(exportDir, `tui-${timestamp}.md`);
+    const content = [
+      '# MiniAgent TUI Conversation',
+      '',
+      `- Model: ${modelName}`,
+      `- Mode: ${currentMode}`,
+      `- Exported: ${new Date().toISOString()}`,
+      '',
+      ...messages.map(msg => [
+        `## ${msg.role === 'user' ? 'User' : msg.type === 'error' ? 'MiniAgent Error' : 'MiniAgent'}`,
+        '',
+        msg.content,
+        '',
+      ].join('\n')),
+    ].join('\n');
+    await writeFile(filePath, content, 'utf8');
+    setLastExportPath(filePath);
+  }, [cwd, currentMode, messages, modelName]);
 
   // 处理用户输入的文本（发送给 Agent 并获取响应）
   const handleProcessInput = useCallback(async (text: string) => {
@@ -313,6 +340,17 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (key.ctrl && input.toLowerCase() === 'l') {
       setMessages([]);
       updateState(prev => ({ ...prev, currentResponse: '', isProcessing: false, historyIndex: null }));
+      return;
+    }
+
+    if (key.ctrl && input.toLowerCase() === 'e') {
+      handleExportConversation().catch(err => {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          type: 'error',
+          content: 'Export failed: ' + (err instanceof Error ? err.message : String(err)),
+        }]);
+      });
       return;
     }
 
@@ -758,7 +796,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (width < 42) return 'Ctrl+P commands   Enter send';
     if (width < 62) return '↑↓ history   Ctrl+P commands   Enter send';
     if (width < 82) return '↑↓ history   Ctrl+P commands   Ctrl+K clear input   Enter send';
-    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+R retry   Ctrl+K clear input   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear chat   Enter send';
+    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+R retry   Ctrl+E export   Ctrl+K clear input   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear chat   Enter send';
   };
   const menuHint = (width: number) => width < 38 ? 'Enter select   Esc close' : '↑↓ move   Enter select   Esc close';
   const inputLineText = (line: string, row: number, textWidth: number, lineWidth = textWidth + 2) => {
@@ -885,6 +923,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarLine(pill('Slash ready')), color: TUI_THEME.success },
     { text: sidebarLine(promptStash ? 'Draft stashed' : 'No draft'), dim: !promptStash, color: promptStash ? TUI_THEME.warning : undefined },
     { text: sidebarLine(lastUserPrompt ? 'Retry ready' : 'No retry'), dim: !lastUserPrompt, color: lastUserPrompt ? TUI_THEME.success : undefined },
+    { text: sidebarLine(lastExportPath ? 'Exported session' : 'Ctrl+E export'), dim: !lastExportPath, color: lastExportPath ? TUI_THEME.success : undefined },
     { text: sidebarLine('0 LSP'), dim: true },
   ];
   const sidebarFooterRows = [
