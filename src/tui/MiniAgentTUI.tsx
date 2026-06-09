@@ -354,6 +354,20 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     }
 
     if (state.showTimeline) {
+      if (isHomeKey) {
+        updateState(prev => prev.timelineDetail
+          ? { ...prev, timelineDetailOffset: 0 }
+          : { ...prev, timelineIndex: 0, timelineDetailOffset: 0 }
+        );
+        return;
+      }
+      if (isEndKey) {
+        updateState(prev => prev.timelineDetail
+          ? { ...prev, timelineDetailOffset: Number.MAX_SAFE_INTEGER }
+          : { ...prev, timelineIndex: Math.max(0, messages.length - 1), timelineDetailOffset: 0 }
+        );
+        return;
+      }
       if (key.upArrow) {
         updateState(prev => prev.timelineDetail
           ? { ...prev, timelineDetailOffset: Math.max(0, prev.timelineDetailOffset - 1) }
@@ -967,6 +981,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const timelineWindowSize = 12;
   const timelineWindowStart = Math.max(0, Math.min(state.timelineIndex - timelineWindowSize + 1, Math.max(0, messages.length - timelineWindowSize)));
   const visibleTimelineMessages = messages.slice(timelineWindowStart, timelineWindowStart + timelineWindowSize);
+  const timelineHasMoreAbove = timelineWindowStart > 0;
+  const timelineHasMoreBelow = timelineWindowStart + visibleTimelineMessages.length < messages.length;
+  const timelineScrollHint = `${timelineHasMoreAbove ? '↑' : ' '} ${timelineHasMoreBelow ? '↓' : ' '}`;
   const selectedTimelineMessage = messages[state.timelineIndex];
   const timelineRows = visibleTimelineMessages.map((msg, i) => {
     const messageIndex = timelineWindowStart + i;
@@ -1110,7 +1127,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           >
             <Box justifyContent="space-between">
               <Text color={TUI_THEME.accent} bold>Session Timeline</Text>
-              <Text dimColor>{messages.length} messages</Text>
+              <Text dimColor>{messages.length > 0 ? `${timelineScrollHint} ${state.timelineIndex + 1}/${messages.length}` : '0 messages'}</Text>
             </Box>
             <Box marginTop={1} flexDirection="column">
               {state.timelineDetail && selectedTimelineMessage ? (
@@ -1132,7 +1149,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               ))}
             </Box>
             <Box marginTop={1} justifyContent="space-between">
-              <Text dimColor>{state.timelineDetail ? `${timelineDetailScrollHint} scroll  I insert  R retry user` : '↑↓ move  Enter detail  I insert'}</Text>
+              <Text dimColor>{state.timelineDetail ? `${timelineDetailScrollHint} scroll  Home/End  I insert  R retry user` : '↑↓ move  Home/End  Enter detail  I insert'}</Text>
               <Text dimColor>{state.timelineDetail ? 'Esc back' : 'R retry user  Esc close'}</Text>
             </Box>
           </Box>
