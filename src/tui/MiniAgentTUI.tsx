@@ -773,6 +773,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const slashHasMoreAbove = slashWindowStart > 0;
   const slashHasMoreBelow = slashWindowStart + visibleSlashCommands.length < filteredSlashCommands.length;
   const slashScrollHint = `${slashHasMoreAbove ? '↑' : ' '} ${slashHasMoreBelow ? '↓' : ' '}`;
+  const promptStateLabel = state.historyIndex !== null ? 'history' : promptStash ? 'draft' : '';
   const renderCommandRows = (
     rows: typeof visibleSlashRows,
     width: number,
@@ -988,7 +989,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             </Box>
             <Box width={textWidth + 2}>
               <Text color="white" backgroundColor={TUI_THEME.selected}> {currentMode} </Text>
-              <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(`${TUI_GLYPHS.bullet} ${truncateByWidth(`${modelName} ${state.agentName}`, textWidth - currentMode.length - 4).text}`, textWidth - currentMode.length)}</Text>
+              <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(`${TUI_GLYPHS.bullet} ${truncateByWidth(`${modelName} ${state.agentName} ${promptStateLabel}`.trim(), textWidth - currentMode.length - 4).text}`, textWidth - currentMode.length)}</Text>
             </Box>
             <Box width={textWidth + 2}>
               <Text dimColor backgroundColor={TUI_THEME.panel}>{dashLine}</Text>
@@ -1114,7 +1115,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                     - currentMode.length: 模式名称长度
                     - 2: 模式两侧各 1 个空格
                 */}
-                <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${state.agentName}`, composerContentWidth - currentMode.length - 2).text, composerContentWidth - currentMode.length)}</Text>
+                <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${state.agentName} ${promptStateLabel}`.trim(), composerContentWidth - currentMode.length - 2).text, composerContentWidth - currentMode.length)}</Text>
               </Box>
               {/* 虚线分隔符：视觉分隔线 */}
                 <Box width={composerContentWidth}>
