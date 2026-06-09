@@ -122,6 +122,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [lastExportPath, setLastExportPath] = useState<string | null>(null);
   const [lastCopyStatus, setLastCopyStatus] = useState<'idle' | 'copied' | 'fallback'>('idle');
   const [lastForkIndex, setLastForkIndex] = useState<number | null>(null);
+  const [forkUndoMessages, setForkUndoMessages] = useState<Message[] | null>(null);
   const promptStoreDir = path.join(cwd, '.miniagent', 'history');
   const promptHistoryPath = path.join(promptStoreDir, 'tui-prompts.json');
   const promptStashPath = path.join(promptStoreDir, 'tui-draft.txt');
@@ -440,7 +441,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       }
       if (input.toLowerCase() === 'f' && messages[state.timelineIndex]) {
         const forkIndex = state.timelineIndex;
-        setMessages(prev => prev.slice(0, forkIndex + 1));
+        setMessages(prev => {
+          setForkUndoMessages(prev);
+          return prev.slice(0, forkIndex + 1);
+        });
         setLastForkIndex(forkIndex + 1);
         updateState(prev => ({
           ...prev,
@@ -450,6 +454,19 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           timelineIndex: Math.min(prev.timelineIndex, forkIndex),
           currentResponse: '',
           isProcessing: false,
+        }));
+        return;
+      }
+      if (input.toLowerCase() === 'u' && forkUndoMessages) {
+        setMessages(forkUndoMessages);
+        setForkUndoMessages(null);
+        setLastForkIndex(null);
+        updateState(prev => ({
+          ...prev,
+          showTimeline: false,
+          timelineDetail: false,
+          timelineDetailOffset: 0,
+          timelineIndex: Math.max(0, forkUndoMessages.length - 1),
         }));
         return;
       }
@@ -1131,6 +1148,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarLine(lastExportPath ? 'Exported session' : 'Ctrl+E export'), dim: !lastExportPath, color: lastExportPath ? TUI_THEME.success : undefined },
     { text: sidebarLine(lastCopyStatus === 'copied' ? 'Copied message' : lastCopyStatus === 'fallback' ? 'Copy fallback' : 'C copy timeline'), dim: lastCopyStatus === 'idle', color: lastCopyStatus === 'copied' ? TUI_THEME.success : lastCopyStatus === 'fallback' ? TUI_THEME.warning : undefined },
     { text: sidebarLine(lastForkIndex ? `Forked at #${lastForkIndex}` : 'F fork timeline'), dim: !lastForkIndex, color: lastForkIndex ? TUI_THEME.warning : undefined },
+    { text: sidebarLine(forkUndoMessages ? 'U undo fork' : 'No undo'), dim: !forkUndoMessages, color: forkUndoMessages ? TUI_THEME.warning : undefined },
     { text: sidebarLine('Ctrl+T timeline'), dim: true },
     { text: sidebarLine('0 LSP'), dim: true },
   ];
@@ -1204,7 +1222,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             </Box>
             <Box marginTop={1} justifyContent="space-between">
               <Text dimColor>{state.timelineDetail ? `${timelineDetailScrollHint} scroll  C copy  I insert  F fork` : '↑↓ move  Home/End  Enter detail  C copy'}</Text>
-              <Text dimColor>{state.timelineDetail ? 'R retry user  Esc back' : 'I insert  R retry user  F fork  Esc close'}</Text>
+              <Text dimColor>{state.timelineDetail ? 'R retry  U undo  Esc back' : 'I insert  R retry  F fork  U undo  Esc close'}</Text>
             </Box>
           </Box>
         </Box>
