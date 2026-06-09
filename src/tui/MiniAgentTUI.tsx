@@ -12,6 +12,7 @@ import { createSlashCommands } from '../core/commands.js';
 import { renderCommandRows } from './primitives/CommandRows.js';
 import { DialogFrame, DialogHeader } from './primitives/DialogFrame.js';
 import { NoticeText, type NoticeState } from './primitives/Notice.js';
+import { getScrollWindow, scrollHint } from './primitives/ScrollWindow.js';
 import { TUI_GLYPHS, TUI_THEME } from './primitives/theme.js';
 import { fillByWidth, getStringWidth, truncateByWidth, wrapByWidth } from './primitives/text.js';
 
@@ -1014,11 +1015,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     .map(item => item.cmd);
   const activeSlashIndex = Math.min(state.slashIndex, Math.max(0, filteredSlashCommands.length - 1));
   const slashWindowSize = 6;
-  const slashWindowStart = Math.max(
-    0,
-    Math.min(activeSlashIndex - slashWindowSize + 1, Math.max(0, filteredSlashCommands.length - slashWindowSize))
-  );
-  const visibleSlashCommands = filteredSlashCommands.slice(slashWindowStart, slashWindowStart + slashWindowSize);
+  const slashWindow = getScrollWindow(filteredSlashCommands, activeSlashIndex, slashWindowSize);
+  const slashWindowStart = slashWindow.start;
+  const visibleSlashCommands = slashWindow.items;
   const visibleSlashRows = visibleSlashCommands.flatMap((cmd, i) => {
     const category = commandCategory(cmd.name);
     const previous = i > 0 ? commandCategory(visibleSlashCommands[i - 1].name) : undefined;
@@ -1034,9 +1033,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const selectedSlashCommand = filteredSlashCommands[activeSlashIndex];
   const selectedSlashUsage = selectedSlashCommand?.usage ? `/${selectedSlashCommand.usage}` : selectedSlashCommand ? `/${selectedSlashCommand.name}` : '';
   const selectedSlashCategory = selectedSlashCommand ? commandCategory(selectedSlashCommand.name) : '';
-  const slashHasMoreAbove = slashWindowStart > 0;
-  const slashHasMoreBelow = slashWindowStart + visibleSlashCommands.length < filteredSlashCommands.length;
-  const slashScrollHint = `${slashHasMoreAbove ? '↑' : ' '} ${slashHasMoreBelow ? '↓' : ' '}`;
+  const slashScrollHint = scrollHint(slashWindow.hasMoreAbove, slashWindow.hasMoreBelow);
   const promptStateLabel = [
     state.historyIndex !== null ? 'history' : '',
     promptStash ? 'draft' : '',
@@ -1044,11 +1041,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   ].filter(Boolean).join(' ');
   const lastUserPrompt = [...messages].reverse().find(msg => msg.role === 'user')?.content;
   const timelineWindowSize = 12;
-  const timelineWindowStart = Math.max(0, Math.min(state.timelineIndex - timelineWindowSize + 1, Math.max(0, messages.length - timelineWindowSize)));
-  const visibleTimelineMessages = messages.slice(timelineWindowStart, timelineWindowStart + timelineWindowSize);
-  const timelineHasMoreAbove = timelineWindowStart > 0;
-  const timelineHasMoreBelow = timelineWindowStart + visibleTimelineMessages.length < messages.length;
-  const timelineScrollHint = `${timelineHasMoreAbove ? '↑' : ' '} ${timelineHasMoreBelow ? '↓' : ' '}`;
+  const timelineWindow = getScrollWindow(messages, state.timelineIndex, timelineWindowSize);
+  const timelineWindowStart = timelineWindow.start;
+  const visibleTimelineMessages = timelineWindow.items;
+  const timelineScrollHint = scrollHint(timelineWindow.hasMoreAbove, timelineWindow.hasMoreBelow);
   const selectedTimelineMessage = messages[state.timelineIndex];
   const timelineRows = visibleTimelineMessages.map((msg, i) => {
     const messageIndex = timelineWindowStart + i;
