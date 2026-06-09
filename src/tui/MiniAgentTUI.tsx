@@ -1,5 +1,6 @@
 // React 基础 hooks
 import React, { useState, useEffect, useCallback } from 'react';
+import { spawn } from 'child_process';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 // Ink TUI 框架的组件和 hooks
@@ -119,6 +120,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
   const [promptStash, setPromptStash] = useState<string | null>(null);
   const [lastExportPath, setLastExportPath] = useState<string | null>(null);
+  const [lastCopyStatus, setLastCopyStatus] = useState<'idle' | 'copied' | 'fallback'>('idle');
   const promptStoreDir = path.join(cwd, '.miniagent', 'history');
   const promptHistoryPath = path.join(promptStoreDir, 'tui-prompts.json');
   const promptStashPath = path.join(promptStoreDir, 'tui-draft.txt');
@@ -223,6 +225,20 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     await mkdir(promptStoreDir, { recursive: true });
     await writeFile(promptStashPath, draft || '', 'utf8');
   }, [promptStashPath, promptStoreDir]);
+
+  const copyToClipboard = useCallback((text: string) => new Promise<void>((resolve, reject) => {
+    const command = process.platform === 'win32'
+      ? { file: 'powershell.exe', args: ['-NoProfile', '-Command', 'Set-Clipboard'] }
+      : process.platform === 'darwin'
+        ? { file: 'pbcopy', args: [] }
+        : { file: 'xclip', args: ['-selection', 'clipboard'] };
+
+    const child = spawn(command.file, command.args, { stdio: ['pipe', 'ignore', 'ignore'] });
+    child.on('error', reject);
+    child.on('close', code => code === 0 ? resolve() : reject(new Error(`clipboard command exited with ${code}`)));
+    child.stdin.write(text);
+    child.stdin.end();
+  }), []);
 
   // 处理用户输入的文本（发送给 Agent 并获取响应）
   const handleProcessInput = useCallback(async (text: string) => {
@@ -399,6 +415,26 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           cursorCol: lines.at(-1)?.length || 0,
           historyIndex: null,
         }));
+        return;
+      }
+      if (input.toLowerCase() === 'c' && messages[state.timelineIndex]) {
+        const text = messages[state.timelineIndex].content;
+        copyToClipboard(text)
+          .then(() => setLastCopyStatus('copied'))
+          .catch(() => {
+            const lines = text.split('\n');
+            updateState(prev => ({
+              ...prev,
+              showTimeline: false,
+              timelineDetail: false,
+              timelineDetailOffset: 0,
+              inputLines: lines,
+              cursorRow: lines.length - 1,
+              cursorCol: lines.at(-1)?.length || 0,
+              historyIndex: null,
+            }));
+            setLastCopyStatus('fallback');
+          });
         return;
       }
       if (input.toLowerCase() === 'r' && messages[state.timelineIndex]?.role === 'user' && !state.isProcessing) {
@@ -1077,6 +1113,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     { text: sidebarLine(promptStash ? 'Draft saved' : 'No draft'), dim: !promptStash, color: promptStash ? TUI_THEME.warning : undefined },
     { text: sidebarLine(lastUserPrompt ? 'Retry ready' : 'No retry'), dim: !lastUserPrompt, color: lastUserPrompt ? TUI_THEME.success : undefined },
     { text: sidebarLine(lastExportPath ? 'Exported session' : 'Ctrl+E export'), dim: !lastExportPath, color: lastExportPath ? TUI_THEME.success : undefined },
+    { text: sidebarLine(lastCopyStatus === 'copied' ? 'Copied message' : lastCopyStatus === 'fallback' ? 'Copy fallback' : 'C copy timeline'), dim: lastCopyStatus === 'idle', color: lastCopyStatus === 'copied' ? TUI_THEME.success : lastCopyStatus === 'fallback' ? TUI_THEME.warning : undefined },
     { text: sidebarLine('Ctrl+T timeline'), dim: true },
     { text: sidebarLine('0 LSP'), dim: true },
   ];
@@ -1149,8 +1186,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               ))}
             </Box>
             <Box marginTop={1} justifyContent="space-between">
-              <Text dimColor>{state.timelineDetail ? `${timelineDetailScrollHint} scroll  Home/End  I insert  R retry user` : '↑↓ move  Home/End  Enter detail  I insert'}</Text>
-              <Text dimColor>{state.timelineDetail ? 'Esc back' : 'R retry user  Esc close'}</Text>
+              <Text dimColor>{state.timelineDetail ? `${timelineDetailScrollHint} scroll  Home/End  C copy  I insert` : '↑↓ move  Home/End  Enter detail  C copy'}</Text>
+              <Text dimColor>{state.timelineDetail ? 'R retry user  Esc back' : 'I insert  R retry user  Esc close'}</Text>
             </Box>
           </Box>
         </Box>
