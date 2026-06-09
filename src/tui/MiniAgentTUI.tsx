@@ -50,6 +50,7 @@ interface TUIState {
   isProcessing: boolean;     // 是否正在处理请求
   currentResponse: string;   // 当前正在流式输出的响应文本
   showExitConfirm: boolean;  // 是否显示退出确认框
+  historyIndex: number | null; // 当前浏览的历史输入索引
 }
 
 // 对话消息类型定义
@@ -97,6 +98,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     isProcessing: false,    // 默认未在处理
     currentResponse: '',    // 默认无响应文本
     showExitConfirm: false, // 默认不显示退出确认框
+    historyIndex: null,     // 默认不浏览历史输入
   });
   // 已使用的 token 数量（初始值 55373）
   const [tokensUsed, setTokensUsed] = useState(55373);
@@ -104,6 +106,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [tokenPercent] = useState(6);
   // 总花费金额
   const [totalCost] = useState('$0.02');
+  const [promptHistory, setPromptHistory] = useState<string[]>([]);
   // 终端宽度（字符数），默认 120
   const [termWidth, setTermWidth] = useState(120);
   // 终端高度（行数），默认 30
@@ -134,7 +137,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const filteredSlashCommands = slashCommands.filter(cmd =>
     cmd.name.includes(state.slashFilter) || cmd.description?.includes(state.slashFilter)
   );
-  const slashWindowSize = 8;
+  const slashWindowSize = 6;
   const slashWindowStart = Math.max(
     0,
     Math.min(state.slashIndex - slashWindowSize + 1, Math.max(0, filteredSlashCommands.length - slashWindowSize))
@@ -158,6 +161,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     };
     setMessages(prev => [...prev, userMsg]); // 添加到消息列表
     setTokensUsed(prev => prev + Math.floor(text.length / 4)); // 估算 token 消耗
+    setPromptHistory(prev => prev.at(-1) === text ? prev : [...prev, text]);
 
     // 更新状态：标记为处理中、清空响应文本、重置输入框和光标
     updateState(prev => ({
@@ -167,6 +171,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       inputLines: [''],
       cursorRow: 0,
       cursorCol: 0,
+      historyIndex: null,
     }));
 
     try {
@@ -304,6 +309,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
+    if (key.ctrl && input.toLowerCase() === 'l') {
+      setMessages([]);
+      updateState(prev => ({ ...prev, currentResponse: '', isProcessing: false, historyIndex: null }));
+      return;
+    }
+
     // 斜杠菜单打开时的输入处理
     if (state.showSlashMenu) {
       if (key.upArrow) {
@@ -338,6 +349,17 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         // 退格键：删除过滤关键词最后一个字符
         updateState(prev => {
           if (prev.slashMenuMode !== 'inline') return { ...prev, slashFilter: prev.slashFilter.slice(0, -1) };
+          if (prev.slashFilter.length === 0) {
+            return {
+              ...prev,
+              showSlashMenu: false,
+              slashFilter: '',
+              slashIndex: 0,
+              inputLines: [''],
+              cursorRow: 0,
+              cursorCol: 0,
+            };
+          }
           const nextFilter = prev.slashFilter.slice(0, -1);
           return {
             ...prev,
@@ -395,6 +417,24 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
     // 上箭头：光标上移一行
     if (key.upArrow) {
+      const inputEmpty = state.inputLines.length === 1 && state.inputLines[0] === '';
+      if ((inputEmpty || state.historyIndex !== null) && promptHistory.length > 0) {
+        updateState(prev => {
+          const nextIndex = prev.historyIndex === null
+            ? promptHistory.length - 1
+            : Math.max(0, prev.historyIndex - 1);
+          const text = promptHistory[nextIndex] || '';
+          const lines = text.split('\n');
+          return {
+            ...prev,
+            historyIndex: nextIndex,
+            inputLines: lines,
+            cursorRow: lines.length - 1,
+            cursorCol: lines.at(-1)?.length || 0,
+          };
+        });
+        return;
+      }
       if (state.cursorRow > 0) {
         updateState(prev => ({
           ...prev,
@@ -407,6 +447,24 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
     // 下箭头：光标下移一行
     if (key.downArrow) {
+      if (state.historyIndex !== null) {
+        updateState(prev => {
+          const nextIndex = prev.historyIndex === null ? null : prev.historyIndex + 1;
+          if (nextIndex === null || nextIndex >= promptHistory.length) {
+            return { ...prev, historyIndex: null, inputLines: [''], cursorRow: 0, cursorCol: 0 };
+          }
+          const text = promptHistory[nextIndex] || '';
+          const lines = text.split('\n');
+          return {
+            ...prev,
+            historyIndex: nextIndex,
+            inputLines: lines,
+            cursorRow: lines.length - 1,
+            cursorCol: lines.at(-1)?.length || 0,
+          };
+        });
+        return;
+      }
       if (state.cursorRow < state.inputLines.length - 1) {
         updateState(prev => ({
           ...prev,
@@ -444,6 +502,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             inputLines: newLines,
             cursorRow: prev.cursorRow + 1,
             cursorCol: 0,
+            historyIndex: null,
           };
         });
       }
@@ -457,7 +516,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           const newLines = [...prev.inputLines];
           const line = newLines[prev.cursorRow];
           newLines[prev.cursorRow] = line.slice(0, prev.cursorCol - 1) + line.slice(prev.cursorCol); // 删除光标前字符
-          return { ...prev, inputLines: newLines, cursorCol: prev.cursorCol - 1 };
+            return { ...prev, inputLines: newLines, cursorCol: prev.cursorCol - 1, historyIndex: null };
         });
       } else if (state.cursorRow > 0) {
         updateState(prev => {
@@ -470,6 +529,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             inputLines: newLines,
             cursorRow: prev.cursorRow - 1,
             cursorCol: newLines[prev.cursorRow - 1].length,
+            historyIndex: null,
           };
         });
       }
@@ -483,14 +543,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           const newLines = [...prev.inputLines];
           const line = newLines[prev.cursorRow];
           newLines[prev.cursorRow] = line.slice(0, prev.cursorCol) + line.slice(prev.cursorCol + 1);
-          return { ...prev, inputLines: newLines };
+          return { ...prev, inputLines: newLines, historyIndex: null };
         });
       } else if (state.cursorRow < state.inputLines.length - 1) {
         updateState(prev => {
           const newLines = [...prev.inputLines];
           newLines[prev.cursorRow] += newLines[prev.cursorRow + 1];
           newLines.splice(prev.cursorRow + 1, 1);
-          return { ...prev, inputLines: newLines };
+          return { ...prev, inputLines: newLines, historyIndex: null };
         });
       }
       return;
@@ -551,6 +611,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             inputLines: newLines,
             cursorRow: prev.cursorRow + 1,
             cursorCol: newLines[prev.cursorRow + 1] ? newLines[prev.cursorRow + 1].length : 0,
+            historyIndex: null,
             showSlashMenu: opensInlineSlash ? true : prev.showSlashMenu,
             slashMenuMode: opensInlineSlash ? 'inline' : prev.slashMenuMode,
             slashFilter: opensInlineSlash ? '' : prev.slashFilter,
@@ -563,6 +624,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             ...prev,
             inputLines: newLines,
             cursorCol: prev.cursorCol + input.length, // 光标右移
+            historyIndex: null,
             showSlashMenu: opensInlineSlash ? true : prev.showSlashMenu,
             slashMenuMode: opensInlineSlash ? 'inline' : prev.slashMenuMode,
             slashFilter: opensInlineSlash ? '' : prev.slashFilter,
@@ -589,6 +651,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const textWidth = Math.max(inputBoxWidth - 4, 20);
   const chatTextWidth = Math.max(chatInputBoxWidth - 3, 20);
   const composerContentWidth = chatInputBoxWidth - 1;
+  const startCommandMenuWidth = textWidth + 2;
   // dashWidth: 虚线分隔符的宽度，与起始页面子元素宽度一致
   const dashWidth = Math.max(inputBoxWidth - 4, 20) + 2;
   // dashLine: 生成虚线字符串，使用全角横线 '─'（U+2500）
@@ -641,8 +704,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const composerHint = (width: number) => {
     if (width < 24) return 'Enter send';
     if (width < 42) return 'Ctrl+P commands   Enter send';
-    return 'Tab mode   Ctrl+P commands   Enter send';
+    if (width < 62) return '↑↓ history   Ctrl+P commands   Enter send';
+    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+L clear   Enter send';
   };
+  const menuHint = (width: number) => width < 38 ? 'Enter select   Esc close' : '↑↓ move   Enter select   Esc close';
   const inputLineText = (line: string, row: number, textWidth: number, lineWidth = textWidth + 2) => {
     const caret = '▌';
     const content = row === 0 && row === state.cursorRow && state.cursorCol === 0 && line === ''
@@ -678,6 +743,43 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     if (row.type === 'command') return rows.slice(0, i + 1).filter(item => item.type === 'command').length <= 5;
     return rows.slice(i + 1).some(item => item.type === 'command');
   });
+  const selectedSlashCommand = filteredSlashCommands[state.slashIndex];
+  const selectedSlashUsage = selectedSlashCommand?.usage ? `/${selectedSlashCommand.usage}` : selectedSlashCommand ? `/${selectedSlashCommand.name}` : '';
+  const selectedSlashCategory = selectedSlashCommand ? commandCategory(selectedSlashCommand.name) : '';
+  const slashHasMoreAbove = slashWindowStart > 0;
+  const slashHasMoreBelow = slashWindowStart + visibleSlashCommands.length < filteredSlashCommands.length;
+  const slashScrollHint = `${slashHasMoreAbove ? '↑' : ' '} ${slashHasMoreBelow ? '↓' : ' '}`;
+  const renderCommandRows = (
+    rows: typeof visibleSlashRows,
+    width: number,
+    keyPrefix: string,
+  ) => rows.map((row, i) => {
+    if (row.type === 'header') {
+      return <Text key={`${keyPrefix}-header-${row.category}-${i}`} color={TUI_THEME.warning}>{fillByWidth(i === 0 ? row.category : ` ${row.category}`, width)}</Text>;
+    }
+
+    const cmd = row.command;
+    const selected = row.index === state.slashIndex;
+    const label = `${selected ? TUI_GLYPHS.selected : ' '} /${cmd.name}`;
+    const suffix = `[${row.category}]`;
+    const descriptionWidth = Math.max(0, width - getStringWidth(label) - getStringWidth(suffix) - 4);
+    const description = truncateByWidth(cmd.description || '', descriptionWidth).text;
+    const line = description ? `${label}  ${description}` : label;
+
+    return (
+      <Box key={`${keyPrefix}-${cmd.name}`} width={width} justifyContent="space-between">
+        <Text
+          color={selected ? 'white' : TUI_THEME.accent}
+          backgroundColor={selected ? TUI_THEME.selected : undefined}
+        >{fillByWidth(line, width - getStringWidth(suffix))}</Text>
+        <Text
+          dimColor={!selected}
+          color={selected ? TUI_THEME.warning : undefined}
+          backgroundColor={selected ? TUI_THEME.selected : undefined}
+        >{suffix}</Text>
+      </Box>
+    );
+  });
   const modalWidth = Math.min(termWidth - 8, 76);
   const modalContentWidth = Math.max(20, modalWidth - 6);
   const messageLineCount = (msg: Message) => {
@@ -687,7 +789,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     const verticalPaddingLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' ? 2 : 0;
     return labelLines + contentLines + durationLines + verticalPaddingLines + 1;
   };
-  const inlineMenuRows = state.showSlashMenu && state.slashMenuMode === 'inline' ? Math.min(inlineSlashRows.length + 4, 11) : 0;
+  const inlineMenuRows = state.showSlashMenu && state.slashMenuMode === 'inline' ? Math.min(inlineSlashRows.length + 6, 13) : 0;
   const messageLineBudget = Math.max(4, termHeight - state.inputLines.length * 2 - inlineMenuRows - 10);
   const composerRows = state.inputLines.length * 2 + 4 + inlineMenuRows;
   const messagePaneHeight = Math.max(3, termHeight - composerRows - 3);
@@ -770,7 +872,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             >
               <Box justifyContent="space-between">
                 <Text color={TUI_THEME.accent} bold>Command Palette</Text>
-                <Text dimColor>{filteredSlashCommands.length > 0 ? `${state.slashIndex + 1}/${filteredSlashCommands.length}` : '0 commands'}</Text>
+                <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${state.slashIndex + 1}/${filteredSlashCommands.length}` : '0 commands'}</Text>
               </Box>
               <Box marginTop={1} flexDirection="column">
                 <Text dimColor>Search</Text>
@@ -780,36 +882,18 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                 {visibleSlashCommands.length === 0 && (
                   <Text dimColor>{fillByWidth('No commands found', modalContentWidth)}</Text>
                 )}
-                {visibleSlashRows
-                  .map((row, i) => {
-                    if (row.type === 'header') {
-                      return <Text key={`header-${row.category}-${i}`} color={TUI_THEME.warning}>{i === 0 ? row.category : ` ${row.category}`}</Text>;
-                    }
-                    const cmd = row.command;
-                    const selected = row.index === state.slashIndex;
-                    const commandText = `${selected ? TUI_GLYPHS.selected : ' '} /${cmd.name}`;
-                    const categoryText = `[${row.category}]`;
-                    const descriptionWidth = Math.max(0, modalContentWidth - getStringWidth(commandText) - getStringWidth(categoryText) - 4);
-                    const line = `${commandText}  ${truncateByWidth(cmd.description || '', descriptionWidth).text}`;
-                    return (
-                      <Box key={cmd.name} width={modalContentWidth} justifyContent="space-between">
-                        <Text
-                          color={selected ? 'white' : TUI_THEME.accent}
-                          backgroundColor={selected ? TUI_THEME.selected : undefined}
-                        >{fillByWidth(line, modalContentWidth - getStringWidth(categoryText))}</Text>
-                        <Text
-                          dimColor={!selected}
-                          color={selected ? TUI_THEME.warning : undefined}
-                          backgroundColor={selected ? TUI_THEME.selected : undefined}
-                        >{categoryText}</Text>
-                      </Box>
-                    );
-                  })}
+                {renderCommandRows(visibleSlashRows, modalContentWidth, 'modal-command')}
               </Box>
               <Box marginTop={1} justifyContent="space-between">
                 <Text dimColor>↑↓ move</Text>
-                <Text dimColor>Enter select   Esc close</Text>
+                <Text dimColor>{visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : 'Enter select   Esc close'}</Text>
               </Box>
+              {selectedSlashCommand && (
+                <Box marginTop={1} flexDirection="column">
+                  <Text color={TUI_THEME.warning}>{fillByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, modalContentWidth)}</Text>
+                  <Text dimColor>{fillByWidth(truncateByWidth(selectedSlashCommand.description, modalContentWidth).text, modalContentWidth)}</Text>
+                </Box>
+              )}
             </Box>
         </Box>
       ) : !hasConversation ? (
@@ -817,7 +901,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         // flexGrow={1}：占满除状态栏外的所有剩余空间
         // justifyContent="center"：内部子元素垂直居中
         // alignItems="center"：内部子元素水平居中
-        <Box flexDirection="column" alignItems="center" justifyContent="center" height={termHeight - 1}>
+        <Box
+          flexDirection="column"
+          alignItems="center"
+          justifyContent={state.showSlashMenu && state.slashMenuMode === 'inline' ? 'flex-start' : 'center'}
+          paddingTop={state.showSlashMenu && state.slashMenuMode === 'inline' ? 1 : 0}
+          height={termHeight - 1}
+        >
           {/* Logo 区域：显示 ASCII 艺术字，使用 #0078d7 蓝色 */}
           <Box flexDirection="column" alignItems="center" marginBottom={1}>
             {/* 遍历 Logo 每一行，使用固定颜色 #0078d7 */}
@@ -844,6 +934,18 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               - "red"/"green"/"blue"/"yellow"/"cyan"/"magenta"
               - "dimGray"/"brightRed" 等更多颜色
           */}
+          {state.showSlashMenu && state.slashMenuMode === 'inline' && (
+            <Box width={startCommandMenuWidth} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
+              <Box justifyContent="space-between">
+                <Text color={TUI_THEME.accent}>Commands</Text>
+                <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${state.slashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
+              </Box>
+              {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
+              {renderCommandRows(inlineSlashRows, Math.max(20, startCommandMenuWidth - 2), 'start-inline-command')}
+              {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, startCommandMenuWidth - 2)).text}</Text>}
+              <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : menuHint(startCommandMenuWidth), Math.max(20, startCommandMenuWidth - 2))}</Text>
+            </Box>
+          )}
           <Box width={textWidth + 2} flexDirection="column">
             <Box width={textWidth + 2}>
               <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
@@ -949,26 +1051,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
                 <Box justifyContent="space-between">
                   <Text color={TUI_THEME.accent}>Commands</Text>
-                  <Text dimColor>{filteredSlashCommands.length > 0 ? `${state.slashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
+                  <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${state.slashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
                 </Box>
                 {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
-                {inlineSlashRows.map((row, i) => {
-                  if (row.type === 'header') {
-                    return <Text key={`inline-header-${row.category}-${i}`} color={TUI_THEME.warning}>{i === 0 ? row.category : ` ${row.category}`}</Text>;
-                  }
-                  const cmd = row.command;
-                  const selected = row.index === state.slashIndex;
-                  const lineWidth = Math.max(20, chatInputBoxWidth - 4);
-                  const label = `${selected ? TUI_GLYPHS.selected : ' '} /${cmd.name}`;
-                  const suffix = `[${row.category}]`;
-                  const descriptionWidth = Math.max(0, lineWidth - getStringWidth(label) - getStringWidth(suffix) - 4);
-                  return (
-                    <Box key={cmd.name} justifyContent="space-between">
-                      <Text color={selected ? 'white' : TUI_THEME.accent} backgroundColor={selected ? TUI_THEME.selected : undefined}>{fillByWidth(`${label}  ${truncateByWidth(cmd.description, descriptionWidth).text}`, lineWidth - getStringWidth(suffix))}</Text>
-                      <Text dimColor={!selected} color={selected ? TUI_THEME.warning : undefined} backgroundColor={selected ? TUI_THEME.selected : undefined}>{suffix}</Text>
-                    </Box>
-                  );
-                })}
+                {renderCommandRows(inlineSlashRows, Math.max(20, chatInputBoxWidth - 4), 'chat-inline-command')}
+                {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, chatInputBoxWidth - 4)).text}</Text>}
+                <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : menuHint(chatInputBoxWidth), Math.max(20, chatInputBoxWidth - 4))}</Text>
               </Box>
             )}
             <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} marginBottom={1}>
