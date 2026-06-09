@@ -57,7 +57,7 @@ interface TUIState {
 interface Message {
   role: 'user' | 'assistant';                    // 消息角色：用户或助手
   content: string;                               // 消息内容
-  type?: 'thought' | 'tool' | 'code' | 'text';  // 消息类型：思考/工具/代码/文本
+  type?: 'thought' | 'tool' | 'code' | 'text' | 'error';  // 消息类型：思考/工具/代码/文本/错误
   toolName?: string;                             // 工具名称（仅 tool 类型使用）
   duration?: string;                             // 耗时（仅 thought/tool 类型使用）
 }
@@ -240,7 +240,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         {
           role: 'assistant',
           content: 'Error: ' + (err instanceof Error ? err.message : String(err)),
-          type: 'text',
+          type: 'error',
         },
       ]);
     } finally {
@@ -809,9 +809,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const modalContentWidth = Math.max(20, modalWidth - 6);
   const messageLineCount = (msg: Message) => {
     const contentLines = wrapByWidth(msg.content, chatTextWidth).length;
-    const labelLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' ? 1 : 0;
+    const labelLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' || msg.type === 'error' ? 1 : 0;
     const durationLines = msg.type === 'thought' && msg.duration ? 1 : 0;
-    const verticalPaddingLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' ? 2 : 0;
+    const verticalPaddingLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' || msg.type === 'error' ? 2 : 0;
     return labelLines + contentLines + durationLines + verticalPaddingLines + 1;
   };
   const inlineMenuRows = state.showSlashMenu && state.slashMenuMode === 'inline' ? Math.min(inlineSlashRows.length + 6, 13) : 0;
@@ -1045,6 +1045,16 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                       <Text>{''}</Text>
                     </Box>
                   )}
+                  {msg.role === 'assistant' && msg.type === 'error' && (
+                    <Box flexDirection="column">
+                      <Text color="red">MiniAgent error</Text>
+                      <Text>{''}</Text>
+                      {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
+                        <Text key={lineIndex} color="red">{line}</Text>
+                      ))}
+                      <Text>{''}</Text>
+                    </Box>
+                  )}
                   {/* 助手普通文本消息：直接显示内容 */}
                   {msg.role === 'assistant' && msg.type === 'text' && (
                     <Box flexDirection="column">
@@ -1061,7 +1071,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               {/* 流式响应中：显示正在输出的文本 */}
               {state.isProcessing && state.currentResponse && (
                 <Box flexDirection="column">
-                  <Text color={TUI_THEME.accent}>MiniAgent</Text>
+                  <Text color={TUI_THEME.accent}>MiniAgent streaming</Text>
                   <Text>{''}</Text>
                   {wrapByWidth(state.currentResponse, chatTextWidth).map((line, lineIndex) => (
                     <Text key={lineIndex}>{line}</Text>
@@ -1070,7 +1080,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                 </Box>
               )}
               {state.isProcessing && !state.currentResponse && (
-                <Box><Text color={TUI_THEME.accent}>MiniAgent is thinking...</Text></Box>
+                <Box flexDirection="column">
+                  <Text color={TUI_THEME.accent}>MiniAgent thinking</Text>
+                  <Text dimColor>Waiting for model response...</Text>
+                </Box>
               )}
             </Box>
             {state.showSlashMenu && state.slashMenuMode === 'inline' && (
