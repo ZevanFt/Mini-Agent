@@ -1,0 +1,112 @@
+import { Box, Text } from 'ink';
+import { TUI_GLYPHS, TUI_THEME } from './theme.js';
+import { fillByWidth } from './text.js';
+
+export interface SidebarRow {
+  text: string;
+  bold?: boolean;
+  color?: string;
+  dim?: boolean;
+}
+
+export interface SidebarProps {
+  rows: SidebarRow[];
+  footerRows: SidebarRow[];
+  width: number;
+  paddingX?: number;
+  fillHeight?: number;
+}
+
+export function Sidebar({ rows, footerRows, width, paddingX = 2, fillHeight = 0 }: SidebarProps) {
+  const innerWidth = Math.max(12, width - paddingX * 2 - 1);
+  const line = (text = '') => fillByWidth(text, innerWidth);
+
+  return (
+    <Box width={width} flexDirection="column" paddingX={paddingX} paddingY={1}>
+      {rows.map((row, i) => (
+        <Text
+          key={`sidebar-row-${i}`}
+          bold={row.bold}
+          color={row.color}
+          dimColor={row.dim}
+          backgroundColor={TUI_THEME.panel}
+        >{row.text}</Text>
+      ))}
+      {Array.from({ length: fillHeight }).map((_, i) => (
+        <Text key={`sidebar-fill-${i}`} backgroundColor={TUI_THEME.panel}>{line()}</Text>
+      ))}
+      {footerRows.map((row, i) => (
+        <Text
+          key={`sidebar-footer-${i}`}
+          color={row.color}
+          dimColor={row.dim}
+          backgroundColor={TUI_THEME.panel}
+        >{row.text}</Text>
+      ))}
+    </Box>
+  );
+}
+
+export function buildSidebarRows(opts: {
+  messages: number;
+  modelName: string;
+  currentMode: string;
+  tokensUsed: number;
+  tokenPercent: number;
+  totalCost: string;
+  promptStash: string | null;
+  lastUserPrompt: string | undefined;
+  lastExportPath: string | null;
+  lastCopyStatus: 'idle' | 'copied' | 'fallback';
+  lastForkIndex: number | null;
+  forkUndoMessages: unknown;
+  sidebarInnerWidth: number;
+}): SidebarRow[] {
+  const { messages, modelName, currentMode, tokensUsed, tokenPercent, totalCost, promptStash, lastUserPrompt, lastExportPath, lastCopyStatus, lastForkIndex, forkUndoMessages, sidebarInnerWidth } = opts;
+  const line = (text = '') => fillByWidth(text, sidebarInnerWidth);
+  const rule = () => line(TUI_GLYPHS.divider.repeat(sidebarInnerWidth));
+  const pill = (text: string) => ` ${text} `;
+
+  return [
+    { text: line('Session'), bold: true },
+    { text: rule(), dim: true },
+    { text: line('MiniAgent Chat'), color: TUI_THEME.accent },
+    { text: line(`${messages} messages`), dim: true },
+    { text: line() },
+    { text: line('Model'), bold: true },
+    { text: rule(), dim: true },
+    { text: line(modelName), dim: true },
+    { text: line(pill(currentMode)), color: TUI_THEME.accent },
+    { text: line() },
+    { text: line('Context'), bold: true },
+    { text: rule(), dim: true },
+    { text: line(`${tokensUsed.toLocaleString()} tokens`), dim: true },
+    { text: line(`${tokenPercent}% used`), dim: true },
+    { text: line(`${totalCost} spent`), dim: true },
+    { text: line() },
+    { text: line('System'), bold: true },
+    { text: rule(), dim: true },
+    { text: line(pill('Slash ready')), color: TUI_THEME.success },
+    { text: line(promptStash ? 'Draft saved' : 'No draft'), dim: !promptStash, color: promptStash ? TUI_THEME.warning : undefined },
+    { text: line(lastUserPrompt ? 'Retry ready' : 'No retry'), dim: !lastUserPrompt, color: lastUserPrompt ? TUI_THEME.success : undefined },
+    { text: line(lastExportPath ? 'Exported session' : 'Ctrl+E export'), dim: !lastExportPath, color: lastExportPath ? TUI_THEME.success : undefined },
+    { text: line(lastCopyStatus === 'copied' ? 'Copied message' : lastCopyStatus === 'fallback' ? 'Copy fallback' : 'C copy timeline'), dim: lastCopyStatus === 'idle', color: lastCopyStatus === 'copied' ? TUI_THEME.success : lastCopyStatus === 'fallback' ? TUI_THEME.warning : undefined },
+    { text: line(lastForkIndex ? `Forked at #${lastForkIndex}` : 'F fork timeline'), dim: !lastForkIndex, color: lastForkIndex ? TUI_THEME.warning : undefined },
+    { text: line(forkUndoMessages ? 'U undo fork' : 'No undo'), dim: !forkUndoMessages, color: forkUndoMessages ? TUI_THEME.warning : undefined },
+    { text: line('Ctrl+T timeline'), dim: true },
+    { text: line('0 LSP'), dim: true },
+  ];
+}
+
+export function buildSidebarFooterRows(opts: {
+  version: string;
+  sidebarInnerWidth: number;
+}): SidebarRow[] {
+  const line = (text = '') => fillByWidth(text, opts.sidebarInnerWidth);
+  const rule = () => line(TUI_GLYPHS.divider.repeat(opts.sidebarInnerWidth));
+  return [
+    { text: rule(), dim: true },
+    { text: line(`• MiniAgent ${opts.version}`), color: TUI_THEME.success },
+    { text: line('by Zevan'), dim: true },
+  ];
+}
