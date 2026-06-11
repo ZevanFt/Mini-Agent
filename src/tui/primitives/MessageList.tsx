@@ -1,6 +1,7 @@
 import { Box, Text } from 'ink';
 import { TUI_GLYPHS, TUI_THEME } from './theme.js';
 import { fillByWidth, wrapByWidth } from './text.js';
+import { Spinner } from './Spinner.js';
 import type { Message } from '../types.js';
 
 export interface MessageListProps {
@@ -34,7 +35,7 @@ export function MessageList({
       ))}
       {isProcessing && currentResponse && (
         <Box flexDirection="column">
-          <Text color={TUI_THEME.accent}>MiniAgent streaming</Text>
+          <Text color={TUI_THEME.accent}>MiniAgent streaming <Spinner color={TUI_THEME.accent} /></Text>
           <Text>{''}</Text>
           {wrapByWidth(currentResponse, chatTextWidth).map((line, lineIndex) => (
             <Text key={lineIndex}>{line}</Text>
@@ -44,7 +45,7 @@ export function MessageList({
       )}
       {isProcessing && !currentResponse && (
         <Box flexDirection="column">
-          <Text color={TUI_THEME.accent}>MiniAgent thinking</Text>
+          <Text color={TUI_THEME.accent}>MiniAgent <Spinner color={TUI_THEME.accent} /></Text>
           <Text dimColor>Waiting for model response...</Text>
         </Box>
       )}

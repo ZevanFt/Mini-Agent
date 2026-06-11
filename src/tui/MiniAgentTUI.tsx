@@ -1,6 +1,5 @@
 // React 基础 hooks
 import React, { useState, useEffect, useCallback } from 'react';
-import { spawn } from 'child_process';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 // Ink TUI 框架的组件和 hooks
@@ -22,6 +21,7 @@ import { TUI_THEME } from './primitives/theme.js';
 import { TimelineDialog } from './primitives/TimelineDialog.js';
 import { fillByWidth, getStringWidth, truncateByWidth } from './primitives/text.js';
 import type { Message } from './types.js';
+import { safeCopy } from './primitives/Clipboard.js';
 
 // Agent 模式列表：Build（构建模式）和 Plan（规划模式）
 const AGENT_MODES = ['Build', 'Plan'] as const;
@@ -213,19 +213,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     await writeFile(promptStashPath, draft || '', 'utf8');
   }, [promptStashPath, promptStoreDir]);
 
-  const copyToClipboard = useCallback((text: string) => new Promise<void>((resolve, reject) => {
-    const command = process.platform === 'win32'
-      ? { file: 'powershell.exe', args: ['-NoProfile', '-Command', 'Set-Clipboard'] }
-      : process.platform === 'darwin'
-        ? { file: 'pbcopy', args: [] }
-        : { file: 'xclip', args: ['-selection', 'clipboard'] };
-
-    const child = spawn(command.file, command.args, { stdio: ['pipe', 'ignore', 'ignore'] });
-    child.on('error', reject);
-    child.on('close', code => code === 0 ? resolve() : reject(new Error(`clipboard command exited with ${code}`)));
-    child.stdin.write(text);
-    child.stdin.end();
-  }), []);
+  const copyToClipboard = useCallback((text: string) => safeCopy(text), []);
 
   // 处理用户输入的文本（发送给 Agent 并获取响应）
   const handleProcessInput = useCallback(async (text: string) => {
@@ -408,24 +396,25 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       if (input.toLowerCase() === 'c' && messages[state.timelineIndex]) {
         const text = messages[state.timelineIndex].content;
         copyToClipboard(text)
-          .then(() => {
-            setLastCopyStatus('copied');
-            setNotice({ message: 'Copied message', level: 'success' });
-          })
-          .catch(() => {
-            const lines = text.split('\n');
-            updateState(prev => ({
-              ...prev,
-              showTimeline: false,
-              timelineDetail: false,
-              timelineDetailOffset: 0,
-              inputLines: lines,
-              cursorRow: lines.length - 1,
-              cursorCol: lines.at(-1)?.length || 0,
-              historyIndex: null,
-            }));
-            setLastCopyStatus('fallback');
-            setNotice({ message: 'Clipboard unavailable; inserted message', level: 'warning' });
+          .then((result) => {
+            if (result.ok) {
+              setLastCopyStatus('copied');
+              setNotice({ message: 'Copied message', level: 'success' });
+            } else {
+              const lines = text.split('\n');
+              updateState(prev => ({
+                ...prev,
+                showTimeline: false,
+                timelineDetail: false,
+                timelineDetailOffset: 0,
+                inputLines: lines,
+                cursorRow: lines.length - 1,
+                cursorCol: lines.at(-1)?.length || 0,
+                historyIndex: null,
+              }));
+              setLastCopyStatus('fallback');
+              setNotice({ message: 'Clipboard unavailable; inserted message', level: 'warning' });
+            }
           });
         return;
       }
