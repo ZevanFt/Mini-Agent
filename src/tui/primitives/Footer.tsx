@@ -3,6 +3,14 @@ import { TUI_THEME } from './theme.js';
 import { fillByWidth, getStringWidth, truncateByWidth } from './text.js';
 import { NoticeText, type NoticeState } from './Notice.js';
 
+export interface FooterStatus {
+  lspCount: number;
+  mcpCount: number;
+  mcpErrors: number;
+  permCount: number;
+  isConnected: boolean;
+}
+
 export interface FooterProps {
   cwd: string;
   version: string;
@@ -10,11 +18,27 @@ export interface FooterProps {
   notice: NoticeState | null;
   isPaletteOpen: boolean;
   hasConversation: boolean;
+  isProcessing?: boolean;
+  status?: FooterStatus;
 }
 
-export function Footer({ cwd, version, termWidth, notice, isPaletteOpen, hasConversation }: FooterProps) {
+export function Footer({
+  cwd,
+  version,
+  termWidth,
+  notice,
+  isPaletteOpen,
+  hasConversation,
+  isProcessing: _isProcessing = false,
+  status = { lspCount: 0, mcpCount: 0, mcpErrors: 0, permCount: 0, isConnected: true },
+}: FooterProps) {
   const paletteHint = '↑↓ move  Enter select  Esc close';
-  const statusText = '• 0 LSP  /status';
+
+  const statusParts: string[] = [];
+  if (status.permCount > 0) statusParts.push(`⚠ ${status.permCount} perm`);
+  statusParts.push(`${status.lspCount} LSP`);
+  statusParts.push(`${status.mcpCount} MCP`);
+  const statusText = statusParts.join('  ');
 
   const rightText = notice?.message
     || (isPaletteOpen ? paletteHint : hasConversation ? statusText : version);
@@ -30,8 +54,15 @@ export function Footer({ cwd, version, termWidth, notice, isPaletteOpen, hasConv
         <Text dimColor>{truncateByWidth(rightText, rightWidth).text}</Text>
       ) : hasConversation ? (
         <>
-          <Text color={TUI_THEME.success}>•</Text>
-          <Text dimColor>{truncateByWidth(' 0 LSP  /status', Math.max(0, termWidth - leftWidth - 1)).text}</Text>
+          <Text color={status.permCount > 0 ? TUI_THEME.warning : TUI_THEME.success}>
+            {status.permCount > 0 ? '⚠' : '•'}
+          </Text>
+          <Text dimColor>
+            {truncateByWidth(
+              ` ${status.lspCount} LSP  ${status.mcpCount} MCP${status.mcpErrors > 0 ? ` (${status.mcpErrors} err)` : ''}`,
+              Math.max(0, termWidth - leftWidth - 1),
+            ).text}
+          </Text>
         </>
       ) : (
         <Text dimColor>{truncateByWidth(version, rightWidth).text}</Text>

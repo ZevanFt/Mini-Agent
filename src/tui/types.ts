@@ -4,4 +4,5 @@ export interface Message {
   type?: 'thought' | 'tool' | 'code' | 'text' | 'error';
   toolName?: string;
   duration?: string;
+  createdAt?: number;
 }

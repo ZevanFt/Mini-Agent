@@ -61,16 +61,29 @@ export function buildSidebarRows(opts: {
   lastForkIndex: number | null;
   forkUndoMessages: unknown;
   sidebarInnerWidth: number;
+  sessionTitle?: string;
+  timestamps?: boolean;
+  showThinking?: boolean;
+  showToolDetails?: boolean;
 }): SidebarRow[] {
-  const { messages, modelName, currentMode, tokensUsed, tokenPercent, totalCost, promptStash, lastUserPrompt, lastExportPath, lastCopyStatus, lastForkIndex, forkUndoMessages, sidebarInnerWidth } = opts;
+  const {
+    messages, modelName, currentMode, tokensUsed, tokenPercent, totalCost,
+    promptStash, lastUserPrompt, lastExportPath, lastCopyStatus,
+    lastForkIndex, forkUndoMessages, sidebarInnerWidth,
+    sessionTitle = 'MiniAgent Chat',
+    timestamps = false,
+    showThinking = true,
+    showToolDetails = true,
+  } = opts;
   const line = (text = '') => fillByWidth(text, sidebarInnerWidth);
   const rule = () => line(TUI_GLYPHS.divider.repeat(sidebarInnerWidth));
   const pill = (text: string) => ` ${text} `;
+  const toggle = (label: string, on: boolean) => `${on ? '●' : '○'} ${label}`;
 
   return [
     { text: line('Session'), bold: true },
     { text: rule(), dim: true },
-    { text: line('MiniAgent Chat'), color: TUI_THEME.accent },
+    { text: line(sessionTitle), color: TUI_THEME.accent },
     { text: line(`${messages} messages`), dim: true },
     { text: line() },
     { text: line('Model'), bold: true },
@@ -94,6 +107,12 @@ export function buildSidebarRows(opts: {
     { text: line(lastForkIndex ? `Forked at #${lastForkIndex}` : 'F fork timeline'), dim: !lastForkIndex, color: lastForkIndex ? TUI_THEME.warning : undefined },
     { text: line(forkUndoMessages ? 'U undo fork' : 'No undo'), dim: !forkUndoMessages, color: forkUndoMessages ? TUI_THEME.warning : undefined },
     { text: line('Ctrl+T timeline'), dim: true },
+    { text: line() },
+    { text: line('Display'), bold: true },
+    { text: rule(), dim: true },
+    { text: line(toggle('Timestamps', timestamps)), dim: !timestamps },
+    { text: line(toggle('Thinking', showThinking)), dim: !showThinking },
+    { text: line(toggle('Tool details', showToolDetails)), dim: !showToolDetails },
     { text: line('0 LSP'), dim: true },
   ];
 }
