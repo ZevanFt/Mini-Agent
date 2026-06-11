@@ -485,6 +485,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     // ==================== PermissionPrompt: arrow keys + Enter ====================
     if (permState.pending.length > 0) {
       const currentPerm = permState.pending[0];
+      if (key.ctrl && input.toLowerCase() === 'f') {
+        setNotice({ message: 'Permission fullscreen toggled', level: 'info' });
+        return;
+      }
       if (key.leftArrow) {
         setActivePermIndex(prev => Math.max(0, prev - 1));
         return;
@@ -815,6 +819,43 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     // Ctrl+End: scroll to bottom
     if (key.ctrl && isEndKey) {
       setScrollOffset(0);
+      return;
+    }
+
+    // ==================== Diff Navigation: [ ] n p b s d v ? ====================
+    if (input === '[') {
+      setNotice({ message: 'Previous diff hunk', level: 'info' });
+      return;
+    }
+    if (input === ']') {
+      setNotice({ message: 'Next diff hunk', level: 'info' });
+      return;
+    }
+    if (input === 'n' && !state.showSlashMenu && !sessionList.isOpen) {
+      // Only if diff viewer is open
+      return;
+    }
+    if (input === 'p' && !state.showSlashMenu && !sessionList.isOpen) {
+      return;
+    }
+    if (input === 'b') {
+      setNotice({ message: 'Toggle file tree', level: 'info' });
+      return;
+    }
+    if (input === 's') {
+      setNotice({ message: 'Single patch view', level: 'info' });
+      return;
+    }
+    if (input === 'd') {
+      setNotice({ message: 'Switch diff source', level: 'info' });
+      return;
+    }
+    if (input === 'v') {
+      setNotice({ message: 'Toggle split/unified', level: 'info' });
+      return;
+    }
+    if (input === '?') {
+      setWhichKey(prev => openWhichKey(prev));
       return;
     }
 
@@ -1478,6 +1519,23 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         setWhichKey(prev => whichKeyToggleLayout(prev));
         return;
       }
+      // ctrl+alt+arrows for scroll (check via escape sequence)
+      if (key.ctrl && key.upArrow) {
+        setWhichKey(prev => ({ ...prev, scrollOffset: Math.max(0, prev.scrollOffset - 1) }));
+        return;
+      }
+      if (key.ctrl && key.downArrow) {
+        setWhichKey(prev => ({ ...prev, scrollOffset: prev.scrollOffset + 1 }));
+        return;
+      }
+      if (key.pageUp) {
+        setWhichKey(prev => ({ ...prev, scrollOffset: Math.max(0, prev.scrollOffset - 10) }));
+        return;
+      }
+      if (key.pageDown) {
+        setWhichKey(prev => ({ ...prev, scrollOffset: prev.scrollOffset + 10 }));
+        return;
+      }
       if (key.escape || (key.ctrl && input === 'p')) {
         setWhichKey(prev => closeWhichKey(prev));
         return;
@@ -2131,10 +2189,11 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   });
 
   // ==================== 输入框宽度计算 ====================
-  const sidebarWidth = termWidth >= 120 ? 42 : 32;
+  const isWideMode = termWidth >= 120;
+  const sidebarWidth = isWideMode ? 42 : 32;
   const sidebarPaddingX = 2;
   const sidebarInnerWidth = Math.max(12, sidebarWidth - sidebarPaddingX * 2 - 1);
-  const chatAreaWidth = Math.max(termWidth - sidebarWidth, 40);
+  const chatAreaWidth = isWideMode ? Math.max(termWidth - sidebarWidth, 40) : termWidth;
   const chatComposerMarginX = 2;
   const chatInputBoxWidth = Math.max(24, chatAreaWidth - chatComposerMarginX * 2);
   const chatTextWidth = Math.max(chatInputBoxWidth - 3, 20);
@@ -2601,14 +2660,26 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               maxVisibleLines={maxComposerInputLines}
               position="chat"
             />
-          {/* 右侧：侧边栏 */}
-          <Sidebar
-            rows={sidebarRows}
-            footerRows={sidebarFooterRows}
-            width={sidebarWidth}
-            paddingX={sidebarPaddingX}
-            fillHeight={sidebarFillRows}
-          />
+          {/* 右侧：侧边栏 - 宽模式内联，窄模式覆盖层 */}
+          {isWideMode ? (
+            <Sidebar
+              rows={sidebarRows}
+              footerRows={sidebarFooterRows}
+              width={sidebarWidth}
+              paddingX={sidebarPaddingX}
+              fillHeight={sidebarFillRows}
+            />
+          ) : sessionToggles.sidebarVisible ? (
+            <Box position="absolute" width={termWidth} height={termHeight - 1}>
+              <Sidebar
+                rows={sidebarRows}
+                footerRows={sidebarFooterRows}
+                width={sidebarWidth}
+                paddingX={sidebarPaddingX}
+                fillHeight={sidebarFillRows}
+              />
+            </Box>
+          ) : null}
         </Box>
         </Box>
       )}
