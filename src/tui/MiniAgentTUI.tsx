@@ -2324,8 +2324,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     <ErrorBoundary onError={(err) => {
       setNotice({ message: `Error: ${err.message}`, level: 'error' });
     }}>
-    // 最外层容器：纵向布局、宽度 100%、高度使用终端实际行数（明确数值）
-    // Ink 不支持 height="100%"，需要用明确的数值
+    {/* 最外层容器：纵向布局、宽度 100%、高度使用终端实际行数（明确数值） */}
+    {/* Ink 不支持 height="100%"，需要用明确的数值 */}
     <Box flexDirection="column" width={termWidth} height={termHeight}>
       {/* Main content area */}
       {permState.pending.length > 0 ? (
