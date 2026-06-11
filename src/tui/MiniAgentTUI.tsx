@@ -10,12 +10,17 @@ import type { Agent } from '../core/agent.js';
 // 斜杠命令工厂函数
 import { createSlashCommands } from '../core/commands.js';
 import { renderCommandRows } from './primitives/CommandRows.js';
+import { CommandPaletteDialog } from './primitives/CommandPaletteDialog.js';
+import { Composer } from './primitives/Composer.js';
 import { DialogFrame, DialogHeader } from './primitives/DialogFrame.js';
-import { NoticeText, type NoticeState } from './primitives/Notice.js';
+import { Footer } from './primitives/Footer.js';
+import { MessageList, messageLineCount } from './primitives/MessageList.js';
+import { type NoticeState } from './primitives/Notice.js';
 import { getScrollWindow, scrollHint } from './primitives/ScrollWindow.js';
-import { TUI_GLYPHS, TUI_THEME } from './primitives/theme.js';
+import { Sidebar, buildSidebarRows, buildSidebarFooterRows } from './primitives/Sidebar.js';
+import { TUI_THEME } from './primitives/theme.js';
 import { TimelineDialog } from './primitives/TimelineDialog.js';
-import { fillByWidth, getStringWidth, truncateByWidth, wrapByWidth } from './primitives/text.js';
+import { fillByWidth, getStringWidth, truncateByWidth } from './primitives/text.js';
 import type { Message } from './types.js';
 
 // Agent 模式列表：Build（构建模式）和 Plan（规划模式）
@@ -921,51 +926,37 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   });
 
   // ==================== 输入框宽度计算 ====================
-  // inputBoxWidth: 输入框整体宽度，占终端宽度的 35%（可调整此比例改变输入框大小）
-  const inputBoxWidth = Math.floor(termWidth * 0.35);
   const sidebarWidth = termWidth >= 120 ? 42 : 32;
+  const sidebarPaddingX = 2;
+  const sidebarInnerWidth = Math.max(12, sidebarWidth - sidebarPaddingX * 2 - 1);
   const chatAreaWidth = Math.max(termWidth - sidebarWidth, 40);
   const chatComposerMarginX = 2;
   const chatInputBoxWidth = Math.max(24, chatAreaWidth - chatComposerMarginX * 2);
-  // textWidth: 输入框内部可用文本宽度
-  // 计算方式：inputBoxWidth - 4，因为：
-  //   - Ink 的 borderStyle="single" 会在容器两侧各占 1 字符（│），共 2 字符
-  //   - 文本行左右各留 1 个空格作为内边距（padding），共 2 字符
-  //   - 合计减去 4 字符
-  // Math.max(xxx, 20) 确保最小宽度为 20，防止终端过窄时崩溃
-  const textWidth = Math.max(inputBoxWidth - 4, 20);
   const chatTextWidth = Math.max(chatInputBoxWidth - 3, 20);
   const composerContentWidth = chatInputBoxWidth - 1;
+  const textWidth = Math.max(Math.floor(termWidth * 0.35) - 4, 20);
+  const lastUserPrompt = [...messages].reverse().find(msg => msg.role === 'user')?.content;
+  const sidebarRows = buildSidebarRows({
+    messages: messages.length,
+    modelName,
+    currentMode,
+    tokensUsed,
+    tokenPercent,
+    totalCost,
+    promptStash,
+    lastUserPrompt,
+    lastExportPath,
+    lastCopyStatus,
+    lastForkIndex,
+    forkUndoMessages,
+    sidebarInnerWidth,
+  });
+  const sidebarFooterRows = buildSidebarFooterRows({ version, sidebarInnerWidth });
+  const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length - sidebarFooterRows.length);
+
   const startCommandMenuWidth = textWidth + 2;
   const maxComposerInputLines = 5;
-  const composerInputStart = Math.max(0, state.cursorRow - maxComposerInputLines + 1);
-  const visibleInputLines = state.inputLines.slice(composerInputStart, composerInputStart + maxComposerInputLines);
-  // dashWidth: 虚线分隔符的宽度，与起始页面子元素宽度一致
-  const dashWidth = Math.max(inputBoxWidth - 4, 20) + 2;
-  // dashLine: 生成虚线字符串，使用全角横线 '─'（U+2500）
-  const dashLine = TUI_GLYPHS.divider.repeat(dashWidth);
-  const sidebarPaddingX = 2;
-  const sidebarInnerWidth = Math.max(12, sidebarWidth - sidebarPaddingX * 2 - 1);
-  const sidebarLine = (text = '') => fillByWidth(text, sidebarInnerWidth);
-  const sidebarRule = () => sidebarLine(TUI_GLYPHS.divider.repeat(sidebarInnerWidth));
-  const pill = (text: string) => ` ${text} `;
-  const composerHint = (width: number) => {
-    if (width < 24) return 'Enter send';
-    if (width < 42) return 'Ctrl+P commands   Enter send';
-    if (width < 62) return '↑↓ history   Ctrl+P commands   Enter send';
-    if (width < 82) return '↑↓ history   Ctrl+P commands   Ctrl+K clear input   Enter send';
-    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+T timeline   Ctrl+R retry   Ctrl+E export   Ctrl+K clear input   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear chat   Enter send';
-  };
-  const menuHint = (width: number) => width < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close';
-  const inputLineText = (line: string, row: number, textWidth: number, lineWidth = textWidth + 2) => {
-    const caret = '▌';
-    const content = row === 0 && row === state.cursorRow && state.cursorCol === 0 && line === ''
-      ? `${caret} Ask anything...`
-      : row === state.cursorRow
-        ? line.slice(0, state.cursorCol) + caret + line.slice(state.cursorCol)
-        : line;
-    return fillByWidth(truncateByWidth(content, textWidth).text, lineWidth);
-  };
+
   const commandCategory = (name: string) => {
     if (['help', 'compact', 'clear', 'new', 'save', 'resume', 'restart', 'quit'].includes(name)) return 'Session';
     if (['init', 'status', 'diff', 'undo', 'redo', 'add-dir', 'files', 'context'].includes(name)) return 'Project';
@@ -1030,18 +1021,11 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const promptStateLabel = [
     state.historyIndex !== null ? 'history' : '',
     promptStash ? 'draft' : '',
-    state.inputLines.length > maxComposerInputLines ? `${state.inputLines.length} lines` : '',
   ].filter(Boolean).join(' ');
-  const lastUserPrompt = [...messages].reverse().find(msg => msg.role === 'user')?.content;
   const modalWidth = Math.min(termWidth - 8, 76);
   const modalContentWidth = Math.max(20, modalWidth - 6);
-  const messageLineCount = (msg: Message) => {
-    const contentLines = wrapByWidth(msg.content, chatTextWidth).length;
-    const labelLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' || msg.type === 'error' ? 1 : 0;
-    const durationLines = msg.type === 'thought' && msg.duration ? 1 : 0;
-    const verticalPaddingLines = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' || msg.type === 'error' ? 2 : 0;
-    return labelLines + contentLines + durationLines + verticalPaddingLines + 1;
-  };
+  const composerInputStart = Math.max(0, state.cursorRow - maxComposerInputLines + 1);
+  const visibleInputLines = state.inputLines.slice(composerInputStart, composerInputStart + maxComposerInputLines);
   const inlineMenuRows = state.showSlashMenu && state.slashMenuMode === 'inline' ? Math.min(inlineSlashRows.length + 6, 13) : 0;
   const visibleInputLineCount = visibleInputLines.length;
   const messageLineBudget = Math.max(4, termHeight - visibleInputLineCount * 2 - inlineMenuRows - 10);
@@ -1050,51 +1034,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   let usedMessageLines = 0;
   let visibleMessageStart = messages.length;
   for (let i = messages.length - 1; i >= 0; i--) {
-    const nextLineCount = messageLineCount(messages[i]);
+    const nextLineCount = messageLineCount(messages[i], chatTextWidth);
     if (visibleMessageStart < messages.length && usedMessageLines + nextLineCount > messageLineBudget) break;
     usedMessageLines += nextLineCount;
     visibleMessageStart = i;
   }
   const hiddenMessageCount = visibleMessageStart;
   const visibleMessages = messages.slice(visibleMessageStart);
-  const sidebarRows = [
-    { text: sidebarLine('Session'), bold: true },
-    { text: sidebarRule(), dim: true },
-    { text: sidebarLine('MiniAgent Chat'), color: TUI_THEME.accent },
-    { text: sidebarLine(`${messages.length} messages`), dim: true },
-    { text: sidebarLine() },
-    { text: sidebarLine('Model'), bold: true },
-    { text: sidebarRule(), dim: true },
-    { text: sidebarLine(modelName), dim: true },
-    { text: sidebarLine(pill(currentMode)), color: TUI_THEME.accent },
-    { text: sidebarLine() },
-    { text: sidebarLine('Context'), bold: true },
-    { text: sidebarRule(), dim: true },
-    { text: sidebarLine(`${tokensUsed.toLocaleString()} tokens`), dim: true },
-    { text: sidebarLine(`${tokenPercent}% used`), dim: true },
-    { text: sidebarLine(`${totalCost} spent`), dim: true },
-    { text: sidebarLine() },
-    { text: sidebarLine('System'), bold: true },
-    { text: sidebarRule(), dim: true },
-    { text: sidebarLine(pill('Slash ready')), color: TUI_THEME.success },
-    { text: sidebarLine(promptStash ? 'Draft saved' : 'No draft'), dim: !promptStash, color: promptStash ? TUI_THEME.warning : undefined },
-    { text: sidebarLine(lastUserPrompt ? 'Retry ready' : 'No retry'), dim: !lastUserPrompt, color: lastUserPrompt ? TUI_THEME.success : undefined },
-    { text: sidebarLine(lastExportPath ? 'Exported session' : 'Ctrl+E export'), dim: !lastExportPath, color: lastExportPath ? TUI_THEME.success : undefined },
-    { text: sidebarLine(lastCopyStatus === 'copied' ? 'Copied message' : lastCopyStatus === 'fallback' ? 'Copy fallback' : 'C copy timeline'), dim: lastCopyStatus === 'idle', color: lastCopyStatus === 'copied' ? TUI_THEME.success : lastCopyStatus === 'fallback' ? TUI_THEME.warning : undefined },
-    { text: sidebarLine(lastForkIndex ? `Forked at #${lastForkIndex}` : 'F fork timeline'), dim: !lastForkIndex, color: lastForkIndex ? TUI_THEME.warning : undefined },
-    { text: sidebarLine(forkUndoMessages ? 'U undo fork' : 'No undo'), dim: !forkUndoMessages, color: forkUndoMessages ? TUI_THEME.warning : undefined },
-    { text: sidebarLine('Ctrl+T timeline'), dim: true },
-    { text: sidebarLine('0 LSP'), dim: true },
-  ];
-  const sidebarFooterRows = [
-    { text: sidebarRule(), dim: true },
-    { text: sidebarLine(`• MiniAgent ${version}`), color: TUI_THEME.success },
-    { text: sidebarLine('by Zevan'), dim: true },
-  ];
-  const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length - sidebarFooterRows.length);
-  const footerRight = notice?.message || (state.showSlashMenu && state.slashMenuMode === 'modal' ? '↑↓ move  Enter select  Esc close' : hasConversation ? '• 0 LSP  /status' : version);
-  const footerRightWidth = getStringWidth(footerRight);
-  const footerLeftWidth = Math.max(10, termWidth - footerRightWidth - 2);
 
   return (
     // 最外层容器：纵向布局、宽度 100%、高度使用终端实际行数（明确数值）
@@ -1122,29 +1068,21 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           termHeight={termHeight}
         />
       ) : state.showSlashMenu && state.slashMenuMode === 'modal' ? (
-        <DialogFrame termWidth={termWidth} termHeight={termHeight} width={modalWidth}>
-              <DialogHeader title="Command Palette" meta={filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0 commands'} />
-              <Box marginTop={1} flexDirection="column">
-                <Text dimColor>Search</Text>
-                <Text backgroundColor={TUI_THEME.panel}>{fillByWidth(` ${state.slashFilter || 'type command name...'}`, modalContentWidth)}</Text>
-              </Box>
-              <Box marginTop={1} flexDirection="column">
-                {visibleSlashCommands.length === 0 && (
-                  <Text dimColor>{fillByWidth('No commands found', modalContentWidth)}</Text>
-                )}
-                {renderCommandRows({ rows: visibleSlashRows, width: modalContentWidth, activeIndex: activeSlashIndex, keyPrefix: 'modal-command' })}
-              </Box>
-              <Box marginTop={1} justifyContent="space-between">
-                <Text dimColor>↑↓ move</Text>
-                <Text dimColor>{visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : 'Enter select   Esc close'}</Text>
-              </Box>
-              {selectedSlashCommand && (
-                <Box marginTop={1} flexDirection="column">
-                  <Text color={TUI_THEME.warning}>{fillByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, modalContentWidth)}</Text>
-                  <Text dimColor>{fillByWidth(truncateByWidth(selectedSlashCommand.description, modalContentWidth).text, modalContentWidth)}</Text>
-                </Box>
-              )}
-        </DialogFrame>
+        <CommandPaletteDialog
+          width={modalWidth}
+          contentWidth={modalContentWidth}
+          termWidth={termWidth}
+          termHeight={termHeight}
+          filter={state.slashFilter}
+          totalCount={filteredSlashCommands.length}
+          scrollHint={slashScrollHint}
+          activeIndex={activeSlashIndex}
+          rows={visibleSlashRows}
+          selectedName={selectedSlashCommand?.name ?? ''}
+          selectedUsage={selectedSlashUsage}
+          selectedCategory={selectedSlashCategory}
+          selectedDescription={selectedSlashCommand?.description ?? ''}
+        />
       ) : !hasConversation ? (
         // 起始页面：Logo + 输入框，垂直居中显示
         // flexGrow={1}：占满除状态栏外的所有剩余空间
@@ -1192,126 +1130,37 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
               {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, startCommandMenuWidth - 2), activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command' })}
               {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, startCommandMenuWidth - 2)).text}</Text>}
-              <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : menuHint(startCommandMenuWidth), Math.max(20, startCommandMenuWidth - 2))}</Text>
+              <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (startCommandMenuWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, startCommandMenuWidth - 2))}</Text>
             </Box>
           )}
-          <Box width={textWidth + 2} flexDirection="column">
-            <Box width={textWidth + 2}>
-              <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
-            </Box>
-            {visibleInputLines.flatMap((line, visibleRow) => {
-              const row = composerInputStart + visibleRow;
-              return [
-              <Box key={`line-${row}`} width={textWidth + 2}>
-                <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row, textWidth)}</Text>
-              </Box>,
-              <Box key={`gap-${row}`} width={textWidth + 2}>
-                <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
-              </Box>
-            ];
-            })}
-            <Box width={textWidth + 2}>
-              <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
-            </Box>
-            <Box width={textWidth + 2}>
-              <Text color="white" backgroundColor={TUI_THEME.selected}> {currentMode} </Text>
-              <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(`${TUI_GLYPHS.bullet} ${truncateByWidth(`${modelName} ${state.agentName} ${promptStateLabel}`.trim(), textWidth - currentMode.length - 4).text}`, textWidth - currentMode.length)}</Text>
-            </Box>
-            <Box width={textWidth + 2}>
-              <Text dimColor backgroundColor={TUI_THEME.panel}>{dashLine}</Text>
-            </Box>
-            <Box width={textWidth + 2} justifyContent="flex-end">
-              <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(composerHint(textWidth), textWidth + 2).text, textWidth + 2)}</Text>
-            </Box>
-          </Box>
+          <Composer
+            inputLines={state.inputLines}
+            cursorRow={state.cursorRow}
+            cursorCol={state.cursorCol}
+            currentMode={currentMode}
+            modelName={modelName}
+            agentName={state.agentName}
+            promptStateLabel={promptStateLabel}
+            width={textWidth + 2}
+            contentWidth={textWidth + 2}
+            textWidth={textWidth}
+            maxVisibleLines={maxComposerInputLines}
+            position="start"
+          />
         </Box>
       ) : (
         // 对话页面：左侧消息/输入框 + 右侧上下贯穿 sidebar
         <Box flexDirection="row" height={termHeight - 1}>
           <Box flexDirection="column" width={chatAreaWidth}>
-            {/* 左侧：对话消息列表，左右 padding 2 字符 */}
-            <Box flexDirection="column" width={chatAreaWidth} height={messagePaneHeight} paddingX={2}>
-              {/* 遍历消息列表 */}
-              {hiddenMessageCount > 0 && (
-                <Box marginBottom={1}>
-                  <Text dimColor>{hiddenMessageCount} earlier messages hidden</Text>
-                </Box>
-              )}
-              {visibleMessages.map((msg, i) => (
-                // 每条消息容器：纵向排列、底部间距 1 行
-                <Box key={hiddenMessageCount + i} flexDirection="column" marginBottom={1}>
-                  {/* 用户消息：使用灰底块，避免和应用主色抢视觉层级 */}
-                  {msg.role === 'user' && (
-                    <Box flexDirection="column">
-                      <Text dimColor>User</Text>
-                      <Text backgroundColor={TUI_THEME.panel}>{fillByWidth('', chatTextWidth + 2)}</Text>
-                      {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
-                        <Text key={lineIndex} color="white" backgroundColor={TUI_THEME.panel}> {fillByWidth(line, chatTextWidth)} </Text>
-                      ))}
-                      <Text backgroundColor={TUI_THEME.panel}>{fillByWidth('', chatTextWidth + 2)}</Text>
-                    </Box>
-                  )}
-                  {/* 助手思考消息：黄色文本、显示耗时 */}
-                  {msg.role === 'assistant' && msg.type === 'thought' && (
-                    <Box flexDirection="column">
-                      <Text color={TUI_THEME.warning}>MiniAgent thinking</Text>
-                      <Text>{''}</Text>
-                      <Text dimColor>{msg.duration}</Text>
-                      <Text>{''}</Text>
-                    </Box>
-                  )}
-                  {/* 助手工具调用消息：绿色文本、显示工具名和内容 */}
-                  {msg.role === 'assistant' && msg.type === 'tool' && (
-                    <Box flexDirection="column">
-                      <Text color={TUI_THEME.success}>Tool {TUI_GLYPHS.bullet} {msg.toolName}</Text>
-                      <Text>{''}</Text>
-                      {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
-                        <Text key={lineIndex} dimColor>{line}</Text>
-                      ))}
-                      <Text>{''}</Text>
-                    </Box>
-                  )}
-                  {msg.role === 'assistant' && msg.type === 'error' && (
-                    <Box flexDirection="column">
-                      <Text color="red">MiniAgent error</Text>
-                      <Text>{''}</Text>
-                      {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
-                        <Text key={lineIndex} color="red">{line}</Text>
-                      ))}
-                      <Text>{''}</Text>
-                    </Box>
-                  )}
-                  {/* 助手普通文本消息：直接显示内容 */}
-                  {msg.role === 'assistant' && msg.type === 'text' && (
-                    <Box flexDirection="column">
-                      <Text color={TUI_THEME.accent}>MiniAgent</Text>
-                      <Text>{''}</Text>
-                      {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
-                        <Text key={lineIndex}>{line}</Text>
-                      ))}
-                      <Text>{''}</Text>
-                    </Box>
-                  )}
-                </Box>
-              ))}
-              {/* 流式响应中：显示正在输出的文本 */}
-              {state.isProcessing && state.currentResponse && (
-                <Box flexDirection="column">
-                  <Text color={TUI_THEME.accent}>MiniAgent streaming</Text>
-                  <Text>{''}</Text>
-                  {wrapByWidth(state.currentResponse, chatTextWidth).map((line, lineIndex) => (
-                    <Text key={lineIndex}>{line}</Text>
-                  ))}
-                  <Text>{''}</Text>
-                </Box>
-              )}
-              {state.isProcessing && !state.currentResponse && (
-                <Box flexDirection="column">
-                  <Text color={TUI_THEME.accent}>MiniAgent thinking</Text>
-                  <Text dimColor>Waiting for model response...</Text>
-                </Box>
-              )}
-            </Box>
+            <MessageList
+              messages={visibleMessages}
+              hiddenMessageCount={hiddenMessageCount}
+              chatTextWidth={chatTextWidth}
+              chatAreaWidth={chatAreaWidth}
+              height={messagePaneHeight}
+              isProcessing={state.isProcessing}
+              currentResponse={state.currentResponse}
+            />
             {state.showSlashMenu && state.slashMenuMode === 'inline' && (
               <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
                 <Box justifyContent="space-between">
@@ -1321,97 +1170,43 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                 {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
                 {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, chatInputBoxWidth - 4), activeIndex: activeSlashIndex, keyPrefix: 'chat-inline-command' })}
                 {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, chatInputBoxWidth - 4)).text}</Text>}
-                <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : menuHint(chatInputBoxWidth), Math.max(20, chatInputBoxWidth - 4))}</Text>
+                <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (chatInputBoxWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, chatInputBoxWidth - 4))}</Text>
               </Box>
             )}
-            <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} marginBottom={1}>
-              <Text color="#5969E0">┃</Text>
-              <Box width={chatInputBoxWidth - 1} flexDirection="column">
-              {/* 顶部留白：用空格占一行高度 */}
-                <Box width={composerContentWidth}>
-                <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(composerContentWidth)}</Text>
-              </Box>
-              {/* 输入框文本行 */}
-              {visibleInputLines.flatMap((line, visibleRow) => {
-                const row = composerInputStart + visibleRow;
-                return [
-                  <Box key={`line-${row}`} width={composerContentWidth}>
-                  <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row, chatTextWidth, composerContentWidth)}</Text>
-                </Box>,
-                  <Box key={`gap-${row}`} width={composerContentWidth}>
-                  <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(composerContentWidth)}</Text>
-                </Box>
-              ];
-              })}
-              {/* 底部留白：与顶部留白对称 */}
-                <Box width={composerContentWidth}>
-                <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(composerContentWidth)}</Text>
-              </Box>
-              {/* 模式信息行：显示当前模式和模型名称 */}
-                <Box width={composerContentWidth}>
-                {/* color="blue": 模式文字使用蓝色 */}
-                <Text color="white" backgroundColor={TUI_THEME.selected}> {currentMode} </Text>
-                {/* 
-                  truncateByWidth(...): 截断模型名称
-                  textWidth - currentMode.length - 2: 
-                    - currentMode.length: 模式名称长度
-                    - 2: 模式两侧各 1 个空格
-                */}
-                <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${state.agentName} ${promptStateLabel}`.trim(), composerContentWidth - currentMode.length - 2).text, composerContentWidth - currentMode.length)}</Text>
-              </Box>
-              {/* 虚线分隔符：视觉分隔线 */}
-                <Box width={composerContentWidth}>
-                  <Text dimColor backgroundColor={TUI_THEME.panel}>{TUI_GLYPHS.divider.repeat(composerContentWidth)}</Text>
-              </Box>
-              {/* 快捷键提示：显示可用快捷键 */}
-              {/* justifyContent="flex-end": 内容右对齐 */}
-                <Box width={composerContentWidth} justifyContent="flex-end">
-                  <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(composerHint(chatTextWidth), composerContentWidth)}</Text>
-              </Box>
-            </Box>
-          </Box>
-          </Box>
-          {/* 右侧：侧边栏，固定宽度，内部使用 padding 保持内容不贴边 */}
-          <Box width={sidebarWidth} flexDirection="column" paddingX={sidebarPaddingX} paddingY={1}>
-            {sidebarRows.map((row, i) => (
-              <Text
-                key={`sidebar-row-${i}`}
-                bold={row.bold}
-                color={row.color}
-                dimColor={row.dim}
-                backgroundColor={TUI_THEME.panel}
-              >{row.text}</Text>
-            ))}
-            {Array.from({ length: sidebarFillRows }).map((_, i) => (
-              <Text key={`sidebar-fill-${i}`} backgroundColor={TUI_THEME.panel}>{sidebarLine()}</Text>
-            ))}
-            {sidebarFooterRows.map((row, i) => (
-              <Text
-                key={`sidebar-footer-${i}`}
-                color={row.color}
-                dimColor={row.dim}
-                backgroundColor={TUI_THEME.panel}
-              >{row.text}</Text>
-            ))}
-          </Box>
+            <Composer
+              inputLines={state.inputLines}
+              cursorRow={state.cursorRow}
+              cursorCol={state.cursorCol}
+              currentMode={currentMode}
+              modelName={modelName}
+              agentName={state.agentName}
+              promptStateLabel={promptStateLabel}
+              width={chatInputBoxWidth}
+              contentWidth={composerContentWidth}
+              textWidth={chatTextWidth}
+              maxVisibleLines={maxComposerInputLines}
+              position="chat"
+            />
+          {/* 右侧：侧边栏 */}
+          <Sidebar
+            rows={sidebarRows}
+            footerRows={sidebarFooterRows}
+            width={sidebarWidth}
+            paddingX={sidebarPaddingX}
+            fillHeight={sidebarFillRows}
+          />
+        </Box>
         </Box>
       )}
 
-      <Box width={termWidth} height={1}>
-        <Text dimColor>{fillByWidth(state.showSlashMenu && state.slashMenuMode === 'modal' ? 'Palette' : `${cwd}:main`, footerLeftWidth)}</Text>
-        {notice ? (
-          <NoticeText notice={notice} width={footerRightWidth} />
-        ) : state.showSlashMenu && state.slashMenuMode === 'modal' ? (
-          <Text dimColor>{truncateByWidth(footerRight, footerRightWidth).text}</Text>
-        ) : hasConversation ? (
-          <>
-            <Text color={TUI_THEME.success}>•</Text>
-            <Text dimColor>{truncateByWidth(' 0 LSP  /status', Math.max(0, termWidth - footerLeftWidth - 1)).text}</Text>
-          </>
-        ) : (
-          <Text dimColor>{truncateByWidth(version, footerRightWidth).text}</Text>
-        )}
-      </Box>
+      <Footer
+        cwd={cwd}
+        version={version}
+        termWidth={termWidth}
+        notice={notice}
+        isPaletteOpen={state.showSlashMenu && state.slashMenuMode === 'modal'}
+        hasConversation={hasConversation}
+      />
     </Box>
   );
 }
