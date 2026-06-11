@@ -22,6 +22,88 @@ import { TimelineDialog } from './primitives/TimelineDialog.js';
 import { fillByWidth, getStringWidth, truncateByWidth } from './primitives/text.js';
 import type { Message } from './types.js';
 import { safeCopy } from './primitives/Clipboard.js';
+import { copyTranscript } from './primitives/Transcript.js';
+import {
+  createSessionToggles, toggleTimestamps, toggleThinking,
+  toggleToolDetails, toggleScrollbar, toggleSidebar, toggleConcealCode,
+  type SessionToggles,
+} from './primitives/SessionToggles.js';
+import {
+  createUndoRedoState, pushSnapshot, undo, redo,
+  type UndoRedoState,
+} from './primitives/UndoRedo.js';
+import {
+  PermissionPrompt, createPermissionState, resolvePermission,
+  type PermissionAction, type PermissionState,
+} from './primitives/PermissionPrompt.js';
+import {
+  QuestionPrompt, createQuestionState, resolveQuestion,
+  type QuestionState,
+} from './primitives/QuestionPrompt.js';
+import {
+  createSessionManager, createSession, switchSession, getCurrentSession,
+  updateSessionMessages, renameSession, deleteSession, pinSession,
+  saveSession, loadSessions, deleteSessionFile,
+  type SessionManagerState,
+} from './primitives/SessionManager.js';
+import {
+  ModelSelector, createModelSelectorState, openModelSelector, closeModelSelector,
+  modelSelectorUp, modelSelectorDown, modelSelectorType, modelSelectorBackspace,
+  type ModelSelectorState, type ModelInfo,
+} from './primitives/ModelSelector.js';
+import {
+  AgentSelector, createAgentSelectorState, openAgentSelector, closeAgentSelector,
+  agentSelectorUp, agentSelectorDown,
+  type AgentSelectorState,
+} from './primitives/AgentSelector.js';
+import {
+  WhichKey, createWhichKeyState, openWhichKey, closeWhichKey,
+  DEFAULT_KEYBINDINGS,
+  type WhichKeyState,
+} from './primitives/WhichKey.js';
+import {
+  createThemeState, nextTheme,
+  type ThemeState,
+} from './primitives/theme.js';
+import { getRandomTip } from './primitives/HomeTips.js';
+import {
+  moveWordLeft, moveWordRight, deleteLine, deleteToLineEnd,
+  deleteWordLeft, deleteWordRight,
+} from './primitives/InputActions.js';
+import {
+  SessionListDialog, createSessionListState, openSessionList, closeSessionList,
+  sessionListUp, sessionListDown, sessionListType, sessionListBackspace,
+  type SessionListState,
+} from './primitives/SessionListDialog.js';
+import {
+  SessionRenameDialog, createSessionRenameState, openSessionRename, closeSessionRename,
+  sessionRenameType, sessionRenameBackspace,
+  type SessionRenameState,
+} from './primitives/SessionRenameDialog.js';
+import {
+  StashListDialog, createStashListState, openStashList, closeStashList,
+  stashListUp, stashListDown,
+  type StashListState,
+} from './primitives/StashListDialog.js';
+import {
+  ExportOptionsDialog, createExportOptionsState, openExportOptions, closeExportOptions,
+  exportOptionsUp, exportOptionsDown, exportOptionsToggle,
+  type ExportOptionsState,
+} from './primitives/ExportOptionsDialog.js';
+import { ErrorBoundary } from './primitives/ErrorBoundary.js';
+import { CompactionMarker as _CompactionMarker } from './primitives/CompactionMarker.js';
+import { detectPaste as _detectPaste } from './primitives/PasteSummary.js';
+import { getDialogWidth as _getDialogWidth, getContentWidth as _getContentWidth, type DialogSize } from './primitives/DialogSize.js';
+import { createModeStack, pushMode as _pushMode, popMode as _popMode, currentMode as _currentModeStack, type ModeStack } from './primitives/ModeStack.js';
+import { findAtTrigger, filterFiles, listFiles, AutocompletePopup, type FileEntry } from './primitives/FileAutocomplete.js';
+import { createFrecencyState, recordUse as _recordUse, rankByFrecency as _rankByFrecency, type FrecencyState } from './primitives/FrecencyHistory.js';
+import { createQuickSwitchState, getSlotSessionId, type QuickSwitchState } from './primitives/QuickSwitch.js';
+import { openEditor } from './primitives/EditorIntegration.js';
+import { RetryAction, createRetryActionState, closeRetryAction, type RetryActionState } from './primitives/RetryActionDialog.js';
+import { whichKeyNextCategory, whichKeyPrevCategory, whichKeyToggleLayout } from './primitives/WhichKey.js';
+import { SessionDestinationPicker, createSessionDestinationState, closeSessionDestination, type SessionDestinationState } from './primitives/SessionDestination.js';
+import { ConsolePanel, createConsoleState, toggleConsole, type ConsoleState } from './primitives/ConsolePanel.js';
+import { UpdateNotification, createUpdateState, closeUpdate, type UpdateState } from './primitives/UpdateNotification.js';
 
 // Agent 模式列表：Build（构建模式）和 Plan（规划模式）
 const AGENT_MODES = ['Build', 'Plan'] as const;
@@ -111,6 +193,35 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [lastForkIndex, setLastForkIndex] = useState<number | null>(null);
   const [forkUndoMessages, setForkUndoMessages] = useState<Message[] | null>(null);
   const [notice, setNotice] = useState<NoticeState | null>(null);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [sessionToggles, setSessionToggles] = useState<SessionToggles>(() => createSessionToggles());
+  const [undoRedoState, setUndoRedoState] = useState<UndoRedoState>(() => createUndoRedoState());
+  const [permState, setPermState] = useState<PermissionState>(() => createPermissionState());
+  const [questionState, setQuestionState] = useState<QuestionState>(() => createQuestionState());
+  const [activePermIndex, setActivePermIndex] = useState(0);
+  const [sessionManager, setSessionManager] = useState<SessionManagerState>(() => createSessionManager(cwd));
+  const [modelSelector, setModelSelector] = useState<ModelSelectorState>(() => createModelSelectorState());
+  const [agentSelector, setAgentSelector] = useState<AgentSelectorState>(() => createAgentSelectorState());
+  const [whichKey, setWhichKey] = useState<WhichKeyState>(() => createWhichKeyState());
+  const [_themeState, setThemeState] = useState<ThemeState>(() => createThemeState());
+  const [currentTip] = useState(() => getRandomTip());
+  const [sessionList, setSessionList] = useState<SessionListState>(() => createSessionListState());
+  const [sessionRename, setSessionRename] = useState<SessionRenameState>(() => createSessionRenameState());
+  const [stashList, setStashList] = useState<StashListState>(() => createStashListState());
+  const [exportOptions, setExportOptions] = useState<ExportOptionsState>(() => createExportOptionsState());
+  const [_modeStack, _setModeStack] = useState<ModeStack>(() => createModeStack());
+  const [autocompleteFiles, setAutocompleteFiles] = useState<FileEntry[]>([]);
+  const [autocompleteIndex, setAutocompleteIndex] = useState(0);
+  const [autocompleteQuery, setAutocompleteQuery] = useState('');
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [_frecency] = useState<FrecencyState>(() => createFrecencyState());
+  const [_dialogSize, setDialogSize] = useState<DialogSize>('medium');
+  const [_terminalTitle, setTerminalTitle] = useState('MiniAgent');
+  const [quickSwitch, _setQuickSwitch] = useState<QuickSwitchState>(() => createQuickSwitchState());
+  const [retryAction, setRetryAction] = useState<RetryActionState>(() => createRetryActionState());
+  const [sessionDestination, setSessionDestination] = useState<SessionDestinationState>(() => createSessionDestinationState());
+  const [consolePanel, setConsolePanel] = useState<ConsoleState>(() => createConsoleState());
+  const [updateNotif, setUpdateNotif] = useState<UpdateState>(() => createUpdateState());
   const promptStoreDir = path.join(cwd, '.miniagent', 'history');
   const promptHistoryPath = path.join(promptStoreDir, 'tui-prompts.json');
   const promptStashPath = path.join(promptStoreDir, 'tui-draft.txt');
@@ -166,6 +277,19 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     const timer = setTimeout(() => setNotice(null), 2500);
     return () => clearTimeout(timer);
   }, [notice]);
+
+  // Auto-scroll to bottom when new messages arrive (if not manually scrolled up)
+  useEffect(() => {
+    if (scrollOffset === 0) return; // already at bottom
+    setScrollOffset(0);
+  }, [messages.length]);
+
+  // Load sessions on mount
+  useEffect(() => {
+    loadSessions(path.join(cwd, '.miniagent', 'sessions')).then(sessions => {
+      setSessionManager(prev => ({ ...prev, sessions }));
+    }).catch(() => {});
+  }, [cwd]);
 
   // 计算当前模式名称（从 AGENT_MODES 数组中取）
   const currentMode = AGENT_MODES[state.modeIndex];
@@ -224,7 +348,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       role: 'user',
       content: text,
       type: 'text',
+      createdAt: Date.now(),
     };
+    // Push snapshot for undo/redo
+    setUndoRedoState(prev => pushSnapshot(prev, messages));
     setMessages(prev => [...prev, userMsg]); // 添加到消息列表
     setTokensUsed(prev => prev + Math.floor(text.length / 4)); // 估算 token 消耗
     setPromptHistory(prev => {
@@ -330,6 +457,63 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     const isBackspaceKey = key.backspace || input === '\u007f' || input === '\b' || input === '\x08' || (key.delete && !isForwardDeleteKey);
     const isHomeKey = navigationKey.home || input === '\u001b[H' || input === '\u001bOH' || input === '\u001b[1~';
     const isEndKey = navigationKey.end || input === '\u001b[F' || input === '\u001bOF' || input === '\u001b[4~';
+
+    // ==================== PermissionPrompt: arrow keys + Enter ====================
+    if (permState.pending.length > 0) {
+      const currentPerm = permState.pending[0];
+      if (key.leftArrow) {
+        setActivePermIndex(prev => Math.max(0, prev - 1));
+        return;
+      }
+      if (key.rightArrow) {
+        setActivePermIndex(prev => Math.min(2, prev + 1));
+        return;
+      }
+      if (isEnterKey) {
+        const actions: PermissionAction[] = ['allow_once', 'allow_always', 'reject'];
+        const action = actions[activePermIndex];
+        setPermState(prev => resolvePermission(prev, currentPerm.id, action));
+        if (action === 'reject') {
+          setNotice({ message: 'Permission rejected', level: 'warning' });
+        } else {
+          setNotice({ message: `Permission ${action}`, level: 'success' });
+        }
+        return;
+      }
+      if (key.escape || input.toLowerCase() === 'n') {
+        setPermState(prev => resolvePermission(prev, currentPerm.id, 'reject'));
+        setNotice({ message: 'Permission rejected', level: 'warning' });
+        return;
+      }
+      return;
+    }
+
+    // ==================== QuestionPrompt: arrow keys + Enter ====================
+    if (questionState.pending.length > 0) {
+      const currentQuestion = questionState.pending[0];
+      if (key.upArrow) {
+        setActivePermIndex(prev => Math.max(0, prev - 1));
+        return;
+      }
+      if (key.downArrow) {
+        setActivePermIndex(prev => Math.min(currentQuestion.options.length - 1, prev + 1));
+        return;
+      }
+      if (isEnterKey) {
+        const selectedOption = currentQuestion.options[activePermIndex];
+        if (selectedOption) {
+          setQuestionState(prev => resolveQuestion(prev, currentQuestion.id));
+          setNotice({ message: `Answered: ${selectedOption.label}`, level: 'success' });
+        }
+        return;
+      }
+      if (key.escape) {
+        setQuestionState(prev => resolveQuestion(prev, currentQuestion.id));
+        setNotice({ message: 'Question dismissed', level: 'warning' });
+        return;
+      }
+      return;
+    }
 
     if (state.showExitConfirm) {
       if (isEnterKey || input.toLowerCase() === 'y') {
@@ -580,6 +764,452 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
+    // ==================== ScrollCommands: PageUp/PageDn ====================
+    if (key.pageUp) {
+      setScrollOffset(prev => Math.min(prev + Math.floor(messagePaneHeight / 2), Math.max(0, messages.length - messagePaneHeight)));
+      return;
+    }
+    if (key.pageDown) {
+      setScrollOffset(prev => Math.max(prev - Math.floor(messagePaneHeight / 2), 0));
+      return;
+    }
+    // Ctrl+Up: half page up
+    if (key.ctrl && key.upArrow) {
+      setScrollOffset(prev => Math.min(prev + Math.floor(messagePaneHeight / 2), Math.max(0, messages.length - messagePaneHeight)));
+      return;
+    }
+    // Ctrl+Down: half page down
+    if (key.ctrl && key.downArrow) {
+      setScrollOffset(prev => Math.max(prev - Math.floor(messagePaneHeight / 2), 0));
+      return;
+    }
+    // Ctrl+Home: scroll to top
+    if (key.ctrl && isHomeKey) {
+      setScrollOffset(Math.max(0, messages.length - messagePaneHeight));
+      return;
+    }
+    // Ctrl+End: scroll to bottom
+    if (key.ctrl && isEndKey) {
+      setScrollOffset(0);
+      return;
+    }
+
+    // ==================== SessionToggles: Ctrl+Shift+T prefix ====================
+    // Ctrl+Shift+T then key for toggle (T=timestamps, H=thinking, D=tool details, S=scrollbar, B=sidebar, C=code conceal)
+    // Using direct combos instead for simplicity:
+    if (key.ctrl && key.shift && input.toLowerCase() === 't') {
+      setSessionToggles(prev => { const next = toggleTimestamps(prev); setNotice({ message: `Timestamps: ${next.timestamps ? 'on' : 'off'}`, level: 'info' }); return next; });
+      return;
+    }
+    if (key.ctrl && key.shift && input.toLowerCase() === 'h') {
+      setSessionToggles(prev => { const next = toggleThinking(prev); setNotice({ message: `Thinking: ${next.showThinking ? 'on' : 'off'}`, level: 'info' }); return next; });
+      return;
+    }
+    if (key.ctrl && key.shift && input.toLowerCase() === 'd') {
+      setSessionToggles(prev => { const next = toggleToolDetails(prev); setNotice({ message: `Tool details: ${next.showToolDetails ? 'on' : 'off'}`, level: 'info' }); return next; });
+      return;
+    }
+    if (key.ctrl && key.shift && input.toLowerCase() === 's') {
+      setSessionToggles(prev => { const next = toggleScrollbar(prev); setNotice({ message: `Scrollbar: ${next.showScrollbar ? 'on' : 'off'}`, level: 'info' }); return next; });
+      return;
+    }
+    if (key.ctrl && key.shift && input.toLowerCase() === 'b') {
+      setSessionToggles(prev => { const next = toggleSidebar(prev); setNotice({ message: `Sidebar: ${next.sidebarVisible ? 'on' : 'off'}`, level: 'info' }); return next; });
+      return;
+    }
+    if (key.ctrl && key.shift && input.toLowerCase() === 'g') {
+      setSessionToggles(prev => { const next = toggleConcealCode(prev); setNotice({ message: `Code conceal: ${next.concealCode ? 'on' : 'off'}`, level: 'info' }); return next; });
+      return;
+    }
+
+    // ==================== UndoRedo: Ctrl+Z / Ctrl+Shift+Z ====================
+    if (key.ctrl && !key.shift && input.toLowerCase() === 'z') {
+      const result = undo(undoRedoState);
+      if (result.messages) {
+        setUndoRedoState(result.state);
+        setMessages(result.messages);
+        setNotice({ message: 'Undo', level: 'info' });
+      } else {
+        setNotice({ message: 'Nothing to undo', level: 'warning' });
+      }
+      return;
+    }
+    if (key.ctrl && key.shift && input.toLowerCase() === 'z') {
+      const result = redo(undoRedoState);
+      if (result.messages) {
+        setUndoRedoState(result.state);
+        setMessages(result.messages);
+        setNotice({ message: 'Redo', level: 'info' });
+      } else {
+        setNotice({ message: 'Nothing to redo', level: 'warning' });
+      }
+      return;
+    }
+
+    // ==================== Transcript: Ctrl+Shift+C ====================
+    if (key.ctrl && key.shift && input.toLowerCase() === 'c') {
+      if (messages.length > 0) {
+        copyTranscript(messages, { modelName })
+          .then(result => {
+            if (result.ok) {
+              setNotice({ message: 'Copied transcript', level: 'success' });
+            } else {
+              setNotice({ message: `Copy failed: ${result.error}`, level: 'error' });
+            }
+          });
+      } else {
+        setNotice({ message: 'No messages to copy', level: 'warning' });
+      }
+      return;
+    }
+
+    // ==================== Session Manager: Ctrl+O (list), Ctrl+N (new), Ctrl+S (save) ====================
+    if (key.ctrl && input.toLowerCase() === 'o') {
+      updateState(prev => ({ ...prev, showSlashMenu: false, slashMenuMode: 'modal' }));
+      // Toggle session list view
+      setNotice({ message: `Sessions: ${sessionManager.sessions.length} total`, level: 'info' });
+      return;
+    }
+    if (key.ctrl && input.toLowerCase() === 'n') {
+      setSessionManager(prev => {
+        const next = createSession(prev, undefined, model, currentMode);
+        saveSession(next.session, prev.sessionDir).catch(() => {});
+        return next.state;
+      });
+      setMessages([]);
+      updateState(prev => ({ ...prev, currentResponse: '', isProcessing: false, historyIndex: null }));
+      setNotice({ message: 'New session created', level: 'success' });
+      return;
+    }
+    if (key.ctrl && input.toLowerCase() === 's') {
+      const current = getCurrentSession(sessionManager);
+      if (current) {
+        const updated = updateSessionMessages(sessionManager, current.id, messages);
+        setSessionManager(updated);
+        const session = getCurrentSession(updated);
+        if (session) {
+          saveSession(session, sessionManager.sessionDir).catch(() => {});
+        }
+        setNotice({ message: 'Session saved', level: 'success' });
+      }
+      return;
+    }
+
+    // ==================== Model Selector: Ctrl+M ====================
+    if (key.ctrl && input.toLowerCase() === 'm') {
+      const models: ModelInfo[] = [
+        { id: model, name: model, provider: 'Ollama', favorite: true },
+        { id: 'llama3.2', name: 'llama3.2', provider: 'Ollama' },
+        { id: 'codellama', name: 'codellama', provider: 'Ollama' },
+        { id: 'deepseek-coder', name: 'deepseek-coder', provider: 'Ollama' },
+        { id: 'mistral', name: 'mistral', provider: 'Ollama' },
+        { id: 'qwen2.5-coder', name: 'qwen2.5-coder', provider: 'Ollama' },
+      ];
+      setModelSelector(prev => prev.isOpen ? closeModelSelector(prev) : openModelSelector(prev, models));
+      return;
+    }
+
+    // ==================== Agent Selector: Ctrl+Shift+A ====================
+    if (key.ctrl && key.shift && input.toLowerCase() === 'a') {
+      setAgentSelector(prev => prev.isOpen ? closeAgentSelector(prev) : openAgentSelector(prev));
+      return;
+    }
+
+    // ==================== Which-Key: F1 ====================
+    if (input === '\u001bOP' || input === '\u001b[11~') {
+      setWhichKey(prev => prev.isOpen ? closeWhichKey(prev) : openWhichKey(prev));
+      return;
+    }
+
+    // ==================== Theme: Ctrl+Shift+X ====================
+    if (key.ctrl && key.shift && input.toLowerCase() === 'x') {
+      setThemeState(prev => {
+        const next = nextTheme(prev);
+        setNotice({ message: `Theme: ${next.current}`, level: 'info' });
+        return next;
+      });
+      return;
+    }
+
+    // ==================== Model Selector keyboard ====================
+    if (modelSelector.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setModelSelector(prev => modelSelectorUp(prev));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setModelSelector(prev => modelSelectorDown(prev, prev.models.length));
+        return;
+      }
+      if (isEnterKey) {
+        const selected = modelSelector.models[modelSelector.selectedIndex];
+        if (selected) {
+          setNotice({ message: `Selected model: ${selected.name}`, level: 'success' });
+        }
+        setModelSelector(prev => closeModelSelector(prev));
+        return;
+      }
+      if (isBackspaceKey) {
+        setModelSelector(prev => modelSelectorBackspace(prev));
+        return;
+      }
+      if (key.escape) {
+        setModelSelector(prev => closeModelSelector(prev));
+        return;
+      }
+      if (input.length === 1 && input >= ' ') {
+        setModelSelector(prev => modelSelectorType(prev, input));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Agent Selector keyboard ====================
+    if (agentSelector.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setAgentSelector(prev => agentSelectorUp(prev));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setAgentSelector(prev => agentSelectorDown(prev));
+        return;
+      }
+      if (isEnterKey) {
+        const selected = agentSelector.agents[agentSelector.selectedIndex];
+        if (selected) {
+          updateState(prev => ({ ...prev, agentName: selected.name.toLowerCase() }));
+          setNotice({ message: `Selected agent: ${selected.name}`, level: 'success' });
+        }
+        setAgentSelector(prev => closeAgentSelector(prev));
+        return;
+      }
+      if (key.escape) {
+        setAgentSelector(prev => closeAgentSelector(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Which-Key keyboard ====================
+    if (whichKey.isOpen) {
+      if (key.escape || (key.ctrl && input === 'p')) {
+        setWhichKey(prev => closeWhichKey(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Session List: Ctrl+O ====================
+    if (key.ctrl && input.toLowerCase() === 'o') {
+      setSessionList(prev => prev.isOpen ? closeSessionList(prev) : openSessionList(prev));
+      return;
+    }
+
+    // ==================== Session Rename: Ctrl+Shift+R ====================
+    if (key.ctrl && key.shift && input.toLowerCase() === 'r') {
+      const current = getCurrentSession(sessionManager);
+      if (current) {
+        setSessionRename(prev => prev.isOpen ? closeSessionRename(prev) : openSessionRename(prev, current.title));
+      }
+      return;
+    }
+
+    // ==================== Stash List: Ctrl+Shift+U ====================
+    if (key.ctrl && key.shift && input.toLowerCase() === 'u') {
+      setStashList(prev => prev.isOpen ? closeStashList(prev) : openStashList(prev));
+      return;
+    }
+
+    // ==================== Export Options: Ctrl+Shift+E ====================
+    if (key.ctrl && key.shift && input.toLowerCase() === 'e') {
+      const current = getCurrentSession(sessionManager);
+      setExportOptions(prev => prev.isOpen ? closeExportOptions(prev) : openExportOptions(prev, current?.title || 'session'));
+      return;
+    }
+
+    // ==================== Session List keyboard ====================
+    if (sessionList.isOpen) {
+      const filteredSessions = sessionManager.sessions;
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setSessionList(prev => sessionListUp(prev));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setSessionList(prev => sessionListDown(prev, filteredSessions.length));
+        return;
+      }
+      if (isEnterKey) {
+        const selected = filteredSessions[sessionList.selectedIndex];
+        if (selected) {
+          setSessionManager(prev => switchSession(prev, selected.id));
+          setMessages(selected.messages);
+          setNotice({ message: `Loaded: ${selected.title}`, level: 'success' });
+        }
+        setSessionList(prev => closeSessionList(prev));
+        return;
+      }
+      if (input.toLowerCase() === 'p') {
+        const selected = filteredSessions[sessionList.selectedIndex];
+        if (selected) {
+          setSessionManager(prev => pinSession(prev, selected.id));
+          setNotice({ message: `Toggled pin: ${selected.title}`, level: 'info' });
+        }
+        return;
+      }
+      if (input.toLowerCase() === 'd') {
+        const selected = filteredSessions[sessionList.selectedIndex];
+        if (selected) {
+          setSessionManager(prev => {
+            const next = deleteSession(prev, selected.id);
+            deleteSessionFile(selected.id, next.sessionDir).catch(() => {});
+            return next;
+          });
+          setNotice({ message: `Deleted: ${selected.title}`, level: 'warning' });
+        }
+        return;
+      }
+      if (isBackspaceKey) {
+        setSessionList(prev => sessionListBackspace(prev));
+        return;
+      }
+      if (key.escape) {
+        setSessionList(prev => closeSessionList(prev));
+        return;
+      }
+      if (input.length === 1 && input >= ' ') {
+        setSessionList(prev => sessionListType(prev, input));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Session Rename keyboard ====================
+    if (sessionRename.isOpen) {
+      if (isEnterKey && sessionRename.value.trim()) {
+        const current = getCurrentSession(sessionManager);
+        if (current) {
+          setSessionManager(prev => renameSession(prev, current.id, sessionRename.value.trim()));
+          setNotice({ message: `Renamed to: ${sessionRename.value.trim()}`, level: 'success' });
+        }
+        setSessionRename(prev => closeSessionRename(prev));
+        return;
+      }
+      if (isBackspaceKey) {
+        setSessionRename(prev => sessionRenameBackspace(prev));
+        return;
+      }
+      if (key.escape) {
+        setSessionRename(prev => closeSessionRename(prev));
+        return;
+      }
+      if (input.length === 1 && input >= ' ') {
+        setSessionRename(prev => sessionRenameType(prev, input));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Stash List keyboard ====================
+    if (stashList.isOpen) {
+      const stashEntries = promptStash ? [{ id: 'stash-0', text: promptStash, timestamp: Date.now(), lineCount: promptStash.split('\n').length }] : [];
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setStashList(prev => stashListUp(prev));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setStashList(prev => stashListDown(prev, stashEntries.length));
+        return;
+      }
+      if (isEnterKey && stashEntries.length > 0) {
+        const entry = stashEntries[stashList.selectedIndex];
+        if (entry) {
+          const lines = entry.text.split('\n');
+          updateState(prev => ({ ...prev, inputLines: lines, cursorRow: lines.length - 1, cursorCol: lines.at(-1)?.length || 0, historyIndex: null, showSlashMenu: false }));
+          setPromptStash(null);
+          persistPromptStash(null).catch(() => {});
+          setNotice({ message: 'Restored stashed prompt', level: 'success' });
+        }
+        setStashList(prev => closeStashList(prev));
+        return;
+      }
+      if (input.toLowerCase() === 'd' && stashEntries.length > 0) {
+        setPromptStash(null);
+        persistPromptStash(null).catch(() => {});
+        setNotice({ message: 'Stash deleted', level: 'warning' });
+        setStashList(prev => closeStashList(prev));
+        return;
+      }
+      if (key.escape) {
+        setStashList(prev => closeStashList(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Export Options keyboard ====================
+    if (exportOptions.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setExportOptions(prev => exportOptionsUp(prev));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setExportOptions(prev => exportOptionsDown(prev));
+        return;
+      }
+      if (input === ' ') {
+        setExportOptions(prev => exportOptionsToggle(prev));
+        return;
+      }
+      if (isEnterKey) {
+        handleExportConversation().catch(() => {});
+        setExportOptions(prev => closeExportOptions(prev));
+        return;
+      }
+      if (key.escape) {
+        setExportOptions(prev => closeExportOptions(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Enhanced Input Actions ====================
+    // Ctrl+Left: word left
+    if (key.ctrl && key.leftArrow) {
+      const result = moveWordLeft(state.inputLines, state.cursorRow, state.cursorCol);
+      updateState(prev => ({ ...prev, inputLines: result.lines, cursorRow: result.cursorRow, cursorCol: result.cursorCol }));
+      return;
+    }
+    // Ctrl+Right: word right
+    if (key.ctrl && key.rightArrow) {
+      const result = moveWordRight(state.inputLines, state.cursorRow, state.cursorCol);
+      updateState(prev => ({ ...prev, inputLines: result.lines, cursorRow: result.cursorRow, cursorCol: result.cursorCol }));
+      return;
+    }
+    // Ctrl+Shift+D: delete line
+    if (key.ctrl && key.shift && input.toLowerCase() === 'd') {
+      const result = deleteLine(state.inputLines, state.cursorRow, state.cursorCol);
+      updateState(prev => ({ ...prev, inputLines: result.lines, cursorRow: result.cursorRow, cursorCol: result.cursorCol }));
+      return;
+    }
+    // Ctrl+K: delete to line end
+    if (key.ctrl && input.toLowerCase() === 'k') {
+      const result = deleteToLineEnd(state.inputLines, state.cursorRow, state.cursorCol);
+      updateState(prev => ({ ...prev, inputLines: result.lines, cursorRow: result.cursorRow, cursorCol: result.cursorCol }));
+      return;
+    }
+    // Ctrl+Backspace: delete word left
+    if (key.ctrl && isBackspaceKey) {
+      const result = deleteWordLeft(state.inputLines, state.cursorRow, state.cursorCol);
+      updateState(prev => ({ ...prev, inputLines: result.lines, cursorRow: result.cursorRow, cursorCol: result.cursorCol, historyIndex: null }));
+      return;
+    }
+    // Ctrl+Delete: delete word right
+    if (key.ctrl && isForwardDeleteKey) {
+      const result = deleteWordRight(state.inputLines, state.cursorRow, state.cursorCol);
+      updateState(prev => ({ ...prev, inputLines: result.lines, cursorRow: result.cursorRow, cursorCol: result.cursorCol, historyIndex: null }));
+      return;
+    }
+
     // 斜杠菜单打开时的输入处理
     if (state.showSlashMenu) {
       if (key.upArrow) {
@@ -665,6 +1295,245 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
             cursorCol: nextFilter.length + 1,
           };
         });
+      }
+      return;
+    }
+
+    // ==================== File Autocomplete (@ trigger) ====================
+    if (showAutocomplete) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setAutocompleteIndex(prev => Math.max(0, prev - 1));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setAutocompleteIndex(prev => Math.min(autocompleteFiles.length - 1, prev + 1));
+        return;
+      }
+      if (key.tab || isEnterKey) {
+        const selected = autocompleteFiles[autocompleteIndex];
+        if (selected) {
+          // Replace @query with the selected file path
+          const currentLine = state.inputLines[state.cursorRow];
+          const trigger = findAtTrigger(currentLine, state.cursorCol);
+          if (trigger) {
+            const before = currentLine.slice(0, trigger.start);
+            const after = currentLine.slice(state.cursorCol);
+            const newText = before + '@' + selected.relativePath + ' ' + after;
+            updateState(prev => ({
+              ...prev,
+              inputLines: prev.inputLines.map((l, i) => i === prev.cursorRow ? newText : l),
+              cursorCol: before.length + selected.relativePath.length + 2,
+            }));
+          }
+        }
+        setShowAutocomplete(false);
+        return;
+      }
+      if (key.escape) {
+        setShowAutocomplete(false);
+        return;
+      }
+      if (isBackspaceKey) {
+        setAutocompleteQuery(prev => {
+          const next = prev.slice(0, -1);
+          if (next.length === 0) {
+            setShowAutocomplete(false);
+            return '';
+          }
+          // Re-filter files
+          listFiles(cwd, cwd).then(files => {
+            setAutocompleteFiles(filterFiles(files, next));
+          }).catch(() => {});
+          return next;
+        });
+        return;
+      }
+      if (input.length === 1 && input >= ' ') {
+        setAutocompleteQuery(prev => {
+          const next = prev + input;
+          listFiles(cwd, cwd).then(files => {
+            setAutocompleteFiles(filterFiles(files, next));
+          }).catch(() => {});
+          return next;
+        });
+        return;
+      }
+      return;
+    }
+
+    // ==================== Dynamic Terminal Title ====================
+    if (key.ctrl && key.shift && input.toLowerCase() === 'w') {
+      setTerminalTitle(prev => {
+        const next = prev === 'MiniAgent' ? `${modelName} | MiniAgent` : 'MiniAgent';
+        process.title = next;
+        setNotice({ message: `Title: ${next}`, level: 'info' });
+        return next;
+      });
+      return;
+    }
+
+    // ==================== Dialog Size Toggle: Ctrl+Shift+Z ====================
+    if (key.ctrl && key.shift && input.toLowerCase() === 'z') {
+      setDialogSize(prev => {
+        const sizes: DialogSize[] = ['medium', 'large', 'xlarge'];
+        const idx = sizes.indexOf(prev);
+        const next = sizes[(idx + 1) % sizes.length];
+        setNotice({ message: `Dialog size: ${next}`, level: 'info' });
+        return next;
+      });
+      return;
+    }
+
+    // ==================== Quick Switch: Ctrl+1-9 ====================
+    if (key.ctrl && input >= '1' && input <= '9') {
+      const slot = parseInt(input) - 1;
+      const sessionId = getSlotSessionId(quickSwitch, slot);
+      if (sessionId) {
+        const session = sessionManager.sessions.find(s => s.id === sessionId);
+        if (session) {
+          setSessionManager(prev => ({
+            ...prev,
+            currentSessionId: session.id,
+          }));
+          setMessages(session.messages);
+          setNotice({ message: `Switched to: ${session.title}`, level: 'success' });
+        }
+      } else {
+        setNotice({ message: `Slot ${slot + 1} is empty`, level: 'warning' });
+      }
+      return;
+    }
+
+    // ==================== Editor Integration: Ctrl+E (long press) or Ctrl+Shift+E ====================
+    // Already using Ctrl+E for export. Use a different combo or integrate differently.
+    // For now, Ctrl+Shift+E opens editor (export options already uses this, so use Ctrl+Shift+J)
+    if (key.ctrl && key.shift && input.toLowerCase() === 'j') {
+      openEditor(state.inputLines.join('\n'), 'prompt').then(result => {
+        if (!result.cancelled && result.content.trim()) {
+          const lines = result.content.split('\n');
+          updateState(prev => ({
+            ...prev,
+            inputLines: lines,
+            cursorRow: lines.length - 1,
+            cursorCol: lines.at(-1)?.length || 0,
+            historyIndex: null,
+          }));
+          setNotice({ message: 'Loaded from editor', level: 'success' });
+        }
+      });
+      return;
+    }
+
+    // ==================== Console Toggle: Ctrl+` ====================
+    if (key.ctrl && input === '`') {
+      setConsolePanel(prev => toggleConsole(prev));
+      return;
+    }
+
+    // ==================== Console keyboard ====================
+    if (consolePanel.isOpen) {
+      if (key.escape) {
+        setConsolePanel(prev => toggleConsole(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Which-Key enhanced keyboard ====================
+    if (whichKey.isOpen) {
+      const categories = [...new Set(DEFAULT_KEYBINDINGS.map(b => b.category))];
+      if (key.leftArrow || input.toLowerCase() === 'h') {
+        setWhichKey(prev => whichKeyPrevCategory(prev, categories.length));
+        return;
+      }
+      if (key.rightArrow || input.toLowerCase() === 'l') {
+        setWhichKey(prev => whichKeyNextCategory(prev, categories.length));
+        return;
+      }
+      if (input === 'd') {
+        setWhichKey(prev => whichKeyToggleLayout(prev));
+        return;
+      }
+      if (key.escape || (key.ctrl && input === 'p')) {
+        setWhichKey(prev => closeWhichKey(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Retry Action keyboard ====================
+    if (retryAction.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setRetryAction(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setRetryAction(prev => ({ ...prev, selectedIndex: Math.min(1, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        if (retryAction.selectedIndex === 0) {
+          setNotice({ message: 'Retrying...', level: 'info' });
+        } else {
+          setNotice({ message: 'Update suppressed', level: 'warning' });
+        }
+        setRetryAction(prev => closeRetryAction(prev));
+        return;
+      }
+      if (key.escape) {
+        setRetryAction(prev => closeRetryAction(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Session Destination keyboard ====================
+    if (sessionDestination.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setSessionDestination(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setSessionDestination(prev => ({ ...prev, selectedIndex: Math.min(prev.destinations.length - 1, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        const dest = sessionDestination.destinations[sessionDestination.selectedIndex];
+        if (dest) {
+          setNotice({ message: `Destination: ${dest.name}`, level: 'success' });
+        }
+        setSessionDestination(prev => closeSessionDestination(prev));
+        return;
+      }
+      if (key.escape) {
+        setSessionDestination(prev => closeSessionDestination(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Update Notification keyboard ====================
+    if (updateNotif.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setUpdateNotif(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setUpdateNotif(prev => ({ ...prev, selectedIndex: Math.min(2, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        if (updateNotif.selectedIndex === 0) {
+          setNotice({ message: 'Updating...', level: 'info' });
+        } else if (updateNotif.selectedIndex === 1) {
+          setNotice({ message: 'Version skipped', level: 'warning' });
+        }
+        setUpdateNotif(prev => closeUpdate(prev));
+        return;
+      }
+      if (key.escape) {
+        setUpdateNotif(prev => closeUpdate(prev));
+        return;
       }
       return;
     }
@@ -842,6 +1711,21 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         const currentLine = newLines[prev.cursorRow];
         const newText = currentLine.slice(0, prev.cursorCol) + input + currentLine.slice(prev.cursorCol);
         const opensInlineSlash = input === '/' && prev.inputLines.length === 1 && prev.cursorRow === 0 && prev.cursorCol === 0;
+
+        // Check for @ trigger (file autocomplete)
+        const newCursorCol = prev.cursorCol + input.length;
+        const trigger = findAtTrigger(newText, newCursorCol);
+        if (trigger) {
+          listFiles(cwd, cwd).then(files => {
+            const filtered = filterFiles(files, trigger.query);
+            setAutocompleteFiles(filtered);
+            setAutocompleteIndex(0);
+            setAutocompleteQuery(trigger.query);
+            setShowAutocomplete(true);
+          }).catch(() => {});
+        } else if (showAutocomplete) {
+          setShowAutocomplete(false);
+        }
         
         // 检查当前行是否超过最大显示宽度
         if (getStringWidth(newText) > textWidth) {
@@ -939,6 +1823,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     lastForkIndex,
     forkUndoMessages,
     sidebarInnerWidth,
+    sessionTitle: getCurrentSession(sessionManager)?.title || 'MiniAgent Chat',
+    timestamps: sessionToggles.timestamps,
+    showThinking: sessionToggles.showThinking,
+    showToolDetails: sessionToggles.showToolDetails,
   });
   const sidebarFooterRows = buildSidebarFooterRows({ version, sidebarInnerWidth });
   const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length - sidebarFooterRows.length);
@@ -1031,12 +1919,126 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const hiddenMessageCount = visibleMessageStart;
   const visibleMessages = messages.slice(visibleMessageStart);
 
+  // Scroll offset: 0 = auto-bottom, >0 = scrolled up by N messages
+  const maxScrollOffset = Math.max(0, messages.length - messagePaneHeight);
+  const effectiveScrollOffset = Math.min(scrollOffset, maxScrollOffset);
+  // When scroll offset is 0, use auto-bottom (existing behavior). When >0, offset from bottom.
+  const scrollAdjustedStart = effectiveScrollOffset > 0
+    ? Math.max(0, messages.length - messagePaneHeight - effectiveScrollOffset)
+    : visibleMessageStart;
+  const scrollAdjustedVisible = messages.slice(scrollAdjustedStart);
+  const scrollAdjustedHidden = scrollAdjustedStart;
+
   return (
+    <ErrorBoundary onError={(err) => {
+      setNotice({ message: `Error: ${err.message}`, level: 'error' });
+    }}>
     // 最外层容器：纵向布局、宽度 100%、高度使用终端实际行数（明确数值）
     // Ink 不支持 height="100%"，需要用明确的数值
     <Box flexDirection="column" width={termWidth} height={termHeight}>
-      {/* 主内容区域：命令面板打开时切换为不透明的模态屏幕，避免底层文字干扰 */}
-      {state.showExitConfirm ? (
+      {/* Main content area */}
+      {permState.pending.length > 0 ? (
+        <PermissionPrompt
+          request={permState.pending[0]}
+          onDecide={(action) => {
+            setPermState(prev => resolvePermission(prev, permState.pending[0].id, action));
+          }}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : questionState.pending.length > 0 ? (
+        <QuestionPrompt
+          request={questionState.pending[0]}
+          onAnswer={(answer) => {
+            setQuestionState(prev => resolveQuestion(prev, questionState.pending[0].id));
+            setNotice({ message: `Answered: ${answer}`, level: 'success' });
+          }}
+          onReject={() => {
+            setQuestionState(prev => resolveQuestion(prev, questionState.pending[0].id));
+            setNotice({ message: 'Question dismissed', level: 'warning' });
+          }}
+          termWidth={termWidth}
+        />
+      ) : modelSelector.isOpen ? (
+        <ModelSelector
+          models={modelSelector.models}
+          selectedIndex={modelSelector.selectedIndex}
+          filter={modelSelector.filter}
+          termWidth={termWidth}
+          termHeight={termHeight}
+          onSelect={(model) => {
+            setNotice({ message: `Selected model: ${model.name}`, level: 'success' });
+            setModelSelector(prev => closeModelSelector(prev));
+          }}
+          onClose={() => setModelSelector(prev => closeModelSelector(prev))}
+        />
+      ) : agentSelector.isOpen ? (
+        <AgentSelector
+          agents={agentSelector.agents}
+          selectedIndex={agentSelector.selectedIndex}
+          currentAgent={state.agentName}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : whichKey.isOpen ? (
+        <WhichKey
+          bindings={DEFAULT_KEYBINDINGS}
+          termWidth={termWidth}
+          termHeight={termHeight}
+          activeCategory={whichKey.activeCategory}
+          layoutMode={whichKey.layoutMode}
+        />
+      ) : sessionList.isOpen ? (
+        <SessionListDialog
+          sessions={sessionManager.sessions}
+          currentSessionId={sessionManager.currentSessionId}
+          selectedIndex={sessionList.selectedIndex}
+          filter={sessionList.filter}
+          termWidth={termWidth}
+          termHeight={termHeight}
+          showPreview={termWidth >= 100}
+        />
+      ) : sessionRename.isOpen ? (
+        <SessionRenameDialog
+          currentTitle={sessionRename.value}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : stashList.isOpen ? (
+        <StashListDialog
+          entries={promptStash ? [{ id: 'stash-0', text: promptStash, timestamp: Date.now(), lineCount: promptStash.split('\n').length }] : []}
+          selectedIndex={stashList.selectedIndex}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : exportOptions.isOpen ? (
+        <ExportOptionsDialog
+          options={exportOptions.options}
+          selectedIndex={exportOptions.selectedIndex}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : retryAction.isOpen ? (
+        <RetryAction
+          title={retryAction.title}
+          message={retryAction.message}
+          actionLabel={retryAction.actionLabel}
+          showDontShowAgain={retryAction.showDontShowAgain}
+          termWidth={termWidth}
+        />
+      ) : sessionDestination.isOpen ? (
+        <SessionDestinationPicker
+          destinations={sessionDestination.destinations}
+          selectedIndex={sessionDestination.selectedIndex}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : updateNotif.isOpen && updateNotif.info ? (
+        <UpdateNotification
+          info={updateNotif.info}
+          termWidth={termWidth}
+        />
+      ) : state.showExitConfirm ? (
         <DialogFrame termWidth={termWidth} termHeight={termHeight} width={54} borderColor={TUI_THEME.warning}>
             <DialogHeader title="Exit MiniAgent?" color={TUI_THEME.warning} />
             <Box marginTop={1}>
@@ -1110,6 +2112,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               - "red"/"green"/"blue"/"yellow"/"cyan"/"magenta"
               - "dimGray"/"brightRed" 等更多颜色
           */}
+          {/* Tip banner */}
+          <Box marginBottom={1} width={textWidth + 2}>
+            <Text dimColor>💡 {currentTip.text}</Text>
+          </Box>
           {state.showSlashMenu && state.slashMenuMode === 'inline' && (
             <Box width={startCommandMenuWidth} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
               <Box justifyContent="space-between">
@@ -1120,6 +2126,16 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, startCommandMenuWidth - 2), activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command' })}
               {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, startCommandMenuWidth - 2)).text}</Text>}
               <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (startCommandMenuWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, startCommandMenuWidth - 2))}</Text>
+            </Box>
+          )}
+          {showAutocomplete && autocompleteFiles.length > 0 && (
+            <Box marginBottom={1}>
+              <AutocompletePopup
+                files={autocompleteFiles}
+                selectedIndex={autocompleteIndex}
+                width={textWidth + 2}
+                query={autocompleteQuery}
+              />
             </Box>
           )}
           <Composer
@@ -1142,13 +2158,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         <Box flexDirection="row" height={termHeight - 1}>
           <Box flexDirection="column" width={chatAreaWidth}>
             <MessageList
-              messages={visibleMessages}
-              hiddenMessageCount={hiddenMessageCount}
+              messages={effectiveScrollOffset > 0 ? scrollAdjustedVisible : visibleMessages}
+              hiddenMessageCount={effectiveScrollOffset > 0 ? scrollAdjustedHidden : hiddenMessageCount}
               chatTextWidth={chatTextWidth}
               chatAreaWidth={chatAreaWidth}
               height={messagePaneHeight}
               isProcessing={state.isProcessing}
               currentResponse={state.currentResponse}
+              sessionToggles={sessionToggles}
             />
             {state.showSlashMenu && state.slashMenuMode === 'inline' && (
               <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
@@ -1188,6 +2205,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         </Box>
       )}
 
+      {consolePanel.isOpen && (
+        <ConsolePanel
+          entries={consolePanel.entries}
+          termWidth={termWidth}
+          termHeight={Math.min(8, termHeight - 2)}
+        />
+      )}
+
       <Footer
         cwd={cwd}
         version={version}
@@ -1197,5 +2222,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         hasConversation={hasConversation}
       />
     </Box>
+    </ErrorBoundary>
   );
 }

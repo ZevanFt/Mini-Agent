@@ -41,7 +41,7 @@ export function Footer({
   const statusText = statusParts.join('  ');
 
   const rightText = notice?.message
-    || (isPaletteOpen ? paletteHint : hasConversation ? statusText : version);
+    || (isPaletteOpen ? paletteHint : hasConversation ? statusText : `PgUp/PgDn scroll  Ctrl+Shift+C copy  ${version}`);
   const rightWidth = getStringWidth(rightText);
   const leftWidth = Math.max(10, termWidth - rightWidth - 2);
 

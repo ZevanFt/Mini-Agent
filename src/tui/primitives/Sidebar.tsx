@@ -65,6 +65,8 @@ export function buildSidebarRows(opts: {
   timestamps?: boolean;
   showThinking?: boolean;
   showToolDetails?: boolean;
+  modifiedFiles?: { path: string; added: number; removed: number }[];
+  todos?: { text: string; status: 'done' | 'in_progress' | 'pending' }[];
 }): SidebarRow[] {
   const {
     messages, modelName, currentMode, tokensUsed, tokenPercent, totalCost,
@@ -74,13 +76,15 @@ export function buildSidebarRows(opts: {
     timestamps = false,
     showThinking = true,
     showToolDetails = true,
+    modifiedFiles = [],
+    todos = [],
   } = opts;
   const line = (text = '') => fillByWidth(text, sidebarInnerWidth);
   const rule = () => line(TUI_GLYPHS.divider.repeat(sidebarInnerWidth));
   const pill = (text: string) => ` ${text} `;
   const toggle = (label: string, on: boolean) => `${on ? '●' : '○'} ${label}`;
 
-  return [
+  const rows: SidebarRow[] = [
     { text: line('Session'), bold: true },
     { text: rule(), dim: true },
     { text: line(sessionTitle), color: TUI_THEME.accent },
@@ -107,14 +111,55 @@ export function buildSidebarRows(opts: {
     { text: line(lastForkIndex ? `Forked at #${lastForkIndex}` : 'F fork timeline'), dim: !lastForkIndex, color: lastForkIndex ? TUI_THEME.warning : undefined },
     { text: line(forkUndoMessages ? 'U undo fork' : 'No undo'), dim: !forkUndoMessages, color: forkUndoMessages ? TUI_THEME.warning : undefined },
     { text: line('Ctrl+T timeline'), dim: true },
+    { text: line('Ctrl+Z undo'), dim: true },
+    { text: line('Ctrl+↑/↓ scroll'), dim: true },
     { text: line() },
+  ];
+
+  // Modified files panel
+  if (modifiedFiles.length > 0) {
+    rows.push({ text: line('Modified Files'), bold: true });
+    rows.push({ text: rule(), dim: true });
+    modifiedFiles.slice(0, 5).forEach(f => {
+      const diff = `+${f.added} -${f.removed}`;
+      rows.push({ text: line(`${f.path} ${diff}`), dim: true });
+    });
+    if (modifiedFiles.length > 5) {
+      rows.push({ text: line(`... ${modifiedFiles.length - 5} more`), dim: true });
+    }
+    rows.push({ text: line() });
+  }
+
+  // Todo panel
+  if (todos.length > 0) {
+    rows.push({ text: line('Todos'), bold: true });
+    rows.push({ text: rule(), dim: true });
+    const pending = todos.filter(t => t.status === 'pending');
+    const inProgress = todos.filter(t => t.status === 'in_progress');
+    const done = todos.filter(t => t.status === 'done');
+    if (inProgress.length > 0) {
+      rows.push({ text: line(`◉ ${inProgress.length} in progress`), color: TUI_THEME.warning });
+    }
+    if (pending.length > 0) {
+      rows.push({ text: line(`○ ${pending.length} pending`), dim: true });
+    }
+    if (done.length > 0) {
+      rows.push({ text: line(`✓ ${done.length} completed`), color: TUI_THEME.success });
+    }
+    rows.push({ text: line() });
+  }
+
+  rows.push(
     { text: line('Display'), bold: true },
     { text: rule(), dim: true },
     { text: line(toggle('Timestamps', timestamps)), dim: !timestamps },
     { text: line(toggle('Thinking', showThinking)), dim: !showThinking },
     { text: line(toggle('Tool details', showToolDetails)), dim: !showToolDetails },
+    { text: line('Ctrl+Shift+T/H/D'), dim: true },
     { text: line('0 LSP'), dim: true },
-  ];
+  );
+
+  return rows;
 }
 
 export function buildSidebarFooterRows(opts: {
