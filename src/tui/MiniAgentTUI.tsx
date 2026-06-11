@@ -110,6 +110,11 @@ import { StatusDialog, createStatusState, openStatus, closeStatus, type StatusSt
 import { HelpDialog, createHelpState, closeHelp, type HelpState } from './primitives/HelpDialog.js';
 import { SkillDialog, createSkillState, closeSkill, type SkillState } from './primitives/SkillDialog.js';
 import { MessageDialog, createMessageDialogState, closeMessageDialog, type MessageDialogState } from './primitives/MessageDialog.js';
+import { TagDialog, createTagState, closeTag, type TagState } from './primitives/TagDialog.js';
+import { ForkDialog, createForkState, closeFork, type ForkState } from './primitives/ForkDialog.js';
+import { SubagentDialog, createSubagentDialogState, closeSubagentDialog, type SubagentDialogState } from './primitives/SubagentDialog.js';
+import { ThemeListDialog, createThemeListState, openThemeList, closeThemeList, type ThemeListState } from './primitives/ThemeListDialog.js';
+import { QueuedPromptsDialog, createQueuedPromptsState, closeQueuedPrompts, type QueuedPromptsState } from './primitives/QueuedPromptsDialog.js';
 
 // Agent 模式列表：Build（构建模式）和 Plan（规划模式）
 const AGENT_MODES = ['Build', 'Plan'] as const;
@@ -234,6 +239,11 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [helpState, setHelpState] = useState<HelpState>(() => createHelpState());
   const [skillState, setSkillState] = useState<SkillState>(() => createSkillState());
   const [messageDialog, setMessageDialog] = useState<MessageDialogState>(() => createMessageDialogState());
+  const [tagState, setTagState] = useState<TagState>(() => createTagState());
+  const [forkState, setForkState] = useState<ForkState>(() => createForkState());
+  const [subagentDialog, setSubagentDialog] = useState<SubagentDialogState>(() => createSubagentDialogState());
+  const [themeList, setThemeList] = useState<ThemeListState>(() => createThemeListState());
+  const [queuedPrompts, setQueuedPrompts] = useState<QueuedPromptsState>(() => createQueuedPromptsState());
   const [leaderActive, setLeaderActive] = useState(false);
   const [leaderTimeout, setLeaderTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const promptStoreDir = path.join(cwd, '.miniagent', 'history');
@@ -1677,6 +1687,125 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
+    // ==================== Tag Dialog keyboard ====================
+    if (tagState.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setTagState(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setTagState(prev => ({ ...prev, selectedIndex: Math.min(prev.tags.length - 1, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        const tag = tagState.tags[tagState.selectedIndex];
+        if (tag) {
+          setNotice({ message: `Selected: ${tag.name}`, level: 'success' });
+        }
+        setTagState(prev => closeTag(prev));
+        return;
+      }
+      if (key.escape) {
+        setTagState(prev => closeTag(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Fork Dialog keyboard ====================
+    if (forkState.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setForkState(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setForkState(prev => ({ ...prev, selectedIndex: Math.min(messages.filter(m => m.role === 'user').length - 1, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        setNotice({ message: 'Session forked', level: 'success' });
+        setForkState(prev => closeFork(prev));
+        return;
+      }
+      if (key.escape) {
+        setForkState(prev => closeFork(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Subagent Dialog keyboard ====================
+    if (subagentDialog.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setSubagentDialog(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setSubagentDialog(prev => ({ ...prev, selectedIndex: Math.min(prev.subagents.length - 1, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        const sa = subagentDialog.subagents[subagentDialog.selectedIndex];
+        if (sa) {
+          setNotice({ message: `Opening: ${sa.label}`, level: 'info' });
+        }
+        setSubagentDialog(prev => closeSubagentDialog(prev));
+        return;
+      }
+      if (key.escape) {
+        setSubagentDialog(prev => closeSubagentDialog(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Theme List Dialog keyboard ====================
+    if (themeList.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setThemeList(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setThemeList(prev => ({ ...prev, selectedIndex: Math.min(prev.themes.length - 1, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        const theme = themeList.themes[themeList.selectedIndex];
+        if (theme) {
+          setNotice({ message: `Theme: ${theme.name}`, level: 'success' });
+        }
+        setThemeList(prev => closeThemeList(prev));
+        return;
+      }
+      if (key.escape) {
+        setThemeList(prev => closeThemeList(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Queued Prompts Dialog keyboard ====================
+    if (queuedPrompts.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setQueuedPrompts(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setQueuedPrompts(prev => ({ ...prev, selectedIndex: Math.min(10, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        setNotice({ message: 'Prompt sent', level: 'success' });
+        setQueuedPrompts(prev => closeQueuedPrompts(prev));
+        return;
+      }
+      if (key.escape) {
+        setQueuedPrompts(prev => closeQueuedPrompts(prev));
+        return;
+      }
+      return;
+    }
+
     // ==================== Leader Key System ====================
     if (leaderActive) {
       setLeaderActive(false);
@@ -1687,9 +1816,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       if (input === 'g') { updateState(prev => ({ ...prev, showTimeline: true })); return; }
       if (input === 'c') { setNotice({ message: 'Session compacted', level: 'success' }); return; }
       if (input === 'x') { updateState(prev => ({ ...prev, showExitConfirm: true })); return; }
-      if (input === 'm') { /* model selector */ return; }
-      if (input === 'a') { /* agent selector */ return; }
-      if (input === 't') { /* theme list */ return; }
+      if (input === 'm') { setModelSelector(prev => openModelSelector(prev, [])); return; }
+      if (input === 'a') { setAgentSelector(prev => openAgentSelector(prev, [])); return; }
+      if (input === 't') { setThemeList(prev => openThemeList(prev, [])); return; }
       if (input === 'b') { setSessionList(prev => ({ ...prev, isOpen: true })); return; }
       if (input === 's') { setStatusState(prev => openStatus(prev, [])); return; }
       if (input === 'e') { /* export session */ return; }
@@ -2280,6 +2409,42 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
           messagePreview={messageDialog.messagePreview}
           selectedIndex={messageDialog.selectedIndex}
           termWidth={termWidth}
+        />
+      ) : tagState.isOpen ? (
+        <TagDialog
+          tags={tagState.tags}
+          selectedIndex={tagState.selectedIndex}
+          filter={tagState.filter}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : forkState.isOpen ? (
+        <ForkDialog
+          messages={messages}
+          selectedIndex={forkState.selectedIndex}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : subagentDialog.isOpen ? (
+        <SubagentDialog
+          subagents={subagentDialog.subagents}
+          selectedIndex={subagentDialog.selectedIndex}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : themeList.isOpen ? (
+        <ThemeListDialog
+          themes={themeList.themes}
+          selectedIndex={themeList.selectedIndex}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : queuedPrompts.isOpen ? (
+        <QueuedPromptsDialog
+          prompts={[]}
+          selectedIndex={queuedPrompts.selectedIndex}
+          termWidth={termWidth}
+          termHeight={termHeight}
         />
       ) : state.showExitConfirm ? (
         <DialogFrame termWidth={termWidth} termHeight={termHeight} width={54} borderColor={TUI_THEME.warning}>
