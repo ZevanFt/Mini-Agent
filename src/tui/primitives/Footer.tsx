@@ -65,7 +65,9 @@ export function Footer({
           </Text>
         </>
       ) : (
-        <Text dimColor>{truncateByWidth(version, rightWidth).text}</Text>
+        <>
+          <Text color={TUI_THEME.muted}>Get started — type a message or /help</Text>
+        </>
       )}
     </Box>
   );

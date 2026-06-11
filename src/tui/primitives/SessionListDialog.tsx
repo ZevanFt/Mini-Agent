@@ -3,6 +3,7 @@ import { TUI_THEME } from './theme.js';
 import { truncateByWidth } from './text.js';
 import type { Session } from './SessionManager.js';
 import { formatRelativeTime, sortSessions } from './SessionManager.js';
+import { fuzzySearch } from './FuzzySearch.js';
 
 export interface SessionListDialogProps {
   sessions: Session[];
@@ -12,31 +13,58 @@ export interface SessionListDialogProps {
   termWidth: number;
   termHeight: number;
   showPreview: boolean;
+  quickSwitchSlots?: (string | null)[];
 }
 
-export function SessionListDialog({ sessions, currentSessionId, selectedIndex, filter, termWidth, termHeight, showPreview }: SessionListDialogProps) {
+function getDateGroup(updatedAt: number): string {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const diff = now - updatedAt;
+  if (diff < day) return 'Today';
+  if (diff < 2 * day) return 'Yesterday';
+  if (diff < 7 * day) return 'This Week';
+  return 'Older';
+}
+
+export function SessionListDialog({ sessions, currentSessionId, selectedIndex, filter, termWidth, termHeight, showPreview, quickSwitchSlots }: SessionListDialogProps) {
   const width = Math.min(termWidth - 4, showPreview ? 100 : 76);
   const listWidth = showPreview ? Math.floor(width * 0.5) : width - 4;
   const previewWidth = showPreview ? width - listWidth - 2 : 0;
   const contentWidth = listWidth - 4;
   const maxVisible = Math.max(4, termHeight - 8);
 
-  const lowerFilter = filter.toLowerCase();
-  const filtered = sortSessions(sessions.filter(s =>
-    !lowerFilter ||
-    s.title.toLowerCase().includes(lowerFilter) ||
-    s.messages.some(m => m.content.toLowerCase().includes(lowerFilter))
-  ));
+  // Fuzzy search
+  const filtered = filter
+    ? fuzzySearch(filter, sessions, s => s.title).map(r => r.item)
+    : sortSessions(sessions);
 
   const pinned = filtered.filter(s => s.pinned);
   const unpinned = filtered.filter(s => !s.pinned);
+
+  // Date-based grouping for unpinned
+  const dateGroups = new Map<string, Session[]>();
+  for (const s of unpinned) {
+    const group = getDateGroup(s.updatedAt);
+    const list = dateGroups.get(group) || [];
+    list.push(s);
+    dateGroups.set(group, list);
+  }
+
+  const groupOrder = ['Today', 'Yesterday', 'This Week', 'Older'];
   const groups = [
     ...(pinned.length > 0 ? [{ label: 'Pinned', items: pinned }] : []),
-    ...(unpinned.length > 0 ? [{ label: 'Recent', items: unpinned }] : []),
+    ...groupOrder.filter(g => dateGroups.has(g)).map(g => ({ label: g, items: dateGroups.get(g)! })),
   ];
 
   let globalIndex = 0;
   const selectedSession = filtered[selectedIndex];
+
+  // Find slot number for a session
+  const getSlotNumber = (sessionId: string): number | null => {
+    if (!quickSwitchSlots) return null;
+    const idx = quickSwitchSlots.indexOf(sessionId);
+    return idx >= 0 ? idx + 1 : null;
+  };
 
   return (
     <Box flexDirection="column" width={termWidth} height={termHeight} justifyContent="center" alignItems="center">
@@ -55,12 +83,13 @@ export function SessionListDialog({ sessions, currentSessionId, selectedIndex, f
                   const idx = globalIndex++;
                   const isSelected = idx === selectedIndex;
                   const isCurrent = session.id === currentSessionId;
+                  const slotNum = getSlotNumber(session.id);
                   return (
                     <Box key={session.id} justifyContent="space-between">
                       <Text
                         color={isSelected ? TUI_THEME.accent : isCurrent ? TUI_THEME.success : undefined}
                         bold={isSelected}
-                      >{isSelected ? '▸ ' : '  '}{session.pinned ? '📌 ' : ''}{truncateByWidth(session.title, contentWidth - 16).text}</Text>
+                      >{isSelected ? '▸ ' : '  '}{slotNum !== null ? <Text color={TUI_THEME.accent}>{slotNum}</Text> : ''}{session.pinned ? '📌 ' : ''}{truncateByWidth(session.title, contentWidth - 16).text}</Text>
                       <Text dimColor>{formatRelativeTime(session.updatedAt)}</Text>
                     </Box>
                   );
@@ -79,17 +108,13 @@ export function SessionListDialog({ sessions, currentSessionId, selectedIndex, f
 
         {/* Preview pane */}
         {showPreview && selectedSession && (
-          <Box flexDirection="column" width={previewWidth} marginLeft={1} borderStyle="single" borderColor={TUI_THEME.muted} paddingX={1}>
+          <Box flexDirection="column" width={previewWidth} borderStyle="single" borderColor={TUI_THEME.muted} paddingX={1} marginLeft={1}>
             <Text color={TUI_THEME.accent} bold>{truncateByWidth(selectedSession.title, previewWidth - 4).text}</Text>
-            <Text dimColor>{selectedSession.messages.length} messages · {formatRelativeTime(selectedSession.updatedAt)}</Text>
-            {selectedSession.model && <Text dimColor>Model: {selectedSession.model}</Text>}
-            {selectedSession.mode && <Text dimColor>Mode: {selectedSession.mode}</Text>}
+            <Text dimColor>{selectedSession.messages.length} messages</Text>
+            <Text dimColor>{formatRelativeTime(selectedSession.updatedAt)}</Text>
             <Box marginTop={1} flexDirection="column">
-              {selectedSession.messages.slice(-4).map((msg, i) => (
-                <Box key={i}>
-                  <Text dimColor>{msg.role === 'user' ? 'You' : 'AI'}: </Text>
-                  <Text>{truncateByWidth(msg.content, previewWidth - 10).text}</Text>
-                </Box>
+              {selectedSession.messages.slice(-3).map((msg, i) => (
+                <Text key={i} dimColor>{msg.role === 'user' ? 'Q' : 'A'}: {truncateByWidth(msg.content.split('\n')[0], previewWidth - 6).text}</Text>
               ))}
             </Box>
           </Box>
@@ -121,8 +146,8 @@ export function sessionListUp(state: SessionListState): SessionListState {
   return { ...state, selectedIndex: Math.max(0, state.selectedIndex - 1) };
 }
 
-export function sessionListDown(state: SessionListState, total: number): SessionListState {
-  return { ...state, selectedIndex: Math.min(total - 1, state.selectedIndex + 1) };
+export function sessionListDown(state: SessionListState, max: number): SessionListState {
+  return { ...state, selectedIndex: Math.min(max - 1, state.selectedIndex + 1) };
 }
 
 export function sessionListType(state: SessionListState, char: string): SessionListState {

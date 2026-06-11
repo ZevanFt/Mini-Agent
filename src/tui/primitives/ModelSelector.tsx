@@ -1,6 +1,7 @@
 import { Box, Text } from 'ink';
 import { TUI_THEME } from './theme.js';
-import { fillByWidth, truncateByWidth } from './text.js';
+import { truncateByWidth } from './text.js';
+import { fuzzySearch } from './FuzzySearch.js';
 
 export interface ModelInfo {
   id: string;
@@ -27,13 +28,10 @@ export function ModelSelector({ models, selectedIndex, filter, termWidth, termHe
   const contentWidth = width - 6;
   const maxVisible = Math.max(4, termHeight - 8);
 
-  const lowerFilter = filter.toLowerCase();
-  const filtered = models.filter(m =>
-    !lowerFilter ||
-    m.name.toLowerCase().includes(lowerFilter) ||
-    m.provider.toLowerCase().includes(lowerFilter) ||
-    (m.description || '').toLowerCase().includes(lowerFilter)
-  );
+  // Fuzzy search
+  const filtered = filter
+    ? fuzzySearch(filter, models, m => `${m.name} ${m.provider}`).map(r => r.item)
+    : models;
 
   const favorites = filtered.filter(m => m.favorite);
   const recents = filtered.filter(m => m.recent && !m.favorite);
@@ -51,11 +49,8 @@ export function ModelSelector({ models, selectedIndex, filter, termWidth, termHe
     <Box flexDirection="column" width={termWidth} height={termHeight} justifyContent="center" alignItems="center">
       <Box flexDirection="column" width={width} borderStyle="double" borderColor={TUI_THEME.accent} paddingX={1} paddingY={1}>
         <Box justifyContent="space-between">
-          <Text color={TUI_THEME.accent} bold>Select Model</Text>
-          <Text dimColor>{filter ? `Filter: ${filter}` : ''}</Text>
-        </Box>
-        <Box marginTop={1}>
-          <Text dimColor>{fillByWidth(`${filtered.length} models available`, contentWidth)}</Text>
+          <Text color={TUI_THEME.accent} bold>Models</Text>
+          <Text dimColor>{filter ? `Filter: ${filter}` : `${filtered.length} models`}</Text>
         </Box>
         <Box marginTop={1} flexDirection="column">
           {groups.map(group => (
@@ -69,18 +64,19 @@ export function ModelSelector({ models, selectedIndex, filter, termWidth, termHe
                     <Text
                       color={isSelected ? TUI_THEME.accent : undefined}
                       bold={isSelected}
-                    >{isSelected ? '▸ ' : '  '}{truncateByWidth(model.name, contentWidth - 20).text}</Text>
+                    >{isSelected ? '▸ ' : '  '}{model.favorite ? '★ ' : ''}{truncateByWidth(model.name, contentWidth - 20).text}</Text>
                     <Text dimColor>{truncateByWidth(model.provider, 16).text}</Text>
                   </Box>
                 );
               })}
             </Box>
           ))}
+          {filtered.length === 0 && <Text dimColor>No models found</Text>}
         </Box>
         <Box marginTop={1} justifyContent="space-between">
           <Text dimColor>↑↓ move</Text>
+          <Text dimColor>/ filter</Text>
           <Text dimColor>Enter select</Text>
-          <Text dimColor>Esc close</Text>
         </Box>
       </Box>
     </Box>
@@ -99,7 +95,8 @@ export function createModelSelectorState(): ModelSelectorState {
 }
 
 export function openModelSelector(state: ModelSelectorState, models: ModelInfo[]): ModelSelectorState {
-  return { ...state, isOpen: true, models, selectedIndex: 0, filter: '' };
+  const recentIdx = models.findIndex(m => m.recent);
+  return { ...state, isOpen: true, models, selectedIndex: recentIdx >= 0 ? recentIdx : 0, filter: '' };
 }
 
 export function closeModelSelector(state: ModelSelectorState): ModelSelectorState {
@@ -110,8 +107,8 @@ export function modelSelectorUp(state: ModelSelectorState): ModelSelectorState {
   return { ...state, selectedIndex: Math.max(0, state.selectedIndex - 1) };
 }
 
-export function modelSelectorDown(state: ModelSelectorState, total: number): ModelSelectorState {
-  return { ...state, selectedIndex: Math.min(total - 1, state.selectedIndex + 1) };
+export function modelSelectorDown(state: ModelSelectorState, max: number): ModelSelectorState {
+  return { ...state, selectedIndex: Math.min(max - 1, state.selectedIndex + 1) };
 }
 
 export function modelSelectorType(state: ModelSelectorState, char: string): ModelSelectorState {

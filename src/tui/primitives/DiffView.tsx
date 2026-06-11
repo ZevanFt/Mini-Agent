@@ -106,12 +106,65 @@ const LINE_PREFIXES: Record<string, string> = {
   file: ' ',
 };
 
-export function DiffView({ diff, width, maxLines, showLineNumbers = false, mode: _mode, scrollOffset = 0 }: DiffViewProps) {
+export function DiffView({ diff, width, maxLines, showLineNumbers = false, mode = 'unified', scrollOffset = 0 }: DiffViewProps) {
   const lines = parseDiff(diff);
   const visible = maxLines ? lines.slice(scrollOffset, scrollOffset + maxLines) : lines;
   const gutterWidth = showLineNumbers ? 8 : 0;
-  const contentWidth = Math.max(10, width - gutterWidth - 1);
+  const contentWidth = mode === 'split' ? Math.floor((width - gutterWidth - 1) / 2) : Math.max(10, width - gutterWidth - 1);
 
+  if (mode === 'split') {
+    // Split mode: show old and new side by side
+    const pairs: { old: DiffLine | null; new: DiffLine | null }[] = [];
+    let i = 0;
+    while (i < visible.length) {
+      const line = visible[i];
+      if (line.type === 'remove') {
+        // Look ahead for matching add
+        let j = i + 1;
+        while (j < visible.length && visible[j].type === 'remove') j++;
+        if (j < visible.length && visible[j].type === 'add') {
+          pairs.push({ old: line, new: visible[j] });
+          i = j + 1;
+        } else {
+          pairs.push({ old: line, new: null });
+          i++;
+        }
+      } else if (line.type === 'add') {
+        pairs.push({ old: null, new: line });
+        i++;
+      } else {
+        pairs.push({ old: line, new: line });
+        i++;
+      }
+    }
+
+    return (
+      <Box flexDirection="column" width={width}>
+        <Box>
+          <Text color={TUI_THEME.muted} bold>{'OLD'.padEnd(contentWidth)}</Text>
+          <Text> </Text>
+          <Text color={TUI_THEME.muted} bold>{'NEW'.padEnd(contentWidth)}</Text>
+        </Box>
+        {pairs.map((pair, i) => (
+          <Box key={i}>
+            <Box width={contentWidth}>
+              <Text color={pair.old ? LINE_COLORS[pair.old.type] : undefined}>
+                {pair.old ? `${LINE_PREFIXES[pair.old.type]}${truncateByWidth(pair.old.content, contentWidth - 1).text}` : ' '.repeat(contentWidth)}
+              </Text>
+            </Box>
+            <Text> </Text>
+            <Box width={contentWidth}>
+              <Text color={pair.new ? LINE_COLORS[pair.new.type] : undefined}>
+                {pair.new ? `${LINE_PREFIXES[pair.new.type]}${truncateByWidth(pair.new.content, contentWidth - 1).text}` : ' '.repeat(contentWidth)}
+              </Text>
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    );
+  }
+
+  // Unified mode
   return (
     <Box flexDirection="column" width={width}>
       {visible.map((line, i) => {

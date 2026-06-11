@@ -4,17 +4,19 @@ import { TUI_THEME } from './theme.js';
 export interface CompactionMarkerProps {
   width: number;
   title?: string;
+  reason?: 'auto' | 'manual';
 }
 
-export function CompactionMarker({ width, title = 'Compaction' }: CompactionMarkerProps) {
-  const lineWidth = Math.floor((width - title.length - 4) / 2);
-  const left = '─'.repeat(lineWidth);
-  const right = '─'.repeat(width - lineWidth - title.length - 4);
+export function CompactionMarker({ width, title, reason = 'auto' }: CompactionMarkerProps) {
+  const displayTitle = title || (reason === 'auto' ? ' Auto Compaction ' : ' Compaction ');
+  const lineWidth = Math.floor((width - displayTitle.length - 2) / 2);
+  const left = '─'.repeat(Math.max(0, lineWidth));
+  const right = '─'.repeat(Math.max(0, width - lineWidth - displayTitle.length - 2));
 
   return (
     <Box width={width} justifyContent="center" alignItems="center" marginTop={1} marginBottom={1}>
       <Text color={TUI_THEME.muted}>{left}</Text>
-      <Text color={TUI_THEME.accent}>{` ${title} `}</Text>
+      <Text color={reason === 'auto' ? TUI_THEME.warning : TUI_THEME.accent} bold>{displayTitle}</Text>
       <Text color={TUI_THEME.muted}>{right}</Text>
     </Box>
   );
