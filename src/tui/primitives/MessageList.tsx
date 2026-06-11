@@ -1,6 +1,6 @@
 import { Box, Text } from 'ink';
 import { TUI_GLYPHS, TUI_THEME } from './theme.js';
-import { fillByWidth, wrapByWidth } from './text.js';
+import { wrapByWidth } from './text.js';
 import { Spinner } from './Spinner.js';
 import { ThinkingBlock } from './ThinkingBlock.js';
 import { ToolOutput } from './ToolOutput.js';
@@ -14,9 +14,6 @@ export interface MessageListProps {
   height: number;
   isProcessing: boolean;
   currentResponse: string;
-  showTimestamps?: boolean;
-  showThinking?: boolean;
-  showToolDetails?: boolean;
   sessionToggles?: {
     timestamps: boolean;
     showThinking: boolean;
@@ -38,6 +35,10 @@ export function MessageList({
   const showThinking = sessionToggles?.showThinking ?? true;
   const showToolDetails = sessionToggles?.showToolDetails ?? true;
 
+  // Reserve lines for header (hidden count) + streaming indicator + footer
+  const reservedLines = (hiddenMessageCount > 0 ? 2 : 0) + (isProcessing ? 3 : 0) + 1;
+  const messageAreaHeight = Math.max(4, height - reservedLines);
+
   return (
     <Box flexDirection="column" width={chatAreaWidth} height={height} paddingX={2}>
       {hiddenMessageCount > 0 && (
@@ -45,32 +46,32 @@ export function MessageList({
           <Text dimColor>{hiddenMessageCount} earlier messages hidden</Text>
         </Box>
       )}
-      {messages.map((msg, i) => (
-        <MessageItem
-          key={hiddenMessageCount + i}
-          msg={msg}
-          chatTextWidth={chatTextWidth}
-          showTimestamps={showTimestamps}
-          showThinking={showThinking}
-          showToolDetails={showToolDetails}
-          isStreaming={isProcessing && i === messages.length - 1 && msg.role === 'assistant'}
-          isQueued={isProcessing && i === messages.length - 1 && msg.role === 'user'}
-        />
-      ))}
+      <Box flexDirection="column" height={messageAreaHeight} overflow="hidden">
+        {messages.map((msg, i) => (
+          <MessageItem
+            key={hiddenMessageCount + i}
+            msg={msg}
+            chatTextWidth={chatTextWidth}
+            showTimestamps={showTimestamps}
+            showThinking={showThinking}
+            showToolDetails={showToolDetails}
+            isStreaming={isProcessing && i === messages.length - 1 && msg.role === 'assistant'}
+            isQueued={isProcessing && i === messages.length - 1 && msg.role === 'user'}
+          />
+        ))}
+      </Box>
       {isProcessing && currentResponse && (
-        <Box flexDirection="column">
-          <Text color={TUI_THEME.accent}>MiniAgent streaming <Spinner color={TUI_THEME.accent} /></Text>
-          <Text>{''}</Text>
-          {wrapByWidth(currentResponse, chatTextWidth).map((line, lineIndex) => (
+        <Box flexDirection="column" marginTop={1}>
+          <Text color={TUI_THEME.accent}>MiniAgent <Spinner color={TUI_THEME.accent} /></Text>
+          {wrapByWidth(currentResponse, chatTextWidth).slice(-8).map((line, lineIndex) => (
             <Text key={lineIndex}>{line}</Text>
           ))}
-          <Text>{''}</Text>
         </Box>
       )}
       {isProcessing && !currentResponse && (
-        <Box flexDirection="column">
+        <Box flexDirection="column" marginTop={1}>
           <Text color={TUI_THEME.accent}>MiniAgent <Spinner color={TUI_THEME.accent} /></Text>
-          <Text dimColor>Waiting for model response...</Text>
+          <Text dimColor>Waiting for response...</Text>
         </Box>
       )}
     </Box>
@@ -94,20 +95,18 @@ function MessageItem({ msg, chatTextWidth, showTimestamps, showThinking, showToo
     <Box key="msg" flexDirection="column" marginBottom={1}>
       {isQueued && (
         <Box>
-          <Text color={TUI_THEME.warning} bold> [QUEUED]</Text>
+          <Text color={TUI_THEME.warning} bold>[QUEUED]</Text>
         </Box>
       )}
       {msg.role === 'user' && (
         <Box flexDirection="column">
           <Box>
             {timestamp}
-            <Text dimColor>User</Text>
+            <Text color={TUI_THEME.muted}>You</Text>
           </Box>
-          <Text backgroundColor={TUI_THEME.panel}>{fillByWidth('', chatTextWidth + 2)}</Text>
           {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
-            <Text key={lineIndex} color="white" backgroundColor={TUI_THEME.panel}> {fillByWidth(line, chatTextWidth)} </Text>
+            <Text key={lineIndex}>{line}</Text>
           ))}
-          <Text backgroundColor={TUI_THEME.panel}>{fillByWidth('', chatTextWidth + 2)}</Text>
         </Box>
       )}
       {msg.role === 'assistant' && msg.type === 'thought' && showThinking && (
@@ -123,7 +122,7 @@ function MessageItem({ msg, chatTextWidth, showTimestamps, showThinking, showToo
       )}
       {msg.role === 'assistant' && msg.type === 'thought' && !showThinking && (
         <Box flexDirection="column">
-          <Text dimColor>💭 Thinking (hidden)</Text>
+          <Text dimColor>Thinking (hidden)</Text>
         </Box>
       )}
       {msg.role === 'assistant' && msg.type === 'tool' && showToolDetails && (
@@ -143,17 +142,15 @@ function MessageItem({ msg, chatTextWidth, showTimestamps, showThinking, showToo
       )}
       {msg.role === 'assistant' && msg.type === 'tool' && !showToolDetails && (
         <Box flexDirection="column">
-          <Text dimColor>Tool {TUI_GLYPHS.bullet} {msg.toolName}</Text>
+          <Text dimColor>{TUI_GLYPHS.bullet} {msg.toolName}</Text>
         </Box>
       )}
       {msg.role === 'assistant' && msg.type === 'error' && (
         <Box flexDirection="column">
-          <Text color="red">MiniAgent error</Text>
-          <Text>{''}</Text>
+          <Text color={TUI_THEME.error}>Error</Text>
           {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
-            <Text key={lineIndex} color="red">{line}</Text>
+            <Text key={lineIndex} color={TUI_THEME.error}>{line}</Text>
           ))}
-          <Text>{''}</Text>
         </Box>
       )}
       {msg.role === 'assistant' && (msg.type === 'text' || !msg.type) && (
@@ -162,11 +159,9 @@ function MessageItem({ msg, chatTextWidth, showTimestamps, showThinking, showToo
             {timestamp}
             <Text color={TUI_THEME.accent}>MiniAgent</Text>
           </Box>
-          <Text>{''}</Text>
           {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
             <Text key={lineIndex}>{line}</Text>
           ))}
-          <Text>{''}</Text>
         </Box>
       )}
     </Box>
@@ -177,7 +172,5 @@ export function messageLineCount(msg: Message, chatTextWidth: number): number {
   const contentLines = wrapByWidth(msg.content, chatTextWidth).length;
   const hasLabel = msg.role === 'user' || msg.type === 'text' || msg.type === 'tool' || msg.type === 'thought' || msg.type === 'error';
   const labelLines = hasLabel ? 1 : 0;
-  const durationLines = msg.type === 'thought' ? 4 : 0; // ThinkingBlock header + collapse hint
-  const paddingLines = hasLabel ? 2 : 0;
-  return labelLines + contentLines + durationLines + paddingLines + 1;
+  return contentLines + labelLines + 1;
 }
