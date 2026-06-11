@@ -40,14 +40,12 @@ export function renderCommandRows<T extends { name: string; description?: string
       <Box key={`${keyPrefix}-${cmd.name}`} width={width} justifyContent="space-between">
         <Text
           color={selected ? 'white' : TUI_THEME.accent}
-          backgroundColor={selected ? TUI_THEME.selected : undefined}
         >
           {fillByWidth(line, width - getStringWidth(suffix))}
         </Text>
         <Text
           dimColor={!selected}
-          color={selected ? TUI_THEME.warning : undefined}
-          backgroundColor={selected ? TUI_THEME.selected : undefined}
+          color={selected ? TUI_THEME.warning : TUI_THEME.muted}
         >
           {suffix}
         </Text>

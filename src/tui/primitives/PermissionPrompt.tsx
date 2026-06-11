@@ -134,7 +134,6 @@ export function PermissionPrompt({ request, onDecide: _onDecide, termWidth, term
                   key={action}
                   color={i === selectedIndex ? actionColors[action] : TUI_THEME.muted}
                   bold={i === selectedIndex}
-                  backgroundColor={i === selectedIndex ? TUI_THEME.panel : undefined}
                 >{i === selectedIndex ? `▸ ${actionLabels[action]}` : `  ${actionLabels[action]}`}</Text>
               ))}
             </Box>

@@ -63,7 +63,7 @@ export function ExportOptionsDialog({ options, selectedIndex, termWidth, termHei
             return (
               <Text
                 key={label}
-                color={isSelected ? TUI_THEME.accent : undefined}
+                color={isSelected ? TUI_THEME.accent : TUI_THEME.muted}
                 bold={isSelected}
               >{isSelected ? '▸ ' : '  '}{isOn ? '☑' : '☐'} {label}</Text>
             );

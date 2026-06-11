@@ -69,8 +69,7 @@ export function TimelineDialog({
         ) : timelineRows.map((row) => (
           <Text
             key={`timeline-${row.index}`}
-            color={row.index === timelineIndex ? 'white' : undefined}
-            backgroundColor={row.index === timelineIndex ? TUI_THEME.selected : undefined}
+            color={row.index === timelineIndex ? 'white' : TUI_THEME.muted}
           >
             {fillByWidth(`${row.index === timelineIndex ? TUI_GLYPHS.selected : ' '} ${truncateByWidth(row.text, Math.min(termWidth - 18, 62)).text}`, Math.min(termWidth - 14, 66))}
           </Text>

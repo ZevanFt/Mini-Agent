@@ -25,10 +25,7 @@ export function ThinkingBlock({ content, duration, width, collapsed: initialColl
           {isStreaming ? <Spinner color={TUI_THEME.warning} frames="dots" /> : '💭'} Thinking
           {durationText ? ` (${durationText})` : ''}
         </Text>
-        <Text
-          dimColor
-          color={TUI_THEME.muted}
-        >
+        <Text color={TUI_THEME.muted}>
           {collapsed ? `▸ ${lineCount} lines` : '▾ collapse'}
         </Text>
       </Box>

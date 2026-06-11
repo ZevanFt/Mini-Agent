@@ -91,7 +91,7 @@ export interface DiffViewProps {
 const LINE_COLORS: Record<string, string | undefined> = {
   add: TUI_THEME.success,
   remove: 'red',
-  context: undefined,
+  context: 'white',
   header: TUI_THEME.accent,
   hunk: TUI_THEME.warning,
   file: TUI_THEME.accent,
@@ -148,13 +148,13 @@ export function DiffView({ diff, width, maxLines, showLineNumbers = false, mode 
         {pairs.map((pair, i) => (
           <Box key={i}>
             <Box width={contentWidth}>
-              <Text color={pair.old ? LINE_COLORS[pair.old.type] : undefined}>
+              <Text color={pair.old ? LINE_COLORS[pair.old.type] : TUI_THEME.muted}>
                 {pair.old ? `${LINE_PREFIXES[pair.old.type]}${truncateByWidth(pair.old.content, contentWidth - 1).text}` : ' '.repeat(contentWidth)}
               </Text>
             </Box>
             <Text> </Text>
             <Box width={contentWidth}>
-              <Text color={pair.new ? LINE_COLORS[pair.new.type] : undefined}>
+              <Text color={pair.new ? LINE_COLORS[pair.new.type] : TUI_THEME.muted}>
                 {pair.new ? `${LINE_PREFIXES[pair.new.type]}${truncateByWidth(pair.new.content, contentWidth - 1).text}` : ' '.repeat(contentWidth)}
               </Text>
             </Box>

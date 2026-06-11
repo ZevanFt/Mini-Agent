@@ -37,7 +37,7 @@ export function VariantDialog({ variants, selectedIndex, filter, termWidth, term
             const isSelected = i === selectedIndex;
             return (
               <Box key={variant.id} justifyContent="space-between">
-                <Text color={isSelected ? TUI_THEME.accent : variant.isActive ? TUI_THEME.success : undefined} bold={isSelected}>
+                <Text color={isSelected ? TUI_THEME.accent : variant.isActive ? TUI_THEME.success : TUI_THEME.muted} bold={isSelected}>
                   {isSelected ? '▸ ' : '  '}{variant.name}
                 </Text>
                 <Text dimColor>{truncateByWidth(variant.provider, 16).text}</Text>

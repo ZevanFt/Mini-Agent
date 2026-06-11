@@ -39,32 +39,36 @@ export function StatusDialog({ items, termWidth, termHeight }: StatusDialogProps
     grouped.set(item.category, list);
   }
 
-  let lineCount = 0;
+  let remaining = maxVisible;
+  const visibleGroups: { category: string; items: StatusItem[] }[] = [];
+
+  for (const [category, catItems] of Array.from(grouped.entries())) {
+    if (remaining <= 0) break;
+    remaining--; // category title line
+    const maxItems = Math.min(catItems.length, 5, remaining);
+    visibleGroups.push({
+      category,
+      items: catItems.slice(0, maxItems),
+    });
+    remaining -= maxItems;
+  }
 
   return (
     <Box flexDirection="column" width={termWidth} height={termHeight} justifyContent="center" alignItems="center">
       <Box flexDirection="column" width={width} borderStyle="double" borderColor={TUI_THEME.accent} paddingX={1} paddingY={1}>
         <Text color={TUI_THEME.accent} bold>Status</Text>
         <Box marginTop={1} flexDirection="column">
-          {Array.from(grouped.entries()).map(([category, catItems]) => {
-            if (lineCount >= maxVisible) return null;
-            lineCount++;
-            return (
-              <Box key={category} flexDirection="column">
-                <Text color={TUI_THEME.warning} bold>{category}</Text>
-                {catItems.slice(0, 5).map(item => {
-                  if (lineCount >= maxVisible) return null;
-                  lineCount++;
-                  return (
-                    <Box key={item.name} justifyContent="space-between">
-                      <Text><Text color={statusColor(item.status)}>{statusIcon(item.status)}</Text> {item.name}</Text>
-                      <Text dimColor>{item.detail || item.status}</Text>
-                    </Box>
-                  );
-                })}
-              </Box>
-            );
-          })}
+          {visibleGroups.map(group => (
+            <Box key={group.category} flexDirection="column">
+              <Text color={TUI_THEME.warning} bold>{group.category}</Text>
+              {group.items.map(item => (
+                <Box key={item.name} justifyContent="space-between">
+                  <Text><Text color={statusColor(item.status)}>{statusIcon(item.status)}</Text> {item.name}</Text>
+                  <Text dimColor>{item.detail || item.status}</Text>
+                </Box>
+              ))}
+            </Box>
+          ))}
         </Box>
         <Box marginTop={1}>
           <Text dimColor>Esc close</Text>

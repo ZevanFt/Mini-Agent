@@ -45,7 +45,7 @@ export function McpDialog({ servers, selectedIndex, termWidth, termHeight }: Mcp
             const isSelected = i === selectedIndex;
             return (
               <Box key={server.name} justifyContent="space-between">
-                <Text color={isSelected ? TUI_THEME.accent : undefined} bold={isSelected}>
+                <Text color={isSelected ? TUI_THEME.accent : TUI_THEME.muted} bold={isSelected}>
                   {isSelected ? '▸ ' : '  '}<Text color={statusColor(server.status)}>{statusIcon(server.status)}</Text> {truncateByWidth(server.name, contentWidth - 20).text}
                 </Text>
                 <Text dimColor>{server.tools} tools</Text>

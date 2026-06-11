@@ -59,7 +59,7 @@ export function Viewport({
             return (
               <Text
                 key={`sb-${i}`}
-                color={isThumb ? TUI_THEME.accent : undefined}
+                color={isThumb ? TUI_THEME.accent : TUI_THEME.muted}
                 dimColor={!isThumb}
               >{isThumb ? scrollbarChar : ' '}</Text>
             );

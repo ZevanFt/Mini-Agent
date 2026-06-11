@@ -54,7 +54,7 @@ export function Autocomplete({ items, selectedIndex, filter, trigger, termWidth,
         const icon = item.icon || TRIGGER_ICONS[trigger] || '•';
         return (
           <Box key={item.id} justifyContent="space-between">
-            <Text color={isSelected ? TUI_THEME.accent : undefined} bold={isSelected}>
+            <Text color={isSelected ? TUI_THEME.accent : TUI_THEME.muted} bold={isSelected}>
               {isSelected ? '▸ ' : '  '}{icon} {truncateByWidth(item.label, contentWidth - 12).text}
             </Text>
             {item.description && (

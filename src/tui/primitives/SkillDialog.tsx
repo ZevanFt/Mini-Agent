@@ -32,7 +32,7 @@ export function SkillDialog({ skills, selectedIndex, termWidth, termHeight }: Sk
             const isSelected = i === selectedIndex;
             return (
               <Box key={skill.name} justifyContent="space-between">
-                <Text color={isSelected ? TUI_THEME.accent : undefined} bold={isSelected}>
+                <Text color={isSelected ? TUI_THEME.accent : TUI_THEME.muted} bold={isSelected}>
                   {isSelected ? '▸ ' : '  '}<Text color={skill.enabled ? TUI_THEME.success : TUI_THEME.muted}>{skill.enabled ? '●' : '○'}</Text> {truncateByWidth(skill.name, contentWidth - 20).text}
                 </Text>
                 <Text dimColor>{truncateByWidth(skill.description, 20).text}</Text>

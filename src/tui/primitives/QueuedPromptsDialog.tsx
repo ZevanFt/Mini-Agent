@@ -32,7 +32,7 @@ export function QueuedPromptsDialog({ prompts, selectedIndex, termWidth, termHei
             const preview = prompt.text.split('\n')[0];
             return (
               <Box key={prompt.id} justifyContent="space-between">
-                <Text color={isSelected ? TUI_THEME.accent : undefined} bold={isSelected}>
+                <Text color={isSelected ? TUI_THEME.accent : TUI_THEME.muted} bold={isSelected}>
                   {isSelected ? '▸ ' : '  '}{preview.slice(0, contentWidth - 8)}
                 </Text>
               </Box>

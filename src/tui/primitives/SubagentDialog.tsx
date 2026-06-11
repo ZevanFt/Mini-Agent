@@ -25,7 +25,7 @@ export function SubagentDialog({ subagents, selectedIndex, termWidth, termHeight
             const statusColor = sa.status === 'running' ? TUI_THEME.warning : sa.status === 'completed' ? TUI_THEME.success : 'red';
             return (
               <Box key={sa.sessionId} justifyContent="space-between">
-                <Text color={isSelected ? TUI_THEME.accent : undefined} bold={isSelected}>
+                <Text color={isSelected ? TUI_THEME.accent : TUI_THEME.muted} bold={isSelected}>
                   {isSelected ? '▸ ' : '  '}{sa.label}
                 </Text>
                 <Text color={statusColor}>{sa.status}</Text>

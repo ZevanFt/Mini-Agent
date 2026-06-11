@@ -42,7 +42,7 @@ export function TagDialog({ tags, selectedIndex, filter, termWidth, termHeight }
             const isSelected = i === selectedIndex;
             return (
               <Box key={tag.path} justifyContent="space-between">
-                <Text color={isSelected ? TUI_THEME.accent : undefined} bold={isSelected}>
+                <Text color={isSelected ? TUI_THEME.accent : TUI_THEME.muted} bold={isSelected}>
                   {isSelected ? '▸ ' : '  '}{typeIcon(tag.type)} {truncateByWidth(tag.name, contentWidth - 20).text}
                 </Text>
                 <Text dimColor>{truncateByWidth(tag.path, 20).text}</Text>

@@ -87,7 +87,7 @@ export function SessionListDialog({ sessions, currentSessionId, selectedIndex, f
                   return (
                     <Box key={session.id} justifyContent="space-between">
                       <Text
-                        color={isSelected ? TUI_THEME.accent : isCurrent ? TUI_THEME.success : undefined}
+                        color={isSelected ? TUI_THEME.accent : isCurrent ? TUI_THEME.success : TUI_THEME.muted}
                         bold={isSelected}
                       >{isSelected ? '▸ ' : '  '}{slotNum !== null ? <Text color={TUI_THEME.accent}>{slotNum}</Text> : ''}{session.pinned ? '📌 ' : ''}{truncateByWidth(session.title, contentWidth - 16).text}</Text>
                       <Text dimColor>{formatRelativeTime(session.updatedAt)}</Text>

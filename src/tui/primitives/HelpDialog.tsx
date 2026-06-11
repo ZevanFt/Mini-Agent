@@ -56,32 +56,36 @@ export function HelpDialog({ termWidth, termHeight }: HelpDialogProps) {
   const width = Math.min(termWidth - 8, 68);
   const maxVisible = Math.max(4, termHeight - 6);
 
-  let lineCount = 0;
+  let remaining = maxVisible;
+  const visibleSections: { title: string; items: (string[])[] }[] = [];
+
+  for (const section of HELP_SECTIONS) {
+    if (remaining <= 0) break;
+    remaining--; // title line
+    const maxItems = Math.min(section.items.length, remaining);
+    visibleSections.push({
+      title: section.title,
+      items: section.items.slice(0, maxItems),
+    });
+    remaining -= maxItems;
+  }
 
   return (
     <Box flexDirection="column" width={termWidth} height={termHeight} justifyContent="center" alignItems="center">
       <Box flexDirection="column" width={width} borderStyle="double" borderColor={TUI_THEME.accent} paddingX={1} paddingY={1}>
         <Text color={TUI_THEME.accent} bold>Help — MiniAgent TUI</Text>
         <Box marginTop={1} flexDirection="column">
-          {HELP_SECTIONS.map(section => {
-            if (lineCount >= maxVisible) return null;
-            lineCount++;
-            return (
-              <Box key={section.title} flexDirection="column">
-                <Text color={TUI_THEME.warning} bold>{section.title}</Text>
-                {section.items.map(([key, desc]) => {
-                  if (lineCount >= maxVisible) return null;
-                  lineCount++;
-                  return (
-                    <Box key={key} justifyContent="space-between">
-                      <Text color={TUI_THEME.accent}>{key}</Text>
-                      <Text dimColor>{desc}</Text>
-                    </Box>
-                  );
-                })}
-              </Box>
-            );
-          })}
+          {visibleSections.map(section => (
+            <Box key={section.title} flexDirection="column">
+              <Text color={TUI_THEME.warning} bold>{section.title}</Text>
+              {section.items.map(([key, desc]) => (
+                <Box key={key} justifyContent="space-between">
+                  <Text color={TUI_THEME.accent}>{key}</Text>
+                  <Text dimColor>{desc}</Text>
+                </Box>
+              ))}
+            </Box>
+          ))}
         </Box>
         <Box marginTop={1} justifyContent="space-between">
           <Text dimColor>Ctrl+P command palette</Text>

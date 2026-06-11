@@ -28,7 +28,7 @@ export function ForkDialog({ messages, selectedIndex, termWidth, termHeight }: F
             const preview = msg.content.split('\n')[0];
             return (
               <Box key={i} justifyContent="space-between">
-                <Text color={isSelected ? TUI_THEME.accent : undefined} bold={isSelected}>
+                <Text color={isSelected ? TUI_THEME.accent : TUI_THEME.muted} bold={isSelected}>
                   {isSelected ? '▸ ' : '  '}{truncateByWidth(preview, contentWidth - 8).text}
                 </Text>
               </Box>

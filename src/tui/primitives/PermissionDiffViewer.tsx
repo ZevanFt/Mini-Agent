@@ -13,7 +13,7 @@ export interface PermissionDiffViewerProps {
 const LINE_COLORS: Record<string, string | undefined> = {
   add: TUI_THEME.success,
   remove: 'red',
-  context: undefined,
+  context: 'white',
   header: TUI_THEME.accent,
   hunk: TUI_THEME.warning,
   file: TUI_THEME.accent,

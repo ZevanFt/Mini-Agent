@@ -28,7 +28,7 @@ export function SessionMoveDialog({ currentPath, destinations, selectedIndex, te
             return (
               <Text
                 key={dest.path}
-                color={isSelected ? TUI_THEME.accent : undefined}
+                color={isSelected ? TUI_THEME.accent : TUI_THEME.muted}
                 bold={isSelected}
               >{isSelected ? '▸ ' : '  '}{truncateByWidth(dest.name, contentWidth - 4).text}</Text>
             );

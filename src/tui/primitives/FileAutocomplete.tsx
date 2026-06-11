@@ -82,7 +82,7 @@ export function AutocompletePopup({ files, selectedIndex, width, query }: Autoco
         return (
           <Box key={file.path} justifyContent="space-between">
             <Text
-              color={isSelected ? TUI_THEME.accent : file.isDirectory ? TUI_THEME.warning : undefined}
+              color={isSelected ? TUI_THEME.accent : file.isDirectory ? TUI_THEME.warning : TUI_THEME.muted}
               bold={isSelected}
             >{isSelected ? '▸ ' : '  '}{file.isDirectory ? '📁 ' : '📄 '}{truncateByWidth(file.name, contentWidth - 20).text}</Text>
             <Text dimColor>{truncateByWidth(file.relativePath, 18).text}</Text>

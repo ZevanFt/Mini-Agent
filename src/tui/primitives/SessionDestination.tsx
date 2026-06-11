@@ -33,7 +33,7 @@ export function SessionDestinationPicker({ destinations, selectedIndex, termWidt
             return (
               <Box key={dest.path} justifyContent="space-between">
                 <Text
-                  color={isSelected ? TUI_THEME.accent : dest.isCurrent ? TUI_THEME.success : undefined}
+                  color={isSelected ? TUI_THEME.accent : dest.isCurrent ? TUI_THEME.success : TUI_THEME.muted}
                   bold={isSelected}
                 >{isSelected ? '▸ ' : '  '}{dest.isCurrent ? '● ' : '○ '}{truncateByWidth(dest.name, contentWidth - 16).text}</Text>
                 <Text dimColor>{truncateByWidth(dest.path, 14).text}</Text>

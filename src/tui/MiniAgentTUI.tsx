@@ -2298,7 +2298,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const visibleInputLineCount = visibleInputLines.length;
   const messageLineBudget = Math.max(4, termHeight - visibleInputLineCount * 2 - inlineMenuRows - 10);
   const composerRows = visibleInputLineCount * 2 + 4 + inlineMenuRows;
-  const messagePaneHeight = Math.max(3, termHeight - composerRows - 3);
+  const consolePanelHeight = consolePanel.isOpen ? Math.min(8, termHeight - 2) : 0;
+  const messagePaneHeight = Math.max(3, termHeight - composerRows - 3 - consolePanelHeight);
   let usedMessageLines = 0;
   let visibleMessageStart = messages.length;
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -2324,10 +2325,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     <ErrorBoundary onError={(err) => {
       setNotice({ message: `Error: ${err.message}`, level: 'error' });
     }}>
-    {/* 最外层容器：纵向布局、宽度 100%、高度使用终端实际行数（明确数值） */}
-    {/* Ink 不支持 height="100%"，需要用明确的数值 */}
     <Box flexDirection="column" width={termWidth} height={termHeight}>
-      {/* Main content area */}
+      {termHeight < 10 || termWidth < 40 ? (
+        <Box justifyContent="center" alignItems="center" width={termWidth} height={termHeight}>
+          <Text color={TUI_THEME.warning}>Terminal too small ({termWidth}x{termHeight}). Minimum: 40x10</Text>
+        </Box>
+      ) : (<>
       {permState.pending.length > 0 ? (
         <PermissionPrompt
           request={permState.pending[0]}
@@ -2646,6 +2649,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
                 <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (chatInputBoxWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, chatInputBoxWidth - 4))}</Text>
               </Box>
             )}
+            {consolePanel.isOpen && (
+              <ConsolePanel
+                entries={consolePanel.entries}
+                termWidth={termWidth}
+                termHeight={consolePanelHeight}
+              />
+            )}
             <Composer
               inputLines={state.inputLines}
               cursorRow={state.cursorRow}
@@ -2661,8 +2671,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               position="chat"
             />
           </Box>
-          {/* 右侧：侧边栏 - 宽模式内联，窄模式覆盖层 */}
-          {isWideMode ? (
+          {/* 右侧：侧边栏 */}
+          {(isWideMode || sessionToggles.sidebarVisible) && (
             <Sidebar
               rows={sidebarRows}
               footerRows={sidebarFooterRows}
@@ -2670,26 +2680,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               paddingX={sidebarPaddingX}
               fillHeight={sidebarFillRows}
             />
-          ) : sessionToggles.sidebarVisible ? (
-            <Box position="absolute" width={termWidth} height={termHeight - 1}>
-              <Sidebar
-                rows={sidebarRows}
-                footerRows={sidebarFooterRows}
-                width={sidebarWidth}
-                paddingX={sidebarPaddingX}
-                fillHeight={sidebarFillRows}
-              />
-            </Box>
-          ) : null}
+          )}
         </Box>
-      )}
-
-      {consolePanel.isOpen && (
-        <ConsolePanel
-          entries={consolePanel.entries}
-          termWidth={termWidth}
-          termHeight={Math.min(8, termHeight - 2)}
-        />
       )}
 
       <Footer
@@ -2700,6 +2692,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         isPaletteOpen={state.showSlashMenu && state.slashMenuMode === 'modal'}
         hasConversation={hasConversation}
       />
+      </>)}
     </Box>
     </ErrorBoundary>
   );

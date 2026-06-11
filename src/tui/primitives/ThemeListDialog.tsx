@@ -24,7 +24,7 @@ export function ThemeListDialog({ themes, selectedIndex, termWidth, termHeight }
             const isSelected = i === selectedIndex;
             return (
               <Box key={theme.name} justifyContent="space-between">
-                <Text color={isSelected ? TUI_THEME.accent : theme.isActive ? TUI_THEME.success : undefined} bold={isSelected || theme.isActive}>
+                <Text color={isSelected ? TUI_THEME.accent : theme.isActive ? TUI_THEME.success : TUI_THEME.muted} bold={isSelected || theme.isActive}>
                   {isSelected ? '▸ ' : '  '}{theme.name}
                 </Text>
                 <Text dimColor>{theme.isDark ? 'dark' : 'light'}</Text>

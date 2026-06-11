@@ -46,7 +46,7 @@ export function MessageList({
           <Text dimColor>{hiddenMessageCount} earlier messages hidden</Text>
         </Box>
       )}
-      <Box flexDirection="column" height={messageAreaHeight} overflow="hidden">
+      <Box flexDirection="column" height={messageAreaHeight}>
         {messages.map((msg, i) => (
           <MessageItem
             key={hiddenMessageCount + i}
@@ -87,10 +87,6 @@ function MessageItem({ msg, chatTextWidth, showTimestamps, showThinking, showToo
   isStreaming: boolean;
   isQueued: boolean;
 }) {
-  const timestamp = showTimestamps && msg.createdAt ? (
-    <Text dimColor>{new Date(msg.createdAt).toLocaleTimeString()} </Text>
-  ) : null;
-
   return (
     <Box key="msg" flexDirection="column" marginBottom={1}>
       {isQueued && (
@@ -101,7 +97,7 @@ function MessageItem({ msg, chatTextWidth, showTimestamps, showThinking, showToo
       {msg.role === 'user' && (
         <Box flexDirection="column">
           <Box>
-            {timestamp}
+            {showTimestamps && msg.createdAt && <Text dimColor>{new Date(msg.createdAt).toLocaleTimeString()} </Text>}
             <Text color={TUI_THEME.muted}>You</Text>
           </Box>
           {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (
@@ -156,7 +152,7 @@ function MessageItem({ msg, chatTextWidth, showTimestamps, showThinking, showToo
       {msg.role === 'assistant' && (msg.type === 'text' || !msg.type) && (
         <Box flexDirection="column">
           <Box>
-            {timestamp}
+            {showTimestamps && msg.createdAt && <Text dimColor>{new Date(msg.createdAt).toLocaleTimeString()} </Text>}
             <Text color={TUI_THEME.accent}>MiniAgent</Text>
           </Box>
           {wrapByWidth(msg.content, chatTextWidth).map((line, lineIndex) => (

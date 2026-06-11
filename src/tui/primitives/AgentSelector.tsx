@@ -42,7 +42,7 @@ export function AgentSelector({ agents, selectedIndex, currentAgent, termWidth, 
             return (
               <Box key={agent.id} justifyContent="space-between">
                 <Text
-                  color={isSelected ? TUI_THEME.success : isCurrent ? TUI_THEME.accent : undefined}
+                  color={isSelected ? TUI_THEME.success : isCurrent ? TUI_THEME.accent : TUI_THEME.muted}
                   bold={isSelected}
                 >{isSelected ? '▸ ' : '  '}{agent.icon || '●'} {truncateByWidth(agent.name, contentWidth - 24).text}</Text>
                 <Text dimColor={isCurrent}>{isCurrent ? 'active' : truncateByWidth(agent.description, 20).text}</Text>

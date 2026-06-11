@@ -62,7 +62,7 @@ export function ModelSelector({ models, selectedIndex, filter, termWidth, termHe
                 return (
                   <Box key={model.id} justifyContent="space-between">
                     <Text
-                      color={isSelected ? TUI_THEME.accent : undefined}
+                      color={isSelected ? TUI_THEME.accent : TUI_THEME.muted}
                       bold={isSelected}
                     >{isSelected ? '▸ ' : '  '}{model.favorite ? '★ ' : ''}{truncateByWidth(model.name, contentWidth - 20).text}</Text>
                     <Text dimColor>{truncateByWidth(model.provider, 16).text}</Text>

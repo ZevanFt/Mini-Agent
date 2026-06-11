@@ -47,7 +47,7 @@ export function StashListDialog({ entries, selectedIndex, termWidth, termHeight 
               <Box key={entry.id} flexDirection="column">
                 <Box justifyContent="space-between">
                   <Text
-                    color={isSelected ? TUI_THEME.warning : undefined}
+                    color={isSelected ? TUI_THEME.warning : TUI_THEME.muted}
                     bold={isSelected}
                   >{isSelected ? '▸ ' : '  '}{truncateByWidth(firstLine, contentWidth - 16).text}</Text>
                   <Text dimColor>{formatTime(entry.timestamp)}</Text>
