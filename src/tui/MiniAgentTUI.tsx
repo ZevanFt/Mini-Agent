@@ -2660,6 +2660,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               maxVisibleLines={maxComposerInputLines}
               position="chat"
             />
+          </Box>
           {/* 右侧：侧边栏 - 宽模式内联，窄模式覆盖层 */}
           {isWideMode ? (
             <Sidebar
@@ -2680,7 +2681,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
               />
             </Box>
           ) : null}
-        </Box>
         </Box>
       )}
 
