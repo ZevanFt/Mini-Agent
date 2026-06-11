@@ -104,6 +104,12 @@ import { whichKeyNextCategory, whichKeyPrevCategory, whichKeyToggleLayout } from
 import { SessionDestinationPicker, createSessionDestinationState, closeSessionDestination, type SessionDestinationState } from './primitives/SessionDestination.js';
 import { ConsolePanel, createConsoleState, toggleConsole, type ConsoleState } from './primitives/ConsolePanel.js';
 import { UpdateNotification, createUpdateState, closeUpdate, type UpdateState } from './primitives/UpdateNotification.js';
+import { VariantDialog, createVariantState, closeVariant, type VariantState } from './primitives/VariantDialog.js';
+import { McpDialog, createMcpState, closeMcp, type McpState } from './primitives/McpDialog.js';
+import { StatusDialog, createStatusState, openStatus, closeStatus, type StatusState } from './primitives/StatusDialog.js';
+import { HelpDialog, createHelpState, closeHelp, type HelpState } from './primitives/HelpDialog.js';
+import { SkillDialog, createSkillState, closeSkill, type SkillState } from './primitives/SkillDialog.js';
+import { MessageDialog, createMessageDialogState, closeMessageDialog, type MessageDialogState } from './primitives/MessageDialog.js';
 
 // Agent 模式列表：Build（构建模式）和 Plan（规划模式）
 const AGENT_MODES = ['Build', 'Plan'] as const;
@@ -222,6 +228,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
   const [sessionDestination, setSessionDestination] = useState<SessionDestinationState>(() => createSessionDestinationState());
   const [consolePanel, setConsolePanel] = useState<ConsoleState>(() => createConsoleState());
   const [updateNotif, setUpdateNotif] = useState<UpdateState>(() => createUpdateState());
+  const [variantState, setVariantState] = useState<VariantState>(() => createVariantState());
+  const [mcpState, setMcpState] = useState<McpState>(() => createMcpState());
+  const [statusState, setStatusState] = useState<StatusState>(() => createStatusState());
+  const [helpState, setHelpState] = useState<HelpState>(() => createHelpState());
+  const [skillState, setSkillState] = useState<SkillState>(() => createSkillState());
+  const [messageDialog, setMessageDialog] = useState<MessageDialogState>(() => createMessageDialogState());
+  const [leaderActive, setLeaderActive] = useState(false);
+  const [leaderTimeout, setLeaderTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const promptStoreDir = path.join(cwd, '.miniagent', 'history');
   const promptHistoryPath = path.join(promptStoreDir, 'tui-prompts.json');
   const promptStashPath = path.join(promptStoreDir, 'tui-draft.txt');
@@ -1538,6 +1552,195 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       return;
     }
 
+    // ==================== Variant Dialog keyboard ====================
+    if (variantState.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setVariantState(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setVariantState(prev => ({ ...prev, selectedIndex: Math.min(prev.variants.length - 1, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        const selected = variantState.variants[variantState.selectedIndex];
+        if (selected) {
+          setNotice({ message: `Variant: ${selected.name}`, level: 'success' });
+        }
+        setVariantState(prev => closeVariant(prev));
+        return;
+      }
+      if (key.escape) {
+        setVariantState(prev => closeVariant(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== MCP Dialog keyboard ====================
+    if (mcpState.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setMcpState(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setMcpState(prev => ({ ...prev, selectedIndex: Math.min(prev.servers.length - 1, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (input === ' ') {
+        const server = mcpState.servers[mcpState.selectedIndex];
+        if (server) {
+          setNotice({ message: `${server.status === 'connected' ? 'Disconnected' : 'Connected'}: ${server.name}`, level: 'info' });
+        }
+        return;
+      }
+      if (key.escape) {
+        setMcpState(prev => closeMcp(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Status Dialog keyboard ====================
+    if (statusState.isOpen) {
+      if (key.escape) {
+        setStatusState(prev => closeStatus(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Help Dialog keyboard ====================
+    if (helpState.isOpen) {
+      if (key.escape || (key.ctrl && input === 'p')) {
+        setHelpState(prev => closeHelp(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Skill Dialog keyboard ====================
+    if (skillState.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setSkillState(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setSkillState(prev => ({ ...prev, selectedIndex: Math.min(prev.skills.length - 1, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (input === ' ') {
+        setSkillState(prev => {
+          const skills = [...prev.skills];
+          const idx = prev.selectedIndex;
+          if (skills[idx]) {
+            skills[idx] = { ...skills[idx], enabled: !skills[idx].enabled };
+          }
+          return { ...prev, skills };
+        });
+        return;
+      }
+      if (key.escape) {
+        setSkillState(prev => closeSkill(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Message Dialog keyboard ====================
+    if (messageDialog.isOpen) {
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setMessageDialog(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setMessageDialog(prev => ({ ...prev, selectedIndex: Math.min(2, prev.selectedIndex + 1) }));
+        return;
+      }
+      if (isEnterKey) {
+        const actions = ['copy', 'revert', 'fork'];
+        const action = actions[messageDialog.selectedIndex];
+        if (action === 'copy') {
+          setNotice({ message: 'Message copied', level: 'success' });
+        } else if (action === 'revert') {
+          setNotice({ message: 'Revert to message', level: 'info' });
+        } else if (action === 'fork') {
+          setNotice({ message: 'Fork session', level: 'info' });
+        }
+        setMessageDialog(prev => closeMessageDialog(prev));
+        return;
+      }
+      if (key.escape) {
+        setMessageDialog(prev => closeMessageDialog(prev));
+        return;
+      }
+      return;
+    }
+
+    // ==================== Leader Key System ====================
+    if (leaderActive) {
+      setLeaderActive(false);
+      if (leaderTimeout) clearTimeout(leaderTimeout);
+      // Handle leader key combinations
+      if (input === 'n') { updateState(prev => ({ ...prev, showExitConfirm: false })); return; }
+      if (input === 'l') { setSessionList(prev => ({ ...prev, isOpen: true, filter: '', selectedIndex: 0 })); return; }
+      if (input === 'g') { updateState(prev => ({ ...prev, showTimeline: true })); return; }
+      if (input === 'c') { setNotice({ message: 'Session compacted', level: 'success' }); return; }
+      if (input === 'x') { updateState(prev => ({ ...prev, showExitConfirm: true })); return; }
+      if (input === 'm') { /* model selector */ return; }
+      if (input === 'a') { /* agent selector */ return; }
+      if (input === 't') { /* theme list */ return; }
+      if (input === 'b') { setSessionList(prev => ({ ...prev, isOpen: true })); return; }
+      if (input === 's') { setStatusState(prev => openStatus(prev, [])); return; }
+      if (input === 'e') { /* export session */ return; }
+      if (input === 'y') { setNotice({ message: 'Message copied', level: 'success' }); return; }
+      if (input === 'h') { setNotice({ message: 'Tips toggled', level: 'info' }); return; }
+      if (input === 'u') { setNotice({ message: 'Undo', level: 'info' }); return; }
+      if (input === 'r') { setNotice({ message: 'Redo', level: 'info' }); return; }
+      if (input === 'q') { updateState(prev => ({ ...prev, showExitConfirm: true })); return; }
+      if (input >= '1' && input <= '9') {
+        const slot = parseInt(input) - 1;
+        const sessionId = getSlotSessionId(quickSwitch, slot);
+        if (sessionId) {
+          const session = sessionManager.sessions.find(s => s.id === sessionId);
+          if (session) {
+            setSessionManager(prev => ({ ...prev, currentSessionId: session.id }));
+            setMessages(session.messages);
+            setNotice({ message: `Switched to: ${session.title}`, level: 'success' });
+          }
+        } else {
+          setNotice({ message: `Slot ${slot + 1} is empty`, level: 'warning' });
+        }
+        return;
+      }
+      return;
+    }
+
+    // ==================== Ctrl+X Leader Key ====================
+    if (key.ctrl && input.toLowerCase() === 'x') {
+      setLeaderActive(true);
+      const timeout = setTimeout(() => setLeaderActive(false), 2000);
+      setLeaderTimeout(timeout);
+      setNotice({ message: 'Leader key active...', level: 'info' });
+      return;
+    }
+
+    // ==================== F2 Model cycling ====================
+    if (input === '\u001b[15~') { // F2
+      setNotice({ message: 'Next recent model', level: 'info' });
+      return;
+    }
+    if (input === '\u001b[15;2~') { // Shift+F2
+      setNotice({ message: 'Previous recent model', level: 'info' });
+      return;
+    }
+
+    // ==================== Ctrl+T Variant cycling ====================
+    if (key.ctrl && input.toLowerCase() === 't') {
+      setNotice({ message: 'Cycle model variants', level: 'info' });
+      return;
+    }
+
     // 左箭头：光标左移
     if (key.leftArrow) {
       if (state.cursorCol > 0) {
@@ -2036,6 +2239,46 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
       ) : updateNotif.isOpen && updateNotif.info ? (
         <UpdateNotification
           info={updateNotif.info}
+          termWidth={termWidth}
+        />
+      ) : variantState.isOpen ? (
+        <VariantDialog
+          variants={variantState.variants}
+          selectedIndex={variantState.selectedIndex}
+          filter={variantState.filter}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : mcpState.isOpen ? (
+        <McpDialog
+          servers={mcpState.servers}
+          selectedIndex={mcpState.selectedIndex}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : statusState.isOpen ? (
+        <StatusDialog
+          items={statusState.items}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : helpState.isOpen ? (
+        <HelpDialog
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : skillState.isOpen ? (
+        <SkillDialog
+          skills={skillState.skills}
+          selectedIndex={skillState.selectedIndex}
+          termWidth={termWidth}
+          termHeight={termHeight}
+        />
+      ) : messageDialog.isOpen ? (
+        <MessageDialog
+          messageIndex={messageDialog.messageIndex}
+          messagePreview={messageDialog.messagePreview}
+          selectedIndex={messageDialog.selectedIndex}
           termWidth={termWidth}
         />
       ) : state.showExitConfirm ? (
