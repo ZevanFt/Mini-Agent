@@ -42,32 +42,43 @@ export function Footer({
 
   const rightText = notice?.message
     || (isPaletteOpen ? paletteHint : hasConversation ? statusText : `PgUp/PgDn scroll  Ctrl+Shift+C copy  ${version}`);
-  const rightWidth = getStringWidth(rightText);
-  const leftWidth = Math.max(10, termWidth - rightWidth - 2);
+
+  // Build the complete footer text first, then truncate to fit
+  const leftContent = isPaletteOpen ? 'Palette' : `${cwd}:main`;
+  const separator = '  ';
+  const rightContent = truncateByWidth(rightText, termWidth - 15).text; // reserve 15 for left minimum
+
+  // Calculate exact widths
+  const leftWidth = getStringWidth(leftContent);
+  const rightWidth = getStringWidth(rightContent);
+  const separatorWidth = getStringWidth(separator);
+
+  // If total exceeds termWidth, truncate left
+  const totalNeeded = leftWidth + separatorWidth + rightWidth;
+  const truncatedLeft = totalNeeded > termWidth
+    ? truncateByWidth(leftContent, Math.max(0, termWidth - separatorWidth - rightWidth)).text
+    : leftContent;
+
+  // Build final strings
+  const finalLeft = fillByWidth(truncatedLeft, Math.min(termWidth - 1, getStringWidth(truncatedLeft)));
+  const remainingWidth = termWidth - getStringWidth(finalLeft);
 
   return (
     <Box width={termWidth} height={1}>
-      <Text dimColor>{fillByWidth(isPaletteOpen ? 'Palette' : `${cwd}:main`, leftWidth)}</Text>
+      <Text dimColor>{finalLeft}</Text>
       {notice ? (
-        <NoticeText notice={notice} width={rightWidth} />
+        <NoticeText notice={notice} width={Math.min(remainingWidth, rightWidth)} />
       ) : isPaletteOpen ? (
-        <Text dimColor>{truncateByWidth(rightText, rightWidth).text}</Text>
+        <Text dimColor>{truncateByWidth(rightText, remainingWidth).text}</Text>
       ) : hasConversation ? (
         <>
           <Text color={status.permCount > 0 ? TUI_THEME.warning : TUI_THEME.success}>
             {status.permCount > 0 ? '⚠' : '•'}
           </Text>
-          <Text dimColor>
-            {truncateByWidth(
-              ` ${status.lspCount} LSP  ${status.mcpCount} MCP${status.mcpErrors > 0 ? ` (${status.mcpErrors} err)` : ''}`,
-              Math.max(0, termWidth - leftWidth - 1),
-            ).text}
-          </Text>
+          <Text dimColor> {truncateByWidth(rightText, Math.max(0, remainingWidth - 1)).text}</Text>
         </>
       ) : (
-        <>
-          <Text color={TUI_THEME.muted}>Get started — type a message or /help</Text>
-        </>
+        <Text color={TUI_THEME.muted}>Get started — type a message or /help</Text>
       )}
     </Box>
   );
