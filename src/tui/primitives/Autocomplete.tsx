@@ -33,8 +33,8 @@ export function Autocomplete({ items, selectedIndex, filter, trigger, termWidth,
   const contentWidth = width - 4;
 
   const filtered = filter
-    ? fuzzySearch(filter, items, item => `${item.label} ${item.description || ''}`).map(r => r.item)
-    : items;
+    ? (fuzzySearch(filter, items, item => `${item.label} ${item.description || ''}`).map(r => r.item) || [])
+    : (items || []);
 
   const visible = filtered.slice(0, maxHeight);
   const hasMore = filtered.length > maxHeight;
@@ -111,7 +111,7 @@ export function autocompleteDown(state: AutocompleteState): AutocompleteState {
 
 export function getSelectedAutocomplete(state: AutocompleteState): AutocompleteItem | null {
   const filtered = state.filter
-    ? fuzzySearch(state.filter, state.items, item => `${item.label} ${item.description || ''}`).map(r => r.item)
-    : state.items;
+    ? (fuzzySearch(state.filter, state.items, item => `${item.label} ${item.description || ''}`).map(r => r.item) || [])
+    : (state.items || []);
   return filtered[state.selectedIndex] || null;
 }

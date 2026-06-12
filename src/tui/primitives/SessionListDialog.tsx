@@ -35,7 +35,7 @@ export function SessionListDialog({ sessions, currentSessionId, selectedIndex, f
 
   // Fuzzy search
   const filtered = filter
-    ? fuzzySearch(filter, sessions, s => s.title).map(r => r.item)
+    ? (fuzzySearch(filter, sessions, s => s.title).map(r => r.item) || [])
     : sortSessions(sessions);
 
   const pinned = filtered.filter(s => s.pinned);

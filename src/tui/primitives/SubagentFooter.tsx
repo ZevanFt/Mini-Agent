@@ -18,6 +18,7 @@ export interface SubagentFooterProps {
 }
 
 export function SubagentFooter({ current, siblings, currentIndex, termWidth }: SubagentFooterProps) {
+  if (!current) return null;
   const width = Math.min(termWidth - 4, termWidth);
 
   return (

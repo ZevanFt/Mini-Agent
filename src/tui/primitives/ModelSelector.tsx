@@ -30,8 +30,8 @@ export function ModelSelector({ models, selectedIndex, filter, termWidth, termHe
 
   // Fuzzy search
   const filtered = filter
-    ? fuzzySearch(filter, models, m => `${m.name} ${m.provider}`).map(r => r.item)
-    : models;
+    ? (fuzzySearch(filter, models, m => `${m.name} ${m.provider}`).map(r => r.item) || [])
+    : (models || []);
 
   const favorites = filtered.filter(m => m.favorite);
   const recents = filtered.filter(m => m.recent && !m.favorite);

@@ -15,7 +15,7 @@ export interface FileAttachmentBadgeProps {
 }
 
 export function FileAttachmentBadge({ attachments, width }: FileAttachmentBadgeProps) {
-  if (attachments.length === 0) return null;
+  if (!attachments || attachments.length === 0) return null;
 
   return (
     <Box flexDirection="column" width={width} marginTop={1}>
