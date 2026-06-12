@@ -358,8 +358,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
 
       cursorRow = topPadding + logoHeight + tipHeight + cursorRowInComposer + 1;
       // +1: Composer's top padding row (line spacing)
-      // No marginX, no border on start page
-      cursorCol = state.cursorCol;
+      // Composer is centered via parent alignItems="center", account for that offset
+      const composerWidth = textWidth + 2;
+      const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
+      cursorCol = centerX + state.cursorCol;
     } else {
       // === CHAT PAGE ===
       // Composer (position="chat") structure:
