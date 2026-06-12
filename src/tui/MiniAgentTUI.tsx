@@ -315,6 +315,46 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
     }).catch(() => {});
   }, [cwd]);
 
+  // Position terminal cursor at input area for IME support
+  // After Ink renders, we show the cursor and move it to the input position
+  // so IME candidate boxes appear at the right place
+  useEffect(() => {
+    // Hide cursor when not in input mode
+    if (!hasConversation || state.showSlashMenu || permState.pending.length > 0
+        || questionState.pending.length > 0 || helpState.isOpen || statusState.isOpen
+        || stashList.isOpen || exportOptions.isOpen || sessionList.isOpen
+        || sessionRename.isOpen || themeList.isOpen || mcpState.isOpen
+        || skillState.isOpen || tagState.isOpen || forkState.isOpen
+        || subagentDialog.isOpen || messageDialog.isOpen || queuedPrompts.isOpen
+        || variantState.isOpen || consolePanel.isOpen) {
+      process.stdout.write('\x1b[?25l');
+      return;
+    }
+
+    // Calculate cursor position in the Composer
+    const composerInputStartCalc = Math.max(0, state.cursorRow - maxComposerInputLines + 1);
+    const visibleInputLineCountCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
+    const composerRowsCalc = visibleInputLineCountCalc * 2 + 4;
+
+    // Cursor row from top of Composer: 1 (top padding) + (cursorRow - composerInputStart) * 2
+    const cursorRowInComposer = 1 + (state.cursorRow - composerInputStartCalc) * 2;
+
+    // Composer is at bottom of chat area (termHeight - 1 for footer)
+    // So cursor row from top of terminal: termHeight - 1 - composerRows + cursorRowInComposer
+    const cursorRow = termHeight - 1 - composerRowsCalc + cursorRowInComposer;
+
+    // Cursor column: 2 (marginX) + 1 (border) + cursorCol
+    const cursorCol = 3 + state.cursorCol;
+
+    // Only position if cursor is within visible area
+    if (cursorRow > 0 && cursorRow < termHeight && cursorCol > 0 && cursorCol <= termWidth) {
+      // Show cursor and position it using ANSI escape sequences
+      // \x1b[?25h = show cursor
+      // \x1b[{row};{col}H = move cursor to row,col (1-indexed)
+      process.stdout.write(`\x1b[?25h\x1b[${cursorRow};${cursorCol}H`);
+    }
+  });
+
   // 计算当前模式名称（从 AGENT_MODES 数组中取）
   const currentMode = AGENT_MODES[state.modeIndex];
   // 显示完整模型名，避免用户不清楚当前实际使用的 Ollama model/tag。
