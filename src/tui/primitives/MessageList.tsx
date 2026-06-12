@@ -1,7 +1,7 @@
 import { Box, Text } from 'ink';
 import { TUI_GLYPHS, TUI_THEME } from './theme.js';
 import { wrapByWidth } from './text.js';
-import { Spinner } from './Spinner.js';
+import { Scanner } from './Scanner.js';
 import { ThinkingBlock } from './ThinkingBlock.js';
 import { ToolOutput } from './ToolOutput.js';
 import type { Message } from '../types.js';
@@ -67,7 +67,7 @@ export function MessageList({
         <Box flexDirection="column">
           <Box>
             <Text color={TUI_THEME.accent}>MiniAgent </Text>
-            <Spinner color={TUI_THEME.accent} />
+            <Scanner width={10} color={TUI_THEME.accent} trailColor={TUI_THEME.muted} />
           </Box>
           {streamingLines.map((line, lineIndex) => (
             <Text key={lineIndex}>{line}</Text>
