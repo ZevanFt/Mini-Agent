@@ -3,6 +3,11 @@ import { render } from 'ink';
 import type { Agent } from '../core/agent.js';
 import { MiniAgentTUI } from './MiniAgentTUI.js';
 
+// Patch cli-cursor: prevent Ink from hiding the terminal cursor.
+// We control cursor visibility ourselves via ANSI escape sequences.
+import cliCursor from 'cli-cursor';
+cliCursor.hide = () => {};
+
 interface TUIOptions {
   agent: Agent;
   model: string;

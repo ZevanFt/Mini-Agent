@@ -45,12 +45,10 @@ export function Composer({
   };
 
   const inputLineText = (line: string, row: number) => {
-    const caret = '▌';
+    // No visual cursor (▌) — we use the real terminal cursor instead
     const content = row === 0 && row === cursorRow && cursorCol === 0 && line === ''
-      ? `${caret} Ask anything...`
-      : row === cursorRow
-        ? line.slice(0, cursorCol) + caret + line.slice(cursorCol)
-        : line;
+      ? ` Ask anything...`
+      : line;
     return fillByWidth(truncateByWidth(content, textWidth).text, contentWidth);
   };
 
