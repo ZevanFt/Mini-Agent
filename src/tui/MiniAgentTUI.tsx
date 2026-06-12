@@ -2290,7 +2290,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     showToolDetails: sessionToggles.showToolDetails,
   });
   const sidebarFooterRows = buildSidebarFooterRows({ version, sidebarInnerWidth, cwd });
-  const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length - sidebarFooterRows.length);
+  const sidebarFillRows = Math.max(0, termHeight - 2 - sidebarRows.length - sidebarFooterRows.length);
 
   const startCommandMenuWidth = textWidth + 2;
   const maxComposerInputLines = 5;
@@ -2369,7 +2369,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   const messageLineBudget = Math.max(4, termHeight - visibleInputLineCount * 2 - inlineMenuRows - 10);
   const composerRows = visibleInputLineCount * 2 + 4 + inlineMenuRows;
   const consolePanelHeight = consolePanel.isOpen ? Math.min(8, termHeight - 2) : 0;
-  const messagePaneHeight = Math.max(3, termHeight - composerRows - 3 - consolePanelHeight);
+  const messagePaneHeight = Math.max(3, termHeight - composerRows - 2 - consolePanelHeight);
   let usedMessageLines = 0;
   let visibleMessageStart = messages.length;
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -2695,7 +2695,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         </Box>
       ) : (
         // 对话页面：左侧消息/输入框 + 右侧上下贯穿 sidebar
-        <Box flexDirection="row" height={termHeight - 1}>
+        <Box flexDirection="row" height={termHeight}>
           <Box flexDirection="column" width={chatAreaWidth}>
             <MessageList
               messages={effectiveScrollOffset > 0 ? scrollAdjustedVisible : visibleMessages}
