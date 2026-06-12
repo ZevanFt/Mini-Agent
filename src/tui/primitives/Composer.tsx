@@ -121,11 +121,13 @@ export function Composer({
           <Text color="white" backgroundColor={TUI_THEME.selected}>{pill(currentMode)}</Text>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${agentName} ${stateLabel}`.trim(), contentWidth - currentMode.length - 2).text, contentWidth - currentMode.length)}</Text>
         </Box>
-        {isProcessing && (
-          <Box width={contentWidth}>
+        <Box width={contentWidth}>
+          {isProcessing ? (
             <Scanner width={Math.min(10, contentWidth)} color={TUI_THEME.accent} trailColor={TUI_THEME.muted} />
-          </Box>
-        )}
+          ) : (
+            <Text dimColor backgroundColor={TUI_THEME.panel}>{'·'.repeat(Math.min(10, contentWidth))}</Text>
+          )}
+        </Box>
         <Box width={contentWidth}>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{TUI_GLYPHS.divider.repeat(contentWidth)}</Text>
         </Box>

@@ -61,17 +61,16 @@ export function MessageList({
           isQueued={false}
         />
       ))}
-      {/* 流式响应：紧跟最后一条消息 */}
-      {isProcessing && (
-        <Box flexDirection="column">
-          {streamingLines.map((line, lineIndex) => (
+      {/* 流式响应区域：始终保留空间，避免布局抖动 */}
+      <Box flexDirection="column" flexShrink={0}>
+        {isProcessing ? (
+          streamingLines.map((line, lineIndex) => (
             <Text key={lineIndex}>{line}</Text>
-          ))}
-          {!currentResponse && (
-            <Text dimColor>Waiting for response...</Text>
-          )}
-        </Box>
-      )}
+          ))
+        ) : (
+          <Text> </Text>
+        )}
+      </Box>
     </Box>
   );
 }

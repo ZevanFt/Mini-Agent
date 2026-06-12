@@ -4,7 +4,7 @@ export const TUI_THEME = {
   warning: '#ffcc00',
   error: '#ff4444',
   muted: '#666666',
-  panel: '#1a1a2e',
+  panel: '#141414',
   logo: '#0078d7',
   selected: '#264f78',
 };
