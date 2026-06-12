@@ -321,8 +321,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   // After Ink renders, we show the cursor and move it to the input position
   // so IME candidate boxes appear at the right place
   useEffect(() => {
-    // Hide cursor when not in input mode
-    if (!hasConversation || state.showSlashMenu || permState.pending.length > 0
+    // Hide cursor when dialogs are open
+    if (state.showSlashMenu || permState.pending.length > 0
         || questionState.pending.length > 0 || helpState.isOpen || statusState.isOpen
         || stashList.isOpen || exportOptions.isOpen || sessionList.isOpen
         || sessionRename.isOpen || themeList.isOpen || mcpState.isOpen
@@ -333,28 +333,43 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       return;
     }
 
-    // Calculate cursor position
-    // The Composer structure (rows from top):
-    //   1: top padding
-    //   visibleInputLineCount × 2: input lines (line + gap each)
-    //   1: bottom padding
-    //   1: mode pill
-    //   1: divider
-    //   1: hint
-    //   1: marginBottom
-    // Total Composer height = visibleInputLineCount × 2 + 6
     const composerInputStartCalc = Math.max(0, state.cursorRow - maxComposerInputLines + 1);
-
-    // Cursor row from top of Composer inner column:
-    // 1 (top padding) + (cursorRow - composerInputStart) * 2
+    // Cursor row from top of Composer inner column: 1 (top padding) + cursorRow × 2
     const cursorRowInComposer = 1 + (state.cursorRow - composerInputStartCalc) * 2;
 
-    // Composer starts after: messagePaneHeight + inlineMenu + consolePanel
-    // All inside the left column which starts at row 0
-    const cursorRow = messagePaneHeight + inlineMenuRows + consolePanelHeight + cursorRowInComposer;
+    let cursorRow: number;
+    let cursorCol: number;
 
-    // Cursor column: 2 (marginX left) + 1 (border ┃) + cursorCol
-    const cursorCol = 3 + state.cursorCol;
+    if (!hasConversation) {
+      // === START PAGE ===
+      // Layout: vertically centered container with Logo + Tip + Composer
+      // Logo: 5 lines + marginBottom 1 = 6 rows
+      // Tip: 1 line + marginBottom 1 = 2 rows
+      // Composer (position="start"): visibleInputLineCount × 2 + 5 rows (no border, no marginX)
+      const visibleInputLinesCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
+      const composerHeight = visibleInputLinesCalc * 2 + 5;
+      const logoHeight = 6;  // 5 lines + 1 margin
+      const tipHeight = 2;   // 1 line + 1 margin
+      const totalContentHeight = logoHeight + tipHeight + composerHeight;
+
+      // justifyContent="center" → top padding = (containerHeight - contentHeight) / 2
+      const containerHeight = termHeight - 1;
+      const topPadding = Math.max(0, Math.floor((containerHeight - totalContentHeight) / 2));
+
+      cursorRow = topPadding + logoHeight + tipHeight + cursorRowInComposer;
+      // No marginX, no border on start page
+      cursorCol = state.cursorCol;
+    } else {
+      // === CHAT PAGE ===
+      // Composer (position="chat") structure:
+      //   1: top padding, inputLineCount × 2, 1: bottom padding, 1: mode, 1: divider, 1: hint, 1: marginBottom
+      const composerTotalHeight = /* visibleInputLineCount × 2 + 6 */ 0;
+      void composerTotalHeight;
+
+      cursorRow = messagePaneHeight + inlineMenuRows + consolePanelHeight + cursorRowInComposer;
+      // marginX=2 + border ┃ = 3 columns offset
+      cursorCol = 3 + state.cursorCol;
+    }
 
     // Only position if cursor is within visible area
     if (cursorRow > 0 && cursorRow < termHeight && cursorCol > 0 && cursorCol <= termWidth) {
