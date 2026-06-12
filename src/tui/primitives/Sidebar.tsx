@@ -165,11 +165,13 @@ export function buildSidebarRows(opts: {
 export function buildSidebarFooterRows(opts: {
   version: string;
   sidebarInnerWidth: number;
+  cwd?: string;
 }): SidebarRow[] {
   const line = (text = '') => fillByWidth(text, opts.sidebarInnerWidth);
   const rule = () => line(TUI_GLYPHS.divider.repeat(opts.sidebarInnerWidth));
   return [
     { text: rule(), dim: true },
+    ...(opts.cwd ? [{ text: line(`${opts.cwd}:main`), dim: true }] : []),
     { text: line(`• MiniAgent ${opts.version}`), color: TUI_THEME.success },
     { text: line('by Zevan'), dim: true },
   ];

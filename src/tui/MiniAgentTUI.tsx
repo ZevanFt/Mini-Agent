@@ -2289,7 +2289,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     showThinking: sessionToggles.showThinking,
     showToolDetails: sessionToggles.showToolDetails,
   });
-  const sidebarFooterRows = buildSidebarFooterRows({ version, sidebarInnerWidth });
+  const sidebarFooterRows = buildSidebarFooterRows({ version, sidebarInnerWidth, cwd });
   const sidebarFillRows = Math.max(0, termHeight - 3 - sidebarRows.length - sidebarFooterRows.length);
 
   const startCommandMenuWidth = textWidth + 2;
@@ -2754,6 +2754,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         </Box>
       )}
 
+      {!hasConversation && (
       <Footer
         cwd={cwd}
         version={version}
@@ -2762,6 +2763,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         isPaletteOpen={state.showSlashMenu && state.slashMenuMode === 'modal'}
         hasConversation={hasConversation}
       />
+      )}
       </>)}
     </Box>
     </ErrorBoundary>
