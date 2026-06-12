@@ -2739,6 +2739,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
               textWidth={chatTextWidth}
               maxVisibleLines={maxComposerInputLines}
               position="chat"
+              isProcessing={state.isProcessing}
             />
           </Box>
           {/* 右侧：侧边栏 */}
