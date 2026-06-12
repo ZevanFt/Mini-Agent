@@ -356,7 +356,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       const containerHeight = termHeight - 1;
       const topPadding = Math.max(0, Math.floor((containerHeight - totalContentHeight) / 2));
 
-      cursorRow = topPadding + logoHeight + tipHeight + cursorRowInComposer;
+      cursorRow = topPadding + logoHeight + tipHeight + cursorRowInComposer + 1;
+      // +1: Composer's top padding row (line spacing)
       // No marginX, no border on start page
       cursorCol = state.cursorCol;
     } else {
