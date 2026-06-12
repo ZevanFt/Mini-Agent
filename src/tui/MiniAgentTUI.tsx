@@ -126,6 +126,8 @@ interface TUIProps {
   cwd: string;               // 当前工作目录路径
   version: string;           // 应用版本号
   onExit: () => void;        // 退出回调函数
+  onCursorMove?: (row: number, col: number) => void;  // 光标定位回调（IME支持）
+  onCursorHide?: () => void;                          // 隐藏光标回调
 }
 
 // TUI 内部状态类型定义
@@ -161,7 +163,7 @@ const LOGO_LINES: string[] = [
 const LOGO_SPLIT_INDEX = 41;
 
 // TUI 主组件：渲染整个终端用户界面
-export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
+export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove, onCursorHide }: TUIProps) {
   // useApp: 获取 Ink 应用控制，exit() 用于退出应用
   const { exit } = useApp();
   // useStdout: 获取标准输出流引用
@@ -327,7 +329,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
         || skillState.isOpen || tagState.isOpen || forkState.isOpen
         || subagentDialog.isOpen || messageDialog.isOpen || queuedPrompts.isOpen
         || variantState.isOpen || consolePanel.isOpen) {
-      process.stdout.write('\x1b[?25l');
+      onCursorHide?.();
       return;
     }
 
@@ -348,10 +350,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit }: TUIProps) {
 
     // Only position if cursor is within visible area
     if (cursorRow > 0 && cursorRow < termHeight && cursorCol > 0 && cursorCol <= termWidth) {
-      // Show cursor and position it using ANSI escape sequences
-      // \x1b[?25h = show cursor
-      // \x1b[{row};{col}H = move cursor to row,col (1-indexed)
-      process.stdout.write(`\x1b[?25h\x1b[${cursorRow};${cursorCol}H`);
+      onCursorMove?.(cursorRow, cursorCol);
     }
   });
 
