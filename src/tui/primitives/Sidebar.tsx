@@ -172,6 +172,6 @@ export function buildSidebarFooterRows(opts: {
   return [
     { text: rule(), dim: true },
     ...(opts.cwd ? [{ text: line(`${opts.cwd}:main`), dim: true }] : []),
-    { text: line(`• MiniAgent ${opts.version} by ZevanFt`), color: TUI_THEME.success },
+    { text: line(`• MiniAgent ${opts.version} by Zevan`), color: TUI_THEME.success },
   ];
 }
