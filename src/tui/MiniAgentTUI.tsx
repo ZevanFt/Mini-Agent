@@ -333,19 +333,27 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       return;
     }
 
-    // Calculate cursor position in the Composer
+    // Calculate cursor position
+    // The Composer structure (rows from top):
+    //   1: top padding
+    //   visibleInputLineCount × 2: input lines (line + gap each)
+    //   1: bottom padding
+    //   1: mode pill
+    //   1: divider
+    //   1: hint
+    //   1: marginBottom
+    // Total Composer height = visibleInputLineCount × 2 + 6
     const composerInputStartCalc = Math.max(0, state.cursorRow - maxComposerInputLines + 1);
-    const visibleInputLineCountCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
-    const composerRowsCalc = visibleInputLineCountCalc * 2 + 4;
 
-    // Cursor row from top of Composer: 1 (top padding) + (cursorRow - composerInputStart) * 2
+    // Cursor row from top of Composer inner column:
+    // 1 (top padding) + (cursorRow - composerInputStart) * 2
     const cursorRowInComposer = 1 + (state.cursorRow - composerInputStartCalc) * 2;
 
-    // Composer is at bottom of chat area (termHeight - 1 for footer)
-    // So cursor row from top of terminal: termHeight - 1 - composerRows + cursorRowInComposer
-    const cursorRow = termHeight - 1 - composerRowsCalc + cursorRowInComposer;
+    // Composer starts after: messagePaneHeight + inlineMenu + consolePanel
+    // All inside the left column which starts at row 0
+    const cursorRow = messagePaneHeight + inlineMenuRows + consolePanelHeight + cursorRowInComposer;
 
-    // Cursor column: 2 (marginX) + 1 (border) + cursorCol
+    // Cursor column: 2 (marginX left) + 1 (border ┃) + cursorCol
     const cursorCol = 3 + state.cursorCol;
 
     // Only position if cursor is within visible area
