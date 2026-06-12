@@ -361,7 +361,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       // Composer is centered via parent alignItems="center", account for that offset
       const composerWidth = textWidth + 2;
       const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
-      cursorCol = centerX + state.cursorCol;
+      cursorCol = centerX + 1 + state.cursorCol;
+      // +1: content starts after Composer's left edge padding
     } else {
       // === CHAT PAGE ===
       // Composer (position="chat") structure:
