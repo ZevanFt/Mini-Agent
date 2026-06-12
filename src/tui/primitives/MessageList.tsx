@@ -6,6 +6,8 @@ import { ThinkingBlock } from './ThinkingBlock.js';
 import { ToolOutput } from './ToolOutput.js';
 import type { Message } from '../types.js';
 
+const STREAMING_ZONE_LINES = 10;
+
 export interface MessageListProps {
   messages: Message[];
   hiddenMessageCount: number;
@@ -35,9 +37,10 @@ export function MessageList({
   const showThinking = sessionToggles?.showThinking ?? true;
   const showToolDetails = sessionToggles?.showToolDetails ?? true;
 
-  // Reserve lines for header (hidden count) + streaming indicator + footer
-  const reservedLines = (hiddenMessageCount > 0 ? 2 : 0) + (isProcessing ? 3 : 0) + 1;
-  const messageAreaHeight = Math.max(4, height - reservedLines);
+  // Fixed分区：流式输出区永远占 STREAMING_ZONE_LINES 行（有/无内容都一样）
+  // 消息历史区 = 总高度 - 流式区 - 顶部提示行
+  const headerLines = hiddenMessageCount > 0 ? 2 : 0;
+  const historyHeight = Math.max(4, height - STREAMING_ZONE_LINES - headerLines);
 
   return (
     <Box flexDirection="column" width={chatAreaWidth} height={height} paddingX={2}>
@@ -46,7 +49,8 @@ export function MessageList({
           <Text dimColor>{hiddenMessageCount} earlier messages hidden</Text>
         </Box>
       )}
-      <Box flexDirection="column" height={messageAreaHeight}>
+      {/* 消息历史区：固定高度，内容超出时自动截断上方 */}
+      <Box flexDirection="column" height={historyHeight}>
         {messages.map((msg, i) => (
           <MessageItem
             key={hiddenMessageCount + i}
@@ -55,25 +59,32 @@ export function MessageList({
             showTimestamps={showTimestamps}
             showThinking={showThinking}
             showToolDetails={showToolDetails}
-            isStreaming={isProcessing && i === messages.length - 1 && msg.role === 'assistant'}
-            isQueued={isProcessing && i === messages.length - 1 && msg.role === 'user'}
+            isStreaming={false}
+            isQueued={false}
           />
         ))}
       </Box>
-      {isProcessing && currentResponse && (
-        <Box flexDirection="column" marginTop={1}>
-          <Text color={TUI_THEME.accent}>MiniAgent <Spinner color={TUI_THEME.accent} /></Text>
-          {wrapByWidth(currentResponse, chatTextWidth).slice(-8).map((line, lineIndex) => (
-            <Text key={lineIndex}>{line}</Text>
-          ))}
-        </Box>
-      )}
-      {isProcessing && !currentResponse && (
-        <Box flexDirection="column" marginTop={1}>
-          <Text color={TUI_THEME.accent}>MiniAgent <Spinner color={TUI_THEME.accent} /></Text>
-          <Text dimColor>Waiting for response...</Text>
-        </Box>
-      )}
+      {/* 流式输出区：固定高度，永不变化 */}
+      <Box flexDirection="column" height={STREAMING_ZONE_LINES}>
+        {isProcessing && (
+          <>
+            <Box>
+              <Text color={TUI_THEME.accent}>MiniAgent </Text>
+              <Spinner color={TUI_THEME.accent} />
+              {currentResponse && <Text dimColor> ({currentResponse.length} chars)</Text>}
+            </Box>
+            {currentResponse ? (
+              wrapByWidth(currentResponse, chatTextWidth)
+                .slice(-(STREAMING_ZONE_LINES - 2))
+                .map((line, lineIndex) => (
+                  <Text key={lineIndex}>{line}</Text>
+                ))
+            ) : (
+              <Text dimColor>Waiting for response...</Text>
+            )}
+          </>
+        )}
+      </Box>
     </Box>
   );
 }
