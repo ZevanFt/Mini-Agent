@@ -337,6 +337,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     // Cursor row from top of Composer inner column: 1 (top padding) + cursorRow × 2
     const cursorRowInComposer = 1 + (state.cursorRow - composerInputStartCalc) * 2;
 
+    // Calculate display width of text before cursor (handles double-width CJK chars)
+    const currentLine = state.inputLines[state.cursorRow] ?? '';
+    const displayWidthBeforeCursor = getStringWidth(currentLine.slice(0, state.cursorCol));
+
     let cursorRow: number;
     let cursorCol: number;
 
@@ -361,7 +365,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       // Composer is centered via parent alignItems="center", account for that offset
       const composerWidth = textWidth + 2;
       const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
-      cursorCol = centerX + 1 + state.cursorCol;
+      cursorCol = centerX + 1 + displayWidthBeforeCursor;
       // +1: content starts after Composer's left edge padding
     } else {
       // === CHAT PAGE ===
@@ -372,7 +376,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
 
       cursorRow = messagePaneHeight + inlineMenuRows + consolePanelHeight + cursorRowInComposer;
       // marginX=2 + border ┃ = 3 columns offset
-      cursorCol = 3 + state.cursorCol;
+      cursorCol = 3 + displayWidthBeforeCursor;
     }
 
     // Only position if cursor is within visible area
