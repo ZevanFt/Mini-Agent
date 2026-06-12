@@ -30,6 +30,21 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
     // Save reference to original write BEFORE wrapping
     const originalWrite = process.stdout.write.bind(process.stdout);
 
+    // Cursor positioning: after EVERY Ink write to stdout, we append our cursor
+    // command. This ensures the cursor stays at the right position even after
+    // Ink's throttled re-renders.
+    let pendingCursorCmd = '';
+
+    (process.stdout as any).write = function (data: string | Uint8Array, ...args: any[]): boolean {
+      const result = originalWrite(data, ...args);
+      // After Ink writes, append our cursor positioning command
+      if (pendingCursorCmd) {
+        originalWrite(pendingCursorCmd);
+        pendingCursorCmd = '';
+      }
+      return result;
+    };
+
     const app = React.createElement(MiniAgentTUI, {
       agent,
       model,
@@ -38,15 +53,17 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
       onExit: () => {
         if (cleanupFn) cleanupFn();
       },
-      // Use original write to bypass Ink's rendering - cursor positioning
-      // is written AFTER Ink finishes (in useEffect), so it's always last
       onCursorMove: (row: number, col: number) => {
-        // Row is already correct (calculation produces 1-based value).
-        // ANSI col is 1-based but our col is 0-based, so add 1.
-        originalWrite(`\x1b[?25h\x1b[${row};${col + 1}H`);
+        const cmd = `\x1b[?25h\x1b[${row};${col + 1}H`;
+        // Set pending so future Ink re-renders auto-append cursor position
+        pendingCursorCmd = cmd;
+        // Also write directly for the current render (useEffect runs after Ink's write)
+        originalWrite(cmd);
       },
       onCursorHide: () => {
-        originalWrite('\x1b[?25l');
+        const cmd = '\x1b[?25l';
+        pendingCursorCmd = cmd;
+        originalWrite(cmd);
       },
     });
 
@@ -55,6 +72,8 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
       exitOnCtrlC: false,
     });
     cleanupFn = () => {
+      // Restore original stdout.write
+      (process.stdout as any).write = originalWrite;
       // Leave alternate screen buffer and restore cursor
       originalWrite('\x1b[?1049l\x1b[?25h');
       instance.unmount();
