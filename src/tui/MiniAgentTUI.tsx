@@ -372,7 +372,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     }
 
     // Only position if cursor is within visible area
-    if (cursorRow > 0 && cursorRow < termHeight && cursorCol > 0 && cursorCol <= termWidth) {
+    if (cursorRow > 0 && cursorRow < termHeight && cursorCol >= 0 && cursorCol < termWidth) {
       onCursorMove?.(cursorRow, cursorCol);
     }
   });
