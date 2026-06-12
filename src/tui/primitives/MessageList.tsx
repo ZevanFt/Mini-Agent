@@ -37,15 +37,10 @@ export function MessageList({
   const showThinking = sessionToggles?.showThinking ?? true;
   const showToolDetails = sessionToggles?.showToolDetails ?? true;
 
-  // 流式响应的可见行数（最多8行，防止抖动）
+  // 流式响应的可见行数
   const streamingLines = currentResponse
     ? wrapByWidth(currentResponse, chatTextWidth).slice(-STREAMING_MAX_LINES)
     : [];
-  const streamingHeight = isProcessing ? 2 + streamingLines.length : 0; // header + content
-
-  // 消息历史区 = 总高度 - 流式区 - 顶部提示
-  const headerLines = hiddenMessageCount > 0 ? 2 : 0;
-  const historyHeight = Math.max(4, height - streamingHeight - headerLines);
 
   return (
     <Box flexDirection="column" width={chatAreaWidth} height={height} paddingX={2}>
@@ -54,22 +49,20 @@ export function MessageList({
           <Text dimColor>{hiddenMessageCount} earlier messages hidden</Text>
         </Box>
       )}
-      {/* 消息历史区 */}
-      <Box flexDirection="column" height={historyHeight}>
-        {messages.map((msg, i) => (
-          <MessageItem
-            key={hiddenMessageCount + i}
-            msg={msg}
-            chatTextWidth={chatTextWidth}
-            showTimestamps={showTimestamps}
-            showThinking={showThinking}
-            showToolDetails={showToolDetails}
-            isStreaming={false}
-            isQueued={false}
-          />
-        ))}
-      </Box>
-      {/* 流式响应区：紧跟最后一条消息 */}
+      {/* 消息列表 + 流式响应：自然流动，不给固定高度 */}
+      {messages.map((msg, i) => (
+        <MessageItem
+          key={hiddenMessageCount + i}
+          msg={msg}
+          chatTextWidth={chatTextWidth}
+          showTimestamps={showTimestamps}
+          showThinking={showThinking}
+          showToolDetails={showToolDetails}
+          isStreaming={false}
+          isQueued={false}
+        />
+      ))}
+      {/* 流式响应：紧跟最后一条消息 */}
       {isProcessing && (
         <Box flexDirection="column">
           <Box>
