@@ -40,8 +40,8 @@ export function Composer({
   const visibleInputLines = inputLines.slice(composerInputStart, composerInputStart + maxVisibleLines);
 
   const composerHintText = (w: number) => {
-    if (w < 24) return 'Enter send';
-    return 'Ctrl+P commands  Enter';
+    if (w < 24) return 'Enter';
+    return 'Ctrl+P commands';
   };
 
   const inputLineText = (line: string, row: number) => {
@@ -118,13 +118,13 @@ export function Composer({
           <Text color="white" backgroundColor={TUI_THEME.selected}>{pill(currentMode)}</Text>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${agentName} ${stateLabel}`.trim(), contentWidth - currentMode.length - 2).text, contentWidth - currentMode.length)}</Text>
         </Box>
-        <Box width={contentWidth} justifyContent="space-between">
+        <Box width={contentWidth} flexDirection="row">
           {isProcessing ? (
             <Scanner width={Math.min(10, contentWidth)} color={TUI_THEME.accent} trailColor={TUI_THEME.muted} />
           ) : (
             <Text dimColor backgroundColor={TUI_THEME.panel}>{'·'.repeat(Math.min(10, contentWidth))}</Text>
           )}
-          <Text dimColor backgroundColor={TUI_THEME.panel}>{composerHintText(textWidth)}</Text>
+          <Text dimColor backgroundColor={TUI_THEME.panel}>  {composerHintText(textWidth)}</Text>
         </Box>
         <Box width={contentWidth}>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{TUI_GLYPHS.divider.repeat(contentWidth)}</Text>
