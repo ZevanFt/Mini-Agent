@@ -30,6 +30,7 @@ export function Sidebar({ rows, footerRows, width, paddingX = 2, fillHeight = 0 
           color={row.color}
           dimColor={row.dim}
           backgroundColor={TUI_THEME.panel}
+          wrap="truncate"
         >{row.text}</Text>
       ))}
       {Array.from({ length: fillHeight }).map((_, i) => (
@@ -41,6 +42,7 @@ export function Sidebar({ rows, footerRows, width, paddingX = 2, fillHeight = 0 
           color={row.color}
           dimColor={row.dim}
           backgroundColor={TUI_THEME.panel}
+          wrap="truncate"
         >{row.text}</Text>
       ))}
     </Box>
@@ -168,10 +170,8 @@ export function buildSidebarFooterRows(opts: {
   cwd?: string;
 }): SidebarRow[] {
   const line = (text = '') => fillByWidth(text, opts.sidebarInnerWidth);
-  const folderName = opts.cwd ? opts.cwd.split(/[/\\]/).filter(Boolean).pop() || opts.cwd : '';
-  const branchLabel = folderName ? `${folderName}:main` : ':main';
   return [
-    ...(folderName ? [{ text: line(branchLabel), dim: true }] : []),
+    ...(opts.cwd ? [{ text: line(`${opts.cwd}:main`), dim: true }] : []),
     { text: line(`• MiniAgent ${opts.version} by Zevan`), color: TUI_THEME.success },
   ];
 }

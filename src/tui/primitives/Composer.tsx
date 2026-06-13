@@ -1,6 +1,6 @@
 import { Box, Text } from 'ink';
 import { TUI_GLYPHS, TUI_THEME } from './theme.js';
-import { fillByWidth, truncateByWidth } from './text.js';
+import { fillByWidth, getStringWidth, truncateByWidth } from './text.js';
 import { Scanner } from './Scanner.js';
 
 export interface ComposerProps {
@@ -118,13 +118,16 @@ export function Composer({
           <Text color="white" backgroundColor={TUI_THEME.selected}>{pill(currentMode)}</Text>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${agentName} ${stateLabel}`.trim(), contentWidth - currentMode.length - 2).text, contentWidth - currentMode.length)}</Text>
         </Box>
-        <Box width={contentWidth} flexDirection="row" justifyContent="space-between">
+        <Box width={contentWidth}>
           {isProcessing ? (
             <Scanner width={Math.min(10, contentWidth)} color={TUI_THEME.accent} trailColor={TUI_THEME.muted} />
-          ) : (
-            <Text dimColor backgroundColor={TUI_THEME.panel}>{'·'.repeat(Math.min(10, contentWidth))}</Text>
-          )}
-          <Text dimColor backgroundColor={TUI_THEME.panel}>{truncateByWidth(composerHintText(textWidth), Math.max(0, contentWidth - 12)).text}</Text>
+          ) : (() => {
+            const dotsWidth = Math.min(10, contentWidth);
+            const hintText = truncateByWidth(composerHintText(textWidth), Math.max(0, contentWidth - dotsWidth)).text;
+            const gapLen = Math.max(0, contentWidth - dotsWidth - getStringWidth(hintText));
+            const hintLine = '·'.repeat(dotsWidth) + ' '.repeat(gapLen) + hintText;
+            return <Text dimColor backgroundColor={TUI_THEME.panel}>{hintLine}</Text>;
+          })()}
         </Box>
         <Box width={contentWidth}>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{TUI_GLYPHS.divider.repeat(contentWidth)}</Text>
