@@ -2705,13 +2705,21 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
               height={messagePaneHeight}
               sessionToggles={sessionToggles}
             />
-            {state.isProcessing && state.currentResponse && (
-              <Box paddingX={2} flexShrink={0}>
-                {wrapByWidth(state.currentResponse, chatTextWidth).slice(-8).map((line, i) => (
-                  <Text key={i}>{line}</Text>
-                ))}
-              </Box>
-            )}
+            {state.isProcessing && state.currentResponse && (() => {
+              const allLines = wrapByWidth(state.currentResponse, chatTextWidth);
+              const visibleLines = allLines.slice(-8);
+              const padCount = Math.max(0, 8 - visibleLines.length);
+              return (
+                <Box paddingX={2} flexShrink={0} flexDirection="column" height={8}>
+                  {visibleLines.map((line, i) => (
+                    <Text key={i}>{line}</Text>
+                  ))}
+                  {Array.from({ length: padCount }).map((_, i) => (
+                    <Text key={`pad-${i}`}>{' '}</Text>
+                  ))}
+                </Box>
+              );
+            })()}
             {state.showSlashMenu && state.slashMenuMode === 'inline' && (
               <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
                 <Box justifyContent="space-between">

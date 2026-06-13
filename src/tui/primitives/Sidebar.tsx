@@ -168,8 +168,10 @@ export function buildSidebarFooterRows(opts: {
   cwd?: string;
 }): SidebarRow[] {
   const line = (text = '') => fillByWidth(text, opts.sidebarInnerWidth);
+  const folderName = opts.cwd ? opts.cwd.split(/[/\\]/).filter(Boolean).pop() || opts.cwd : '';
+  const branchLabel = folderName ? `${folderName}:main` : ':main';
   return [
-    ...(opts.cwd ? [{ text: line(`${opts.cwd}:main`), dim: true }] : []),
+    ...(folderName ? [{ text: line(branchLabel), dim: true }] : []),
     { text: line(`• MiniAgent ${opts.version} by Zevan`), color: TUI_THEME.success },
   ];
 }
