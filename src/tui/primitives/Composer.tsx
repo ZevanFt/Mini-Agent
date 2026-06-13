@@ -41,10 +41,7 @@ export function Composer({
 
   const composerHintText = (w: number) => {
     if (w < 24) return 'Enter send';
-    if (w < 42) return 'Ctrl+P cmds  Enter';
-    if (w < 62) return '↑↓ hist  Ctrl+P cmds  Enter';
-    if (w < 82) return '↑↓ hist  Tab mode  Ctrl+P cmds  Enter';
-    return '↑↓  Tab  Ctrl+P  Ctrl+T  Ctrl+R  Ctrl+K  Enter';
+    return 'Ctrl+P commands  Enter';
   };
 
   const inputLineText = (line: string, row: number) => {
