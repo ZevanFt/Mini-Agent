@@ -19,7 +19,7 @@ import { getScrollWindow, scrollHint } from './primitives/ScrollWindow.js';
 import { Sidebar, buildSidebarRows, buildSidebarFooterRows } from './primitives/Sidebar.js';
 import { TUI_THEME } from './primitives/theme.js';
 import { TimelineDialog } from './primitives/TimelineDialog.js';
-import { fillByWidth, getStringWidth, truncateByWidth } from './primitives/text.js';
+import { fillByWidth, getStringWidth, truncateByWidth, wrapByWidth } from './primitives/text.js';
 import type { Message } from './types.js';
 import { safeCopy } from './primitives/Clipboard.js';
 import { copyTranscript } from './primitives/Transcript.js';
@@ -2703,10 +2703,15 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
               chatTextWidth={chatTextWidth}
               chatAreaWidth={chatAreaWidth}
               height={messagePaneHeight}
-              isProcessing={state.isProcessing}
-              currentResponse={state.currentResponse}
               sessionToggles={sessionToggles}
             />
+            {state.isProcessing && state.currentResponse && (
+              <Box paddingX={2} flexShrink={0}>
+                {wrapByWidth(state.currentResponse, chatTextWidth).slice(-8).map((line, i) => (
+                  <Text key={i}>{line}</Text>
+                ))}
+              </Box>
+            )}
             {state.showSlashMenu && state.slashMenuMode === 'inline' && (
               <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
                 <Box justifyContent="space-between">

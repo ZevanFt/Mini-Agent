@@ -247,11 +247,9 @@ async function main() {
         chatTextWidth={80}
         chatAreaWidth={100}
         height={20}
-        isProcessing={true}
-        currentResponse="Streaming response..."
       />
     );
-    assert(contains(out, 'Streaming response...'), `missing streaming in: ${JSON.stringify(out)}`);
+    assert(contains(out, 'test'), `missing message in: ${JSON.stringify(out)}`);
   });
 
   await test('MessageList: unicode content', async () => {

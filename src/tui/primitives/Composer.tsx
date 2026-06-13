@@ -41,10 +41,10 @@ export function Composer({
 
   const composerHintText = (w: number) => {
     if (w < 24) return 'Enter send';
-    if (w < 42) return 'Ctrl+P commands   Enter send';
-    if (w < 62) return '↑↓ history   Ctrl+P commands   Enter send';
-    if (w < 82) return '↑↓ history   Ctrl+P commands   Ctrl+K clear input   Enter send';
-    return '↑↓ history   Tab mode   Ctrl+P commands   Ctrl+T timeline   Ctrl+R retry   Ctrl+E export   Ctrl+K clear input   Ctrl+U stash   Ctrl+Y restore   Ctrl+L clear chat   Enter send';
+    if (w < 42) return 'Ctrl+P cmds  Enter';
+    if (w < 62) return '↑↓ hist  Ctrl+P cmds  Enter';
+    if (w < 82) return '↑↓ hist  Tab mode  Ctrl+P cmds  Enter';
+    return '↑↓  Tab  Ctrl+P  Ctrl+T  Ctrl+R  Ctrl+K  Enter';
   };
 
   const inputLineText = (line: string, row: number) => {
@@ -121,18 +121,16 @@ export function Composer({
           <Text color="white" backgroundColor={TUI_THEME.selected}>{pill(currentMode)}</Text>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${agentName} ${stateLabel}`.trim(), contentWidth - currentMode.length - 2).text, contentWidth - currentMode.length)}</Text>
         </Box>
-        <Box width={contentWidth}>
+        <Box width={contentWidth} justifyContent="space-between">
           {isProcessing ? (
             <Scanner width={Math.min(10, contentWidth)} color={TUI_THEME.accent} trailColor={TUI_THEME.muted} />
           ) : (
             <Text dimColor backgroundColor={TUI_THEME.panel}>{'·'.repeat(Math.min(10, contentWidth))}</Text>
           )}
+          <Text dimColor backgroundColor={TUI_THEME.panel}>{composerHintText(textWidth)}</Text>
         </Box>
         <Box width={contentWidth}>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{TUI_GLYPHS.divider.repeat(contentWidth)}</Text>
-        </Box>
-        <Box width={contentWidth} justifyContent="flex-end">
-          <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(composerHintText(textWidth), contentWidth)}</Text>
         </Box>
       </Box>
     </Box>
