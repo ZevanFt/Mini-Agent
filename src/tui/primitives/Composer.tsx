@@ -41,7 +41,11 @@ export function Composer({
 
   const composerHintText = (w: number) => {
     if (w < 24) return 'Enter';
-    return 'Ctrl+P commands';
+    if (w < 50) return 'Tab mode  Ctrl+P';
+    const left = 'Tab mode  Ctrl+P commands';
+    const right = '@ files  $ subagent  / cmd';
+    const gap = Math.max(2, w - left.length - right.length);
+    return left + ' '.repeat(gap) + right;
   };
 
   const inputLineText = (line: string, row: number) => {
@@ -52,7 +56,6 @@ export function Composer({
     return fillByWidth(truncateByWidth(content, textWidth).text, contentWidth);
   };
 
-  const dashLine = TUI_GLYPHS.divider.repeat(contentWidth);
   const pill = (text: string) => ` ${text} `;
   const stateLabel = [
     promptStateLabel,
@@ -60,34 +63,43 @@ export function Composer({
   ].filter(Boolean).join(' ');
 
   if (position === 'start') {
+    const innerW = textWidth + 1;
+    const innerDash = TUI_GLYPHS.divider.repeat(innerW);
     return (
       <Box width={textWidth + 2} flexDirection="column">
         <Box width={textWidth + 2}>
-          <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
+          <Text color={TUI_THEME.accent}>┃</Text>
+          <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(innerW)}</Text>
         </Box>
         {visibleInputLines.flatMap((line, visibleRow) => {
           const row = composerInputStart + visibleRow;
           return [
             <Box key={`line-${row}`} width={textWidth + 2}>
+              <Text color={TUI_THEME.accent}>┃</Text>
               <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row)}</Text>
             </Box>,
             <Box key={`gap-${row}`} width={textWidth + 2}>
-              <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
+              <Text color={TUI_THEME.accent}>┃</Text>
+              <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(innerW)}</Text>
             </Box>,
           ];
         })}
         <Box width={textWidth + 2}>
-          <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
+          <Text color={TUI_THEME.accent}>┃</Text>
+          <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(innerW)}</Text>
         </Box>
         <Box width={textWidth + 2}>
+          <Text color={TUI_THEME.accent}>┃</Text>
           <Text color="white" backgroundColor={TUI_THEME.selected}>{pill(currentMode)}</Text>
-          <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(`${TUI_GLYPHS.bullet} ${truncateByWidth(`${modelName} ${agentName} ${stateLabel}`.trim(), textWidth - currentMode.length - 4).text}`, textWidth - currentMode.length)}</Text>
+          <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(`${TUI_GLYPHS.bullet} ${truncateByWidth(`${modelName} ${agentName} ${stateLabel}`.trim(), innerW - currentMode.length - 4).text}`, innerW - currentMode.length)}</Text>
         </Box>
         <Box width={textWidth + 2}>
-          <Text dimColor backgroundColor={TUI_THEME.panel}>{dashLine}</Text>
+          <Text color={TUI_THEME.accent}>┃</Text>
+          <Text dimColor backgroundColor={TUI_THEME.panel}>{innerDash}</Text>
         </Box>
         <Box width={textWidth + 2} justifyContent="flex-end">
-          <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(composerHintText(textWidth), textWidth + 2).text, textWidth + 2)}</Text>
+          <Text color={TUI_THEME.accent}>┃</Text>
+          <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(composerHintText(innerW), innerW).text, innerW)}</Text>
         </Box>
       </Box>
     );

@@ -151,16 +151,30 @@ interface TUIState {
   historyIndex: number | null; // 当前浏览的历史输入索引
 }
 
-// 固定 Logo（ASCII 艺术字），使用 #0078d7 蓝色
-const LOGO_LINES: string[] = [
-  '███    ███  ██  ███    ██  ██          █████    ██████   ███████  ███    ██  ████████ ',
-  '████  ████  ██  ████   ██  ██         ██   ██  ██        ██       ████   ██     ██    ',
-  '██ ████ ██  ██  ██ ██  ██  ██  █████  ███████  ██   ███  █████    ██ ██  ██     ██    ',
-  '██  ██  ██  ██  ██  ██ ██  ██         ██   ██  ██    ██  ██       ██  ██ ██     ██    ',
-  '██      ██  ██  ██   ████  ██         ██   ██   ██████   ███████  ██   ████     ██    ',
-];
+// Compact gradient logo text
+const LOGO_TEXT = 'MINI-AGENT';
 
-const LOGO_SPLIT_INDEX = 41;
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
+}
+
+function makeGradient(total: number, from: string, to: string): string[] {
+  const f = hexToRgb(from);
+  const t = hexToRgb(to);
+  return Array.from({ length: total }, (_, i) => {
+    const p = total <= 1 ? 0 : i / (total - 1);
+    const r = Math.round(f.r + p * (t.r - f.r));
+    const g = Math.round(f.g + p * (t.g - f.g));
+    const b = Math.round(f.b + p * (t.b - f.b));
+    const h = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0');
+    return `#${h(r)}${h(g)}${h(b)}`;
+  });
+}
+
+const LOGO_GRADIENT = makeGradient(LOGO_TEXT.length, '#ff8c00', '#888888');
 
 // TUI 主组件：渲染整个终端用户界面
 export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove, onCursorHide }: TUIProps) {
@@ -352,7 +366,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       // Composer (position="start"): visibleInputLineCount × 2 + 5 rows (no border, no marginX)
       const visibleInputLinesCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
       const composerHeight = visibleInputLinesCalc * 2 + 5;
-      const logoHeight = 6;  // 5 lines + 1 margin
+      const logoHeight = 3;  // 2 lines + 1 margin
       const tipHeight = 2;   // 1 line + 1 margin
       const totalContentHeight = logoHeight + tipHeight + composerHeight;
 
@@ -2626,15 +2640,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           paddingTop={state.showSlashMenu && state.slashMenuMode === 'inline' ? 1 : 0}
           height={termHeight - 1}
         >
-          {/* Logo 区域：显示 ASCII 艺术字，使用 #0078d7 蓝色 */}
+          {/* Logo: gradient text, compact */}
           <Box flexDirection="column" alignItems="center" marginBottom={1}>
-            {/* 遍历 Logo 每一行，使用固定颜色 #0078d7 */}
-            {LOGO_LINES.map((line, i) => (
-              <Box key={i}>
-                <Text color={TUI_THEME.logo}>{line.slice(0, LOGO_SPLIT_INDEX)}</Text>
-                <Text color={TUI_THEME.accent}>{line.slice(LOGO_SPLIT_INDEX)}</Text>
-              </Box>
-            ))}
+            <Text dimColor>by Zevan</Text>
+            <Box>
+              {LOGO_TEXT.split('').map((char, i) => (
+                <Text key={i} color={LOGO_GRADIENT[i]} bold>{char}</Text>
+              ))}
+            </Box>
           </Box>
 
           {/* 输入框容器：不设置宽度，由子元素自然撑开 */}

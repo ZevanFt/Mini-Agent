@@ -24,7 +24,7 @@ export interface FooterProps {
 
 export function Footer({
   cwd,
-  version,
+  version: _version,
   termWidth,
   notice,
   isPaletteOpen,
@@ -32,6 +32,15 @@ export function Footer({
   isProcessing: _isProcessing = false,
   status = { lspCount: 0, mcpCount: 0, mcpErrors: 0, permCount: 0, isConnected: true },
 }: FooterProps) {
+  // Start page: centered hint, no path
+  if (!hasConversation && !notice && !isPaletteOpen) {
+    return (
+      <Box width={termWidth} height={1} justifyContent="center">
+        <Text color={TUI_THEME.muted}>Get started — type a message or /help</Text>
+      </Box>
+    );
+  }
+
   const paletteHint = '↑↓ move  Enter select  Esc close';
 
   const statusParts: string[] = [];
@@ -41,25 +50,20 @@ export function Footer({
   const statusText = statusParts.join('  ');
 
   const rightText = notice?.message
-    || (isPaletteOpen ? paletteHint : hasConversation ? statusText : `PgUp/PgDn scroll  Ctrl+Shift+C copy  ${version}`);
+    || (isPaletteOpen ? paletteHint : statusText);
 
-  // Build the complete footer text first, then truncate to fit
   const leftContent = isPaletteOpen ? 'Palette' : `${cwd}:main`;
   const separator = '  ';
-  const rightContent = truncateByWidth(rightText, termWidth - 15).text; // reserve 15 for left minimum
 
-  // Calculate exact widths
   const leftWidth = getStringWidth(leftContent);
-  const rightWidth = getStringWidth(rightContent);
+  const rightWidth = getStringWidth(truncateByWidth(rightText, termWidth - 15).text);
   const separatorWidth = getStringWidth(separator);
 
-  // If total exceeds termWidth, truncate left
   const totalNeeded = leftWidth + separatorWidth + rightWidth;
   const truncatedLeft = totalNeeded > termWidth
     ? truncateByWidth(leftContent, Math.max(0, termWidth - separatorWidth - rightWidth)).text
     : leftContent;
 
-  // Build final strings
   const finalLeft = fillByWidth(truncatedLeft, Math.min(termWidth - 1, getStringWidth(truncatedLeft)));
   const remainingWidth = termWidth - getStringWidth(finalLeft);
 
@@ -68,17 +72,13 @@ export function Footer({
       <Text dimColor>{finalLeft}</Text>
       {notice ? (
         <NoticeText notice={notice} width={Math.min(remainingWidth, rightWidth)} />
-      ) : isPaletteOpen ? (
-        <Text dimColor>{truncateByWidth(rightText, remainingWidth).text}</Text>
-      ) : hasConversation ? (
+      ) : (
         <>
           <Text color={status.permCount > 0 ? TUI_THEME.warning : TUI_THEME.success}>
             {status.permCount > 0 ? '⚠' : '•'}
           </Text>
           <Text dimColor> {truncateByWidth(rightText, Math.max(0, remainingWidth - 1)).text}</Text>
         </>
-      ) : (
-        <Text color={TUI_THEME.muted}>Get started — type a message or /help</Text>
       )}
     </Box>
   );
