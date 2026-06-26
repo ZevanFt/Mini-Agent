@@ -91,6 +91,7 @@ import {
   type ExportOptionsState,
 } from './primitives/ExportOptionsDialog.js';
 import { ErrorBoundary } from './primitives/ErrorBoundary.js';
+import { Logo } from './primitives/Logo.js';
 import { CompactionMarker as _CompactionMarker } from './primitives/CompactionMarker.js';
 import { detectPaste as _detectPaste } from './primitives/PasteSummary.js';
 import { getDialogWidth as _getDialogWidth, getContentWidth as _getContentWidth, type DialogSize } from './primitives/DialogSize.js';
@@ -150,31 +151,6 @@ interface TUIState {
   timelineDetailOffset: number; // 时间线详情滚动位置
   historyIndex: number | null; // 当前浏览的历史输入索引
 }
-
-// Compact gradient logo text
-const LOGO_TEXT = 'MINI-AGENT';
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b };
-}
-
-function makeGradient(total: number, from: string, to: string): string[] {
-  const f = hexToRgb(from);
-  const t = hexToRgb(to);
-  return Array.from({ length: total }, (_, i) => {
-    const p = total <= 1 ? 0 : i / (total - 1);
-    const r = Math.round(f.r + p * (t.r - f.r));
-    const g = Math.round(f.g + p * (t.g - f.g));
-    const b = Math.round(f.b + p * (t.b - f.b));
-    const h = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0');
-    return `#${h(r)}${h(g)}${h(b)}`;
-  });
-}
-
-const LOGO_GRADIENT = makeGradient(LOGO_TEXT.length, '#ff8c00', '#888888');
 
 // TUI 主组件：渲染整个终端用户界面
 export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove, onCursorHide }: TUIProps) {
@@ -366,7 +342,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       // Composer (position="start"): visibleInputLineCount × 2 + 5 rows (no border, no marginX)
       const visibleInputLinesCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
       const composerHeight = visibleInputLinesCalc * 2 + 5;
-      const logoHeight = 3;  // 2 lines + 1 margin
+      const logoHeight = 7;  // 5 lines logo + 1 subtitle + 1 margin
       const tipHeight = 2;   // 1 line + 1 margin
       const totalContentHeight = logoHeight + tipHeight + composerHeight;
 
@@ -2640,15 +2616,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           paddingTop={state.showSlashMenu && state.slashMenuMode === 'inline' ? 1 : 0}
           height={termHeight - 1}
         >
-          {/* Logo: gradient text, compact */}
-          <Box flexDirection="column" alignItems="center" marginBottom={1}>
-            <Text dimColor>by Zevan</Text>
-            <Box>
-              {LOGO_TEXT.split('').map((char, i) => (
-                <Text key={i} color={LOGO_GRADIENT[i]} bold>{char}</Text>
-              ))}
-            </Box>
-          </Box>
+          {/* Logo: thick block-character style with gradient */}
+          <Logo subtitle="by Zevan" />
 
           {/* 输入框容器：不设置宽度，由子元素自然撑开 */}
           {/* 
