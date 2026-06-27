@@ -52,13 +52,15 @@ export function Logo({ variant = 'bold', subtitle, subtitleColor = '#666666' }: 
   const { mini, agent } = LOGO_VARIANTS[variant];
   const maxLines = Math.max(mini.length, agent.length);
   const miniWidth = mini[0]?.length || 27;
-  const totalWidth = miniWidth + (agent[0]?.length || 44);
+  const agentWidth = agent[0]?.length || 44;
+  const totalWidth = miniWidth + agentWidth;
+  const subtitleOffset = miniWidth + 43;
 
   return (
     <Box flexDirection="column" alignItems="center" marginBottom={1}>
       {subtitle && (
         <Box width={totalWidth}>
-          <Text>{' '.repeat(miniWidth)}</Text>
+          <Text>{' '.repeat(subtitleOffset)}</Text>
           <Text color={subtitleColor}>{subtitle}</Text>
         </Box>
       )}

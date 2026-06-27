@@ -2293,7 +2293,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   const sidebarFooterRows = buildSidebarFooterRows({ version, sidebarInnerWidth, cwd });
   const sidebarFillRows = Math.max(0, termHeight - 2 - sidebarRows.length - sidebarFooterRows.length);
 
-  const startCommandMenuWidth = textWidth + 2;
   const maxComposerInputLines = 5;
 
   const commandCategory = (name: string) => {
@@ -2623,8 +2622,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         <Box
           flexDirection="column"
           alignItems="center"
-          justifyContent={state.showSlashMenu && state.slashMenuMode === 'inline' ? 'flex-start' : 'center'}
-          paddingTop={state.showSlashMenu && state.slashMenuMode === 'inline' ? 1 : 0}
+          justifyContent="center"
           height={termHeight - 1}
         >
           {/* Logo: two switchable styles (Ctrl+Shift+L) */}
@@ -2649,18 +2647,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           <Box marginBottom={1} width={textWidth + 2}>
             <Text dimColor>💡 {currentTip.text}</Text>
           </Box>
-          {state.showSlashMenu && state.slashMenuMode === 'inline' && (
-            <Box width={startCommandMenuWidth} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
-              <Box justifyContent="space-between">
-                <Text color={TUI_THEME.accent}>Commands</Text>
-                <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
-              </Box>
-              {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
-              {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, startCommandMenuWidth - 2), activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command' })}
-              {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, startCommandMenuWidth - 2)).text}</Text>}
-              <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (startCommandMenuWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, startCommandMenuWidth - 2))}</Text>
-            </Box>
-          )}
           {showAutocomplete && autocompleteFiles.length > 0 && (
             <Box marginBottom={1}>
               <AutocompletePopup
