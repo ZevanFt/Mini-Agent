@@ -5,12 +5,16 @@ import { ThinkingBlock } from './ThinkingBlock.js';
 import { ToolOutput } from './ToolOutput.js';
 import type { Message } from '../types.js';
 
+const STREAMING_MAX_LINES = 8;
+
 export interface MessageListProps {
   messages: Message[];
   hiddenMessageCount: number;
   chatTextWidth: number;
   chatAreaWidth: number;
   height: number;
+  isProcessing: boolean;
+  currentResponse: string;
   sessionToggles?: {
     timestamps: boolean;
     showThinking: boolean;
@@ -24,11 +28,18 @@ export function MessageList({
   chatTextWidth,
   chatAreaWidth,
   height,
+  isProcessing,
+  currentResponse,
   sessionToggles,
 }: MessageListProps) {
   const showTimestamps = sessionToggles?.timestamps ?? false;
   const showThinking = sessionToggles?.showThinking ?? true;
   const showToolDetails = sessionToggles?.showToolDetails ?? true;
+
+  // 流式响应的可见行数
+  const streamingLines = currentResponse
+    ? wrapByWidth(currentResponse, chatTextWidth).slice(-STREAMING_MAX_LINES)
+    : [];
 
   return (
     <Box flexDirection="column" width={chatAreaWidth} height={height} paddingX={2}>
@@ -37,6 +48,7 @@ export function MessageList({
           <Text dimColor>{hiddenMessageCount} earlier messages hidden</Text>
         </Box>
       )}
+      {/* 消息列表 + 流式响应：自然流动，不给固定高度 */}
       {messages.map((msg, i) => (
         <MessageItem
           key={hiddenMessageCount + i}
@@ -49,6 +61,16 @@ export function MessageList({
           isQueued={false}
         />
       ))}
+      {/* 流式响应区域：始终保留空间，避免布局抖动 */}
+      <Box flexDirection="column" flexShrink={0}>
+        {isProcessing ? (
+          streamingLines.map((line, lineIndex) => (
+            <Text key={lineIndex}>{line}</Text>
+          ))
+        ) : (
+          <Text> </Text>
+        )}
+      </Box>
     </Box>
   );
 }

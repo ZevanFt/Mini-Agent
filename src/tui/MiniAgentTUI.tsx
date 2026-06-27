@@ -19,7 +19,7 @@ import { getScrollWindow, scrollHint } from './primitives/ScrollWindow.js';
 import { Sidebar, buildSidebarRows, buildSidebarFooterRows } from './primitives/Sidebar.js';
 import { TUI_THEME } from './primitives/theme.js';
 import { TimelineDialog } from './primitives/TimelineDialog.js';
-import { fillByWidth, getStringWidth, truncateByWidth, wrapByWidth } from './primitives/text.js';
+import { fillByWidth, getStringWidth, truncateByWidth } from './primitives/text.js';
 import type { Message } from './types.js';
 import { safeCopy } from './primitives/Clipboard.js';
 import { copyTranscript } from './primitives/Transcript.js';
@@ -91,7 +91,6 @@ import {
   type ExportOptionsState,
 } from './primitives/ExportOptionsDialog.js';
 import { ErrorBoundary } from './primitives/ErrorBoundary.js';
-import { Logo } from './primitives/Logo.js';
 import { CompactionMarker as _CompactionMarker } from './primitives/CompactionMarker.js';
 import { detectPaste as _detectPaste } from './primitives/PasteSummary.js';
 import { getDialogWidth as _getDialogWidth, getContentWidth as _getContentWidth, type DialogSize } from './primitives/DialogSize.js';
@@ -151,6 +150,17 @@ interface TUIState {
   timelineDetailOffset: number; // 时间线详情滚动位置
   historyIndex: number | null; // 当前浏览的历史输入索引
 }
+
+// 固定 Logo（ASCII 艺术字），使用 #0078d7 蓝色
+const LOGO_LINES: string[] = [
+  '███    ███  ██  ███    ██  ██          █████    ██████   ███████  ███    ██  ████████ ',
+  '████  ████  ██  ████   ██  ██         ██   ██  ██        ██       ████   ██     ██    ',
+  '██ ████ ██  ██  ██ ██  ██  ██  █████  ███████  ██   ███  █████    ██ ██  ██     ██    ',
+  '██  ██  ██  ██  ██  ██ ██  ██         ██   ██  ██    ██  ██       ██  ██ ██     ██    ',
+  '██      ██  ██  ██   ████  ██         ██   ██   ██████   ███████  ██   ████     ██    ',
+];
+
+const LOGO_SPLIT_INDEX = 41;
 
 // TUI 主组件：渲染整个终端用户界面
 export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove, onCursorHide }: TUIProps) {
@@ -342,7 +352,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       // Composer (position="start"): visibleInputLineCount × 2 + 5 rows (no border, no marginX)
       const visibleInputLinesCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
       const composerHeight = visibleInputLinesCalc * 2 + 5;
-      const logoHeight = 7;  // 5 lines logo + 1 subtitle + 1 margin
+      const logoHeight = 6;  // 5 lines + 1 margin
       const tipHeight = 2;   // 1 line + 1 margin
       const totalContentHeight = logoHeight + tipHeight + composerHeight;
 
@@ -2616,8 +2626,16 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           paddingTop={state.showSlashMenu && state.slashMenuMode === 'inline' ? 1 : 0}
           height={termHeight - 1}
         >
-          {/* Logo: thick block-character style with gradient */}
-          <Logo subtitle="by Zevan" />
+          {/* Logo 区域：显示 ASCII 艺术字，使用 #0078d7 蓝色 */}
+          <Box flexDirection="column" alignItems="center" marginBottom={1}>
+            {/* 遍历 Logo 每一行，使用固定颜色 #0078d7 */}
+            {LOGO_LINES.map((line, i) => (
+              <Box key={i}>
+                <Text color={TUI_THEME.logo}>{line.slice(0, LOGO_SPLIT_INDEX)}</Text>
+                <Text color={TUI_THEME.accent}>{line.slice(LOGO_SPLIT_INDEX)}</Text>
+              </Box>
+            ))}
+          </Box>
 
           {/* 输入框容器：不设置宽度，由子元素自然撑开 */}
           {/* 
@@ -2685,23 +2703,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
               chatTextWidth={chatTextWidth}
               chatAreaWidth={chatAreaWidth}
               height={messagePaneHeight}
+              isProcessing={state.isProcessing}
+              currentResponse={state.currentResponse}
               sessionToggles={sessionToggles}
             />
-            {state.isProcessing && state.currentResponse && (() => {
-              const allLines = wrapByWidth(state.currentResponse, chatTextWidth);
-              const visibleLines = allLines.slice(-8);
-              const padCount = Math.max(0, 8 - visibleLines.length);
-              return (
-                <Box paddingX={2} flexShrink={0} flexDirection="column" height={8}>
-                  {visibleLines.map((line, i) => (
-                    <Text key={i}>{line}</Text>
-                  ))}
-                  {Array.from({ length: padCount }).map((_, i) => (
-                    <Text key={`pad-${i}`}>{' '}</Text>
-                  ))}
-                </Box>
-              );
-            })()}
             {state.showSlashMenu && state.slashMenuMode === 'inline' && (
               <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
                 <Box justifyContent="space-between">
