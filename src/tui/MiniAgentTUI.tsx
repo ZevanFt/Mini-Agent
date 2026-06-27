@@ -91,6 +91,7 @@ import {
   type ExportOptionsState,
 } from './primitives/ExportOptionsDialog.js';
 import { ErrorBoundary } from './primitives/ErrorBoundary.js';
+import { Logo, getLogoHeight, type LogoVariant } from './primitives/Logo.js';
 import { CompactionMarker as _CompactionMarker } from './primitives/CompactionMarker.js';
 import { detectPaste as _detectPaste } from './primitives/PasteSummary.js';
 import { getDialogWidth as _getDialogWidth, getContentWidth as _getContentWidth, type DialogSize } from './primitives/DialogSize.js';
@@ -150,17 +151,6 @@ interface TUIState {
   timelineDetailOffset: number; // 时间线详情滚动位置
   historyIndex: number | null; // 当前浏览的历史输入索引
 }
-
-// 固定 Logo（ASCII 艺术字），使用 #0078d7 蓝色
-const LOGO_LINES: string[] = [
-  '███    ███  ██  ███    ██  ██          █████    ██████   ███████  ███    ██  ████████ ',
-  '████  ████  ██  ████   ██  ██         ██   ██  ██        ██       ████   ██     ██    ',
-  '██ ████ ██  ██  ██ ██  ██  ██  █████  ███████  ██   ███  █████    ██ ██  ██     ██    ',
-  '██  ██  ██  ██  ██  ██ ██  ██         ██   ██  ██    ██  ██       ██  ██ ██     ██    ',
-  '██      ██  ██  ██   ████  ██         ██   ██   ██████   ███████  ██   ████     ██    ',
-];
-
-const LOGO_SPLIT_INDEX = 41;
 
 // TUI 主组件：渲染整个终端用户界面
 export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove, onCursorHide }: TUIProps) {
@@ -248,6 +238,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   const [queuedPrompts, setQueuedPrompts] = useState<QueuedPromptsState>(() => createQueuedPromptsState());
   const [leaderActive, setLeaderActive] = useState(false);
   const [leaderTimeout, setLeaderTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [logoVariant, setLogoVariant] = useState<LogoVariant>('bold');
   const promptStoreDir = path.join(cwd, '.miniagent', 'history');
   const promptHistoryPath = path.join(promptStoreDir, 'tui-prompts.json');
   const promptStashPath = path.join(promptStoreDir, 'tui-draft.txt');
@@ -352,7 +343,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       // Composer (position="start"): visibleInputLineCount × 2 + 5 rows (no border, no marginX)
       const visibleInputLinesCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
       const composerHeight = visibleInputLinesCalc * 2 + 5;
-      const logoHeight = 6;  // 5 lines + 1 margin
+      const logoHeight = getLogoHeight(logoVariant);
       const tipHeight = 2;   // 1 line + 1 margin
       const totalContentHeight = logoHeight + tipHeight + composerHeight;
 
@@ -1061,6 +1052,16 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       setThemeState(prev => {
         const next = nextTheme(prev);
         setNotice({ message: `Theme: ${next.current}`, level: 'info' });
+        return next;
+      });
+      return;
+    }
+
+    // ==================== Logo Variant: Ctrl+Shift+L ====================
+    if (key.ctrl && key.shift && input.toLowerCase() === 'l') {
+      setLogoVariant(prev => {
+        const next = prev === 'bold' ? 'compact' : 'bold';
+        setNotice({ message: `Logo: ${next}`, level: 'info' });
         return next;
       });
       return;
@@ -2626,16 +2627,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           paddingTop={state.showSlashMenu && state.slashMenuMode === 'inline' ? 1 : 0}
           height={termHeight - 1}
         >
-          {/* Logo 区域：显示 ASCII 艺术字，使用 #0078d7 蓝色 */}
-          <Box flexDirection="column" alignItems="center" marginBottom={1}>
-            {/* 遍历 Logo 每一行，使用固定颜色 #0078d7 */}
-            {LOGO_LINES.map((line, i) => (
-              <Box key={i}>
-                <Text color={TUI_THEME.logo}>{line.slice(0, LOGO_SPLIT_INDEX)}</Text>
-                <Text color={TUI_THEME.accent}>{line.slice(LOGO_SPLIT_INDEX)}</Text>
-              </Box>
-            ))}
-          </Box>
+          {/* Logo: two switchable styles (Ctrl+Shift+L) */}
+          <Logo variant={logoVariant} subtitle="by Zevan" />
 
           {/* 输入框容器：不设置宽度，由子元素自然撑开 */}
           {/* 
