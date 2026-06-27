@@ -49,7 +49,7 @@ export function Composer({
   };
 
   const inputLineText = (line: string, row: number) => {
-    const content = row === 0 && row === cursorRow && cursorCol === 0 && line === ''
+    const content = row === 0 && cursorCol === 0 && line === ''
       ? ` 输入消息... (输入 / 唤起命令)`
       : line;
     return fillByWidth(truncateByWidth(content, textWidth).text, contentWidth);
@@ -63,17 +63,13 @@ export function Composer({
 
   if (position === 'start') {
     const innerW = textWidth + 1;
+    const currentLine = inputLines[cursorRow] ?? '';
     return (
       <Box width={textWidth + 2} flexDirection="column">
-        {visibleInputLines.flatMap((line, visibleRow) => {
-          const row = composerInputStart + visibleRow;
-          return [
-            <Box key={`line-${row}`} width={textWidth + 2}>
-              <Text color={TUI_THEME.accent}>{'> '}</Text>
-              <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row)}</Text>
-            </Box>,
-          ];
-        })}
+        <Box width={textWidth + 2}>
+          <Text color={TUI_THEME.accent}>{'> '}</Text>
+          <Text backgroundColor={TUI_THEME.panel}>{inputLineText(currentLine, 0)}</Text>
+        </Box>
         <Box width={textWidth + 2}>
           <Text color={TUI_THEME.accent}>{'  '}</Text>
           <Text color="white" backgroundColor={TUI_THEME.selected}>{pill(currentMode)}</Text>
