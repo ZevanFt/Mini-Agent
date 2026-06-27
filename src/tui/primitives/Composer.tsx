@@ -58,7 +58,6 @@ export function Composer({
   const pill = (text: string) => ` ${text} `;
   const stateLabel = [
     promptStateLabel,
-    inputLines.length > maxVisibleLines ? `${inputLines.length} lines` : '',
   ].filter(Boolean).join(' ');
 
   if (position === 'start') {

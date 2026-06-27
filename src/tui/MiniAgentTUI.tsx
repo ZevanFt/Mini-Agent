@@ -2095,26 +2095,30 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       return;
     }
 
-    // Enter 键：提交输入或换行
+    // Enter 键：提交输入
     if (isEnterKey) {
       const fullText = state.inputLines.join('\n').trim();
       if (fullText) {
-        handleProcessInput(fullText); // 有内容则提交
-      } else {
-        updateState(prev => {
-          const newLines = [...prev.inputLines];
-          const currentLine = newLines[prev.cursorRow];
-          newLines[prev.cursorRow] = currentLine.slice(0, prev.cursorCol); // 光标前部分
-          newLines.splice(prev.cursorRow + 1, 0, currentLine.slice(prev.cursorCol)); // 光标后部分插入新行
-          return {
-            ...prev,
-            inputLines: newLines,
-            cursorRow: prev.cursorRow + 1,
-            cursorCol: 0,
-            historyIndex: null,
-          };
-        });
+        handleProcessInput(fullText);
       }
+      return;
+    }
+
+    // Ctrl+Enter：换行（插入新行）
+    if (key.ctrl && key.return) {
+      updateState(prev => {
+        const newLines = [...prev.inputLines];
+        const currentLine = newLines[prev.cursorRow];
+        newLines[prev.cursorRow] = currentLine.slice(0, prev.cursorCol);
+        newLines.splice(prev.cursorRow + 1, 0, currentLine.slice(prev.cursorCol));
+        return {
+          ...prev,
+          inputLines: newLines,
+          cursorRow: prev.cursorRow + 1,
+          cursorCol: 0,
+          historyIndex: null,
+        };
+      });
       return;
     }
 
