@@ -41,9 +41,9 @@ export function Composer({
 
   const composerHintText = (w: number) => {
     if (w < 24) return 'Enter';
-    if (w < 50) return 'tab 模式  ctrl+p';
-    const left = 'tab 切换模式 · ctrl+p 设置';
-    const right = '@ 添加文件 · $ 子智能体 · / 唤起命令';
+    if (w < 48) return 'Tab 模式  Ctrl+P';
+    const left = 'Tab 切换模式 · Ctrl+P 设置';
+    const right = '@ 文件 · $ 智能体 · / 命令';
     const gap = Math.max(2, w - left.length - right.length);
     return left + ' '.repeat(gap) + right;
   };
@@ -65,38 +65,26 @@ export function Composer({
     const innerW = textWidth + 1;
     return (
       <Box width={textWidth + 2} flexDirection="column">
-        <Box width={textWidth + 2}>
-          <Text color={TUI_THEME.accent}>📋</Text>
-          <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(innerW)}</Text>
-        </Box>
         {visibleInputLines.flatMap((line, visibleRow) => {
           const row = composerInputStart + visibleRow;
           return [
             <Box key={`line-${row}`} width={textWidth + 2}>
-              <Text color={TUI_THEME.accent}>┃</Text>
+              <Text color={TUI_THEME.accent}>{'> '}</Text>
               <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row)}</Text>
-            </Box>,
-            <Box key={`gap-${row}`} width={textWidth + 2}>
-              <Text color={TUI_THEME.accent}>┃</Text>
-              <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(innerW)}</Text>
             </Box>,
           ];
         })}
         <Box width={textWidth + 2}>
-          <Text color={TUI_THEME.accent}>┃</Text>
-          <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(innerW)}</Text>
-        </Box>
-        <Box width={textWidth + 2}>
-          <Text color={TUI_THEME.accent}>┃</Text>
+          <Text color={TUI_THEME.accent}>{'  '}</Text>
           <Text color="white" backgroundColor={TUI_THEME.selected}>{pill(currentMode)}</Text>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(`${TUI_GLYPHS.bullet} ${truncateByWidth(`${modelName} ${agentName} ${stateLabel}`.trim(), innerW - currentMode.length - 4).text}`, innerW - currentMode.length)}</Text>
         </Box>
         <Box width={textWidth + 2}>
-          <Text color={TUI_THEME.accent}>┃</Text>
+          <Text color={TUI_THEME.accent}>{'  '}</Text>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{'─'.repeat(innerW)}</Text>
         </Box>
         <Box width={textWidth + 2} justifyContent="flex-end">
-          <Text color={TUI_THEME.accent}>┃</Text>
+          <Text color={TUI_THEME.accent}>{'  '}</Text>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(composerHintText(innerW), innerW).text, innerW)}</Text>
         </Box>
       </Box>
@@ -105,25 +93,16 @@ export function Composer({
 
   return (
     <Box width={width} marginX={2} marginBottom={1}>
-      <Text color={borderColor}>┃</Text>
+      <Text color={borderColor}>{'> '}</Text>
       <Box width={width - 1} flexDirection="column">
-        <Box width={contentWidth}>
-          <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(contentWidth)}</Text>
-        </Box>
         {visibleInputLines.flatMap((line, visibleRow) => {
           const row = composerInputStart + visibleRow;
           return [
             <Box key={`line-${row}`} width={contentWidth}>
               <Text backgroundColor={TUI_THEME.panel}>{inputLineText(line, row)}</Text>
             </Box>,
-            <Box key={`gap-${row}`} width={contentWidth}>
-              <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(contentWidth)}</Text>
-            </Box>,
           ];
         })}
-        <Box width={contentWidth}>
-          <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(contentWidth)}</Text>
-        </Box>
         <Box width={contentWidth}>
           <Text color="white" backgroundColor={TUI_THEME.selected}>{pill(currentMode)}</Text>
           <Text dimColor backgroundColor={TUI_THEME.panel}>{fillByWidth(truncateByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${agentName} ${stateLabel}`.trim(), contentWidth - currentMode.length - 2).text, contentWidth - currentMode.length)}</Text>
