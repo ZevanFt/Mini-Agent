@@ -2657,10 +2657,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
             maxVisibleLines={maxComposerInputLines}
             position="start"
           />
-
-          <Box marginTop={1}>
-            <Text dimColor>v{version} · {modelName}</Text>
-          </Box>
         </Box>
       ) : (
         // 对话页面：左侧消息/输入框 + 右侧上下贯穿 sidebar

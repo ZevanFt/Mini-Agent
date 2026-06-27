@@ -24,7 +24,7 @@ export interface FooterProps {
 
 export function Footer({
   cwd,
-  version: _version,
+  version,
   termWidth,
   notice,
   isPaletteOpen,
@@ -32,11 +32,16 @@ export function Footer({
   isProcessing: _isProcessing = false,
   status = { lspCount: 0, mcpCount: 0, mcpErrors: 0, permCount: 0, isConnected: true },
 }: FooterProps) {
-  // Start page: centered hint, no path
+  // Start page: left = cwd path, right = version
   if (!hasConversation && !notice && !isPaletteOpen) {
+    const pathText = truncateByWidth(cwd, Math.floor(termWidth * 0.6)).text;
+    const versionText = `v${version}`;
+    const gap = Math.max(2, termWidth - getStringWidth(pathText) - getStringWidth(versionText));
     return (
-      <Box width={termWidth} height={1} justifyContent="center">
-        <Text color={TUI_THEME.muted}>Get started — type a message or /help</Text>
+      <Box width={termWidth} height={1}>
+        <Text dimColor>{pathText}</Text>
+        <Text dimColor>{' '.repeat(gap)}</Text>
+        <Text dimColor>{versionText}</Text>
       </Box>
     );
   }
