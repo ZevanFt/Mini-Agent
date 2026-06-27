@@ -5,6 +5,7 @@ export const TUI_THEME = {
   error: '#ff4444',
   muted: '#666666',
   panel: '#141414',
+  inputBg: '#1e1e1e',
   logo: '#0078d7',
   selected: '#264f78',
 };
