@@ -69,10 +69,14 @@ export function Composer({
   if (position === 'start') {
     const innerW = textWidth + 1;
     const currentLine = inputLines[cursorRow] ?? '';
+    const displayText = currentLine === '' && cursorCol === 0
+      ? '输入消息... (输入 / 唤起命令)'
+      : currentLine;
+    const truncatedText = truncateByWidth(displayText, textWidth - 2).text;
     return (
       <Box width={textWidth + 2} flexDirection="column">
         <Text backgroundColor={inputBg}>
-          {'> '}{inputLineText(currentLine, 0)}
+          {'> '}{truncatedText}
         </Text>
         <Text backgroundColor={inputBg}>
           {'  '}
