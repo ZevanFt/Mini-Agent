@@ -342,14 +342,15 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       const visibleInputLinesCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
       const composerHeight = visibleInputLinesCalc * 2 + 5;
       const logoHeight = getLogoHeight(logoVariant);
-      const tipHeight = 2;   // 1 line + 1 margin
-      const totalContentHeight = logoHeight + tipHeight + composerHeight;
+      const spacerHeight = 2;  // space between logo and input
+      const tipHeight = 0;   // tip banner removed
+      const totalContentHeight = logoHeight + spacerHeight + tipHeight + composerHeight;
 
       // justifyContent="center" → top padding = (containerHeight - contentHeight) / 2
       const containerHeight = termHeight - 1;
       const topPadding = Math.max(0, Math.floor((containerHeight - totalContentHeight) / 2));
 
-      cursorRow = topPadding + logoHeight + tipHeight + cursorRowInComposer + 1;
+      cursorRow = topPadding + logoHeight + spacerHeight + tipHeight + cursorRowInComposer + 1;
       // +1: Composer's top padding row (line spacing)
       // Composer is centered via parent alignItems="center", account for that offset
       const composerWidth = textWidth + 2;
@@ -2625,6 +2626,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           height={termHeight - 1}
         >
           <Logo variant={logoVariant} subtitle="by Zevan" />
+
+          <Box height={2} />
 
           {showAutocomplete && autocompleteFiles.length > 0 && (
             <Box marginBottom={1}>
