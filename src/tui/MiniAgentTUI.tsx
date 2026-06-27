@@ -2619,38 +2619,19 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           selectedDescription={selectedSlashCommand?.description ?? ''}
         />
       ) : !hasConversation ? (
-        // 起始页面：Logo + 输入框，垂直居中显示
-        // flexGrow={1}：占满除状态栏外的所有剩余空间
-        // justifyContent="center"：内部子元素垂直居中
-        // alignItems="center"：内部子元素水平居中
+        // 起始页面：Logo + 输入框 + 版本信息
         <Box
           flexDirection="column"
           alignItems="center"
           justifyContent="center"
           height={termHeight - 1}
         >
-          {/* Logo: two switchable styles (Ctrl+Shift+L) */}
           <Logo variant={logoVariant} subtitle="by Zevan" />
 
-          {/* 输入框容器：不设置宽度，由子元素自然撑开 */}
-          {/* 
-            flexDirection="column": 子元素垂直排列（从上到下）
-            borderStyle="single": 使用单线边框样式（┌─┐│└─┘），可选值：
-              - "single": 单线边框（默认）
-              - "double": 双线边框（═║）
-              - "round": 圆角边框（╭─╮│╰─╯）
-              - "bold": 粗线边框（┏━┓┃┗━┛）
-              - 不设此项：无边框
-            borderColor="gray": 边框颜色，可选值：
-              - "gray"/"grey": 灰色
-              - "white"/"black"
-              - "red"/"green"/"blue"/"yellow"/"cyan"/"magenta"
-              - "dimGray"/"brightRed" 等更多颜色
-          */}
-          {/* Tip banner */}
           <Box marginBottom={1} width={textWidth + 2}>
             <Text dimColor>💡 {currentTip.text}</Text>
           </Box>
+
           {showAutocomplete && autocompleteFiles.length > 0 && (
             <Box marginBottom={1}>
               <AutocompletePopup
@@ -2661,6 +2642,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
               />
             </Box>
           )}
+
           <Composer
             inputLines={state.inputLines}
             cursorRow={state.cursorRow}
@@ -2675,6 +2657,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
             maxVisibleLines={maxComposerInputLines}
             position="start"
           />
+
+          <Box marginTop={1}>
+            <Text dimColor>v{version} · {modelName}</Text>
+          </Box>
         </Box>
       ) : (
         // 对话页面：左侧消息/输入框 + 右侧上下贯穿 sidebar
