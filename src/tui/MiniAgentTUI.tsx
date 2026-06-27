@@ -65,7 +65,6 @@ import {
   createThemeState, nextTheme,
   type ThemeState,
 } from './primitives/theme.js';
-import { getRandomTip } from './primitives/HomeTips.js';
 import {
   moveWordLeft, moveWordRight, deleteLine, deleteToLineEnd,
   deleteWordLeft, deleteWordRight,
@@ -207,7 +206,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   const [agentSelector, setAgentSelector] = useState<AgentSelectorState>(() => createAgentSelectorState());
   const [whichKey, setWhichKey] = useState<WhichKeyState>(() => createWhichKeyState());
   const [_themeState, setThemeState] = useState<ThemeState>(() => createThemeState());
-  const [currentTip] = useState(() => getRandomTip());
   const [sessionList, setSessionList] = useState<SessionListState>(() => createSessionListState());
   const [sessionRename, setSessionRename] = useState<SessionRenameState>(() => createSessionRenameState());
   const [stashList, setStashList] = useState<StashListState>(() => createStashListState());
@@ -2627,10 +2625,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           height={termHeight - 1}
         >
           <Logo variant={logoVariant} subtitle="by Zevan" />
-
-          <Box marginBottom={1} width={textWidth + 2}>
-            <Text dimColor>💡 {currentTip.text}</Text>
-          </Box>
 
           {showAutocomplete && autocompleteFiles.length > 0 && (
             <Box marginBottom={1}>
