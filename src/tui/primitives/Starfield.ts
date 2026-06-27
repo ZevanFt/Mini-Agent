@@ -12,6 +12,13 @@ interface Star {
   b: number;
 }
 
+export interface ExclusionZone {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 const STAR_CHARS = ['·', '✦', '✧', '·', '·', '·', '·', '·'];
 const STAR_COLORS = [
   [0x33, 0x33, 0x33],
@@ -29,6 +36,7 @@ export class Starfield {
   private rows: number;
   private cols: number;
   private density: number;
+  private exclusionZones: ExclusionZone[] = [];
 
   constructor(rows: number, cols: number, density: number = 0.003) {
     this.rows = rows;
@@ -44,14 +52,42 @@ export class Starfield {
     this.generate();
   }
 
+  setExclusionZones(zones: ExclusionZone[]): void {
+    this.exclusionZones = zones;
+    this.generate();
+  }
+
+  private isInExclusionZone(row: number, col: number): boolean {
+    for (const zone of this.exclusionZones) {
+      if (
+        col >= zone.x &&
+        col < zone.x + zone.width &&
+        row >= zone.y &&
+        row < zone.y + zone.height
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private generate(): void {
     const count = Math.floor(this.rows * this.cols * this.density);
     this.stars = [];
-    for (let i = 0; i < count; i++) {
+    let attempts = 0;
+    const maxAttempts = count * 3;
+
+    while (this.stars.length < count && attempts < maxAttempts) {
+      attempts++;
+      const row = Math.floor(Math.random() * this.rows) + 1;
+      const col = Math.floor(Math.random() * this.cols) + 1;
+
+      if (this.isInExclusionZone(row, col)) continue;
+
       const color = STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)];
       this.stars.push({
-        row: Math.floor(Math.random() * this.rows) + 1,
-        col: Math.floor(Math.random() * this.cols) + 1,
+        row,
+        col,
         char: STAR_CHARS[Math.floor(Math.random() * STAR_CHARS.length)],
         r: color[0],
         g: color[1],
@@ -64,6 +100,7 @@ export class Starfield {
   render(): string {
     const parts: string[] = [];
     for (const s of this.stars) {
+      if (this.isInExclusionZone(s.row, s.col)) continue;
       parts.push(`\x1b[${s.row};${s.col}H\x1b[38;2;${s.r};${s.g};${s.b}m${s.char}`);
     }
     parts.push('\x1b[0m');
