@@ -41,17 +41,16 @@ export function Composer({
 
   const composerHintText = (w: number) => {
     if (w < 24) return 'Enter';
-    if (w < 50) return 'Tab mode  Ctrl+P';
-    const left = 'Tab mode  Ctrl+P commands';
-    const right = '@ files  $ subagent  / cmd';
+    if (w < 50) return 'tab 模式  ctrl+p';
+    const left = 'tab 切换模式 · ctrl+p 设置';
+    const right = '@ 添加文件 · $ 子智能体 · / 唤起命令';
     const gap = Math.max(2, w - left.length - right.length);
     return left + ' '.repeat(gap) + right;
   };
 
   const inputLineText = (line: string, row: number) => {
-    // No visual cursor (▌) — we use the real terminal cursor instead
     const content = row === 0 && row === cursorRow && cursorCol === 0 && line === ''
-      ? ` Ask anything...`
+      ? ` 输入消息... (输入 / 唤起命令)`
       : line;
     return fillByWidth(truncateByWidth(content, textWidth).text, contentWidth);
   };
@@ -64,11 +63,10 @@ export function Composer({
 
   if (position === 'start') {
     const innerW = textWidth + 1;
-    const innerDash = TUI_GLYPHS.divider.repeat(innerW);
     return (
       <Box width={textWidth + 2} flexDirection="column">
         <Box width={textWidth + 2}>
-          <Text color={TUI_THEME.accent}>┃</Text>
+          <Text color={TUI_THEME.accent}>📋</Text>
           <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(innerW)}</Text>
         </Box>
         {visibleInputLines.flatMap((line, visibleRow) => {
@@ -95,7 +93,7 @@ export function Composer({
         </Box>
         <Box width={textWidth + 2}>
           <Text color={TUI_THEME.accent}>┃</Text>
-          <Text dimColor backgroundColor={TUI_THEME.panel}>{innerDash}</Text>
+          <Text dimColor backgroundColor={TUI_THEME.panel}>{'─'.repeat(innerW)}</Text>
         </Box>
         <Box width={textWidth + 2} justifyContent="flex-end">
           <Text color={TUI_THEME.accent}>┃</Text>
