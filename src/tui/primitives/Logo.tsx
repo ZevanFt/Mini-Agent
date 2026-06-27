@@ -51,10 +51,17 @@ export interface LogoProps {
 export function Logo({ variant = 'bold', subtitle, subtitleColor = '#666666' }: LogoProps) {
   const { mini, agent } = LOGO_VARIANTS[variant];
   const maxLines = Math.max(mini.length, agent.length);
+  const miniWidth = mini[0]?.length || 27;
+  const totalWidth = miniWidth + (agent[0]?.length || 44);
 
   return (
     <Box flexDirection="column" alignItems="center" marginBottom={1}>
-      {subtitle && <Text color={subtitleColor}>{subtitle}</Text>}
+      {subtitle && (
+        <Box width={totalWidth}>
+          <Text>{' '.repeat(miniWidth)}</Text>
+          <Text color={subtitleColor}>{subtitle}</Text>
+        </Box>
+      )}
       {Array.from({ length: maxLines }, (_, i) => (
         <Box key={i}>
           <Text color={COLOR_MINI}>{mini[i] || ''}</Text>
