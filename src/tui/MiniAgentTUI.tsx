@@ -323,7 +323,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     }
 
     const composerInputStartCalc = Math.max(0, state.cursorRow - maxComposerInputLines + 1);
-    const cursorRowInComposer = (state.cursorRow - composerInputStartCalc) * 2;
+    // Start page Composer: 3 rows (input + status + hints), cursor always on row 0
+    const cursorRowInComposer = !hasConversation ? 0 : (state.cursorRow - composerInputStartCalc) * 2;
 
     // Calculate display width of text before cursor (handles double-width CJK chars)
     const currentLine = state.inputLines[state.cursorRow] ?? '';
@@ -339,7 +340,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       // Tip: 1 line + marginBottom 1 = 2 rows
       // Composer (position="start"): visibleInputLineCount × 2 + 5 rows (no border, no marginX)
       const visibleInputLinesCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
-      const composerHeight = visibleInputLinesCalc * 2 + 5;
+      const composerHeight = !hasConversation ? 3 : visibleInputLinesCalc * 2 + 5;
       const logoHeight = getLogoHeight(logoVariant);
       const spacerHeight = 2;  // space between logo and input
       const tipHeight = 0;   // tip banner removed

@@ -69,20 +69,13 @@ export function Composer({
   if (position === 'start') {
     const lineW = textWidth + 2;
     const pad = (s: string) => fillByWidth(s, lineW);
+    const currentLine = inputLines[cursorRow] ?? '';
+    const displayText = currentLine === '' && cursorCol === 0
+      ? '输入消息... (输入 / 唤起命令)' : currentLine;
+    const truncated = truncateByWidth(displayText, textWidth - 2).text;
     return (
       <Box width={lineW} flexDirection="column">
-        {inputLines.flatMap((line, i) => {
-          const isCurrent = i === cursorRow;
-          const displayText = line === '' && isCurrent && cursorCol === 0
-            ? '输入消息... (输入 / 唤起命令)' : line;
-          const truncated = truncateByWidth(displayText, textWidth - 2).text;
-          return [
-            <Text key={`l${i}`} backgroundColor={inputBg}>{pad('> ' + truncated)}</Text>,
-            ...(i < inputLines.length - 1
-              ? [<Text key={`g${i}`} backgroundColor={inputBg}>{pad('')}</Text>]
-              : []),
-          ];
-        })}
+        <Text backgroundColor={inputBg}>{pad('> ' + truncated)}</Text>
         <Text backgroundColor={inputBg}>{pad('  ' + currentMode + ' ' + TUI_GLYPHS.bullet + ' ' + modelName)}</Text>
         <HintBar w={lineW} />
       </Box>
