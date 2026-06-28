@@ -37,18 +37,10 @@ export function renderCommandRows<T extends { name: string; description?: string
     const line = description ? `${label}  ${description}` : label;
 
     return (
-      <Box key={`${keyPrefix}-${cmd.name}`} width={width} justifyContent="space-between">
-        <Text
-          color={selected ? 'white' : TUI_THEME.accent}
-          backgroundColor={selected ? TUI_THEME.accent : undefined}
-        >
-          {fillByWidth(line, width - getStringWidth(suffix))}
-        </Text>
-        <Text
-          color={selected ? 'white' : TUI_THEME.muted}
-          backgroundColor={selected ? TUI_THEME.accent : undefined}
-        >
-          {suffix}
+      <Box key={`${keyPrefix}-${cmd.name}`} width={width} flexDirection="column">
+        <Text backgroundColor={selected ? TUI_THEME.accent : TUI_THEME.inputBg}>
+          {'  '}{fillByWidth(line, width - getStringWidth(suffix) - 2)}
+          <Text color={selected ? 'white' : TUI_THEME.muted}>{suffix}</Text>
         </Text>
       </Box>
     );

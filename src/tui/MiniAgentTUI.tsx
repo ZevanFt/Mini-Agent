@@ -2631,16 +2631,11 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
               {state.showSlashMenu && state.slashMenuMode === 'inline' && (
                 <Box position="absolute" flexDirection="column" width={textWidth + 2} marginTop={inputBoxY - menuHeight} marginLeft={inputBoxX}>
                   <Text backgroundColor={TUI_THEME.inputBg}>{' '.repeat(textWidth + 2)}</Text>
-                  <Box flexDirection="column" paddingX={1}>
-                    <Box justifyContent="space-between">
-                      <Text color={TUI_THEME.warning}>Commands</Text>
-                      <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
-                    </Box>
-                    {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
-                    {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, textWidth), activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command' })}
-                    {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, textWidth)).text}</Text>}
-                    <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (textWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, textWidth))}</Text>
-                  </Box>
+                  <Text backgroundColor={TUI_THEME.inputBg}>{'  '}<Text color={TUI_THEME.warning}>Commands</Text>{' '.repeat(Math.max(0, textWidth - 2 - 8 - `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}`.length))}{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
+                  {visibleSlashCommands.length === 0 && <Text backgroundColor={TUI_THEME.inputBg}>{'  '}No commands found</Text>}
+                  {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, textWidth), activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command' })}
+                  {selectedSlashCommand && <Text backgroundColor={TUI_THEME.inputBg} dimColor>{'  '}{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, textWidth)).text}</Text>}
+                  <Text backgroundColor={TUI_THEME.inputBg} dimColor>{'  '}{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (textWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, textWidth))}</Text>
                 </Box>
               )}
               <Box
