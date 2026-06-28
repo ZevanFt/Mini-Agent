@@ -323,8 +323,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     }
 
     const composerInputStartCalc = Math.max(0, state.cursorRow - maxComposerInputLines + 1);
-    // Cursor row from top of Composer inner column: 1 (top padding) + cursorRow × 2
-    const cursorRowInComposer = 1 + (state.cursorRow - composerInputStartCalc) * 2;
+    const cursorRowInComposer = (state.cursorRow - composerInputStartCalc) * 2;
 
     // Calculate display width of text before cursor (handles double-width CJK chars)
     const currentLine = state.inputLines[state.cursorRow] ?? '';
@@ -350,9 +349,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       const containerHeight = termHeight - 1;
       const topPadding = Math.max(0, Math.floor((containerHeight - totalContentHeight) / 2));
 
-      cursorRow = topPadding + logoHeight + spacerHeight + tipHeight + cursorRowInComposer + 1;
-      // +1: Composer's top padding row (line spacing)
-      // Composer is centered via parent alignItems="center", account for that offset
+      cursorRow = topPadding + logoHeight + spacerHeight + tipHeight + cursorRowInComposer;
       const composerWidth = textWidth + 2;
       const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
       cursorCol = centerX + 1 + displayWidthBeforeCursor;

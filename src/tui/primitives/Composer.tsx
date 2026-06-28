@@ -67,23 +67,24 @@ export function Composer({
   );
 
   if (position === 'start') {
-    const innerW = textWidth + 1;
-    const currentLine = inputLines[cursorRow] ?? '';
-    const displayText = currentLine === '' && cursorCol === 0
-      ? '输入消息... (输入 / 唤起命令)'
-      : currentLine;
-    const truncatedText = truncateByWidth(displayText, textWidth - 2).text;
+    const lineW = textWidth + 2;
+    const pad = (s: string) => fillByWidth(s, lineW);
     return (
-      <Box width={textWidth + 2} flexDirection="column">
-        <Text backgroundColor={inputBg}>
-          {'> '}{truncatedText}
-        </Text>
-        <Text backgroundColor={inputBg}>
-          {'  '}
-          <Text color={TUI_THEME.accent}>{currentMode}</Text>
-          {fillByWidth(`${TUI_GLYPHS.bullet} ${truncateByWidth(modelName, innerW - currentMode.length - 4).text}`, innerW - currentMode.length)}
-        </Text>
-        <HintBar w={textWidth + 2} />
+      <Box width={lineW} flexDirection="column">
+        {inputLines.flatMap((line, i) => {
+          const isCurrent = i === cursorRow;
+          const displayText = line === '' && isCurrent && cursorCol === 0
+            ? '输入消息... (输入 / 唤起命令)' : line;
+          const truncated = truncateByWidth(displayText, textWidth - 2).text;
+          return [
+            <Text key={`l${i}`} backgroundColor={inputBg}>{pad('> ' + truncated)}</Text>,
+            ...(i < inputLines.length - 1
+              ? [<Text key={`g${i}`} backgroundColor={inputBg}>{pad('')}</Text>]
+              : []),
+          ];
+        })}
+        <Text backgroundColor={inputBg}>{pad('  ' + currentMode + ' ' + TUI_GLYPHS.bullet + ' ' + modelName)}</Text>
+        <HintBar w={lineW} />
       </Box>
     );
   }
