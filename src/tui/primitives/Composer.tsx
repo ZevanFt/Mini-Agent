@@ -76,22 +76,16 @@ export function Composer({
     const lineW = textWidth + 2;
     const pad = (s: string) => fillByWidth(s, lineW);
 
-    // Calculate visible input lines with scroll support
+    // Dynamic height: show actual lines, max MAX_INPUT_LINES
     const totalLines = inputLines.length;
     const visibleStart = Math.max(0, cursorRow - MAX_INPUT_LINES + 1);
     const visibleEnd = Math.min(totalLines, visibleStart + MAX_INPUT_LINES);
     const visibleLines = inputLines.slice(visibleStart, visibleEnd);
 
-    // Pad to MAX_INPUT_LINES if fewer lines
-    const paddedLines = [...visibleLines];
-    while (paddedLines.length < MAX_INPUT_LINES) {
-      paddedLines.push('');
-    }
-
     return (
       <Box width={lineW} flexDirection="column">
         <Text backgroundColor={inputBg}>{pad('')}</Text>
-        {paddedLines.map((line, i) => {
+        {visibleLines.map((line, i) => {
           const lineIndex = visibleStart + i;
           const isCurrentLine = lineIndex === cursorRow;
           const displayText = line === '' && isCurrentLine && cursorCol === 0 && totalLines <= 1

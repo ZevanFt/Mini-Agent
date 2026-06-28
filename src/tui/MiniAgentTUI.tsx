@@ -335,8 +335,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
 
     if (!hasConversation) {
       // === START PAGE ===
-      // Composer: topPad(1) + inputLines(5) + bottomPad(1) + status(1) + spacing(1) + hints(1) = 10 rows
-      const composerHeight = 10;
+      // Composer: topPad(1) + inputLines(dynamic, max 5) + bottomPad(1) + status(1) + spacing(1) + hints(1)
+      const inputLineCount = Math.max(1, Math.min(state.inputLines.length, 5));
+      const composerHeight = 1 + inputLineCount + 1 + 1 + 1 + 1; // topPad + lines + bottomPad + status + spacing + hints
       const logoHeight = getLogoHeight(logoVariant);
       const spacerHeight = 3;  // space between logo and input
       const totalContentHeight = logoHeight + spacerHeight + composerHeight;
