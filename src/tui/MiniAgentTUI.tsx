@@ -340,7 +340,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoHeight - 3 - 10) / 2));
       const spacerHeight = 3;
 
-      cursorRow = fixedTopOffset + logoHeight + spacerHeight + 3 + state.cursorRow;
+      cursorRow = fixedTopOffset + logoHeight + spacerHeight + 4 + state.cursorRow;
       const composerWidth = textWidth + 2;
       const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
       cursorCol = centerX + 2 + displayWidthBeforeCursor;
