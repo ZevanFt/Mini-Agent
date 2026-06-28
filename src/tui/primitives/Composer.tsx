@@ -96,7 +96,7 @@ export function Composer({
           const truncated = truncateByWidth(displayText, textAreaW - prefix.length).text;
           return (
             <Text key={`line-${i}-${line.length}`} backgroundColor={inputBg}>
-              {'  '}{prefix}{truncated}
+              {pad('  ' + prefix + truncated)}
             </Text>
           );
         })}
