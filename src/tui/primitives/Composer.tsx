@@ -1,6 +1,6 @@
 import { Box, Text } from 'ink';
 import { TUI_GLYPHS, TUI_THEME } from './theme.js';
-import { fillByWidth, truncateByWidth } from './text.js';
+import { fillByWidth, getStringWidth, truncateByWidth } from './text.js';
 import { Scanner } from './Scanner.js';
 
 const MAX_INPUT_LINES = 5;
@@ -75,7 +75,6 @@ export function Composer({
   if (position === 'start') {
     const MARGIN = 2;
     const lineW = textWidth + MARGIN * 2;
-    const pad = (s: string) => fillByWidth(s, lineW);
     const textAreaW = lineW - MARGIN * 2;
 
     const totalLines = inputLines.length;
@@ -83,9 +82,13 @@ export function Composer({
     const visibleEnd = Math.min(totalLines, visibleStart + MAX_INPUT_LINES);
     const visibleLines = inputLines.slice(visibleStart, visibleEnd);
 
+    const bgLine = (content: string) => (
+      <Text backgroundColor={inputBg}>{content + ' '.repeat(Math.max(0, lineW - getStringWidth(content)))}</Text>
+    );
+
     return (
       <Box width={lineW} flexDirection="column">
-        <Text backgroundColor={inputBg}>{pad('')}</Text>
+        {bgLine('')}
         {visibleLines.map((line, i) => {
           const lineIndex = visibleStart + i;
           const isCurrentLine = lineIndex === cursorRow;
@@ -96,12 +99,12 @@ export function Composer({
           const truncated = truncateByWidth(displayText, textAreaW - prefix.length).text;
           return (
             <Text key={`line-${i}-${line.length}`} backgroundColor={inputBg}>
-              {pad('  ' + prefix + truncated)}
+              {prefix + truncated + ' '.repeat(Math.max(0, lineW - getStringWidth(prefix) - getStringWidth(truncated)))}
             </Text>
           );
         })}
-        <Text backgroundColor={inputBg}>{pad('')}</Text>
-        <Text backgroundColor={inputBg}>{'  '}<Text color={modeColor}>{currentMode}</Text>{' ' + TUI_GLYPHS.bullet + ' ' + modelName + ' '.repeat(Math.max(0, lineW - 2 - currentMode.length - 3 - modelName.length))}</Text>
+        {bgLine('')}
+        {bgLine('  ' + currentMode + ' ' + TUI_GLYPHS.bullet + ' ' + modelName)}
         <Text>{' '.repeat(lineW)}</Text>
         <HintBar w={lineW} />
       </Box>
