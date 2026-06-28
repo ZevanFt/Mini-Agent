@@ -2642,6 +2642,18 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
                   />
                 </Box>
               )}
+              {state.showSlashMenu && state.slashMenuMode === 'inline' && (
+                <Box width={textWidth + 2} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
+                  <Box justifyContent="space-between">
+                    <Text color={TUI_THEME.accent}>Commands</Text>
+                    <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
+                  </Box>
+                  {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
+                  {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, textWidth), activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command' })}
+                  {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, textWidth)).text}</Text>}
+                  <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (textWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, textWidth))}</Text>
+                </Box>
+              )}
               <Composer
                 inputLines={state.inputLines}
                 cursorRow={state.cursorRow}
