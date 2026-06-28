@@ -91,7 +91,7 @@ export function Composer({
           const prefix = isFirstLine ? '> ' : '  ';
           const displayText = line === '' && isCurrentLine && cursorCol === 0 && totalLines <= 1
             ? '输入消息... (输入 / 唤起命令)' : line;
-          const truncated = truncateByWidth(displayText, textWidth - 4).text;
+          const truncated = truncateByWidth(displayText, textWidth - 8).text;
           return (
             <Text key={`line-${lineIndex}`} backgroundColor={inputBg}>
               {pad(prefix + truncated)}
