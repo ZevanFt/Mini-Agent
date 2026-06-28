@@ -99,9 +99,10 @@ export function Composer({
         })}
         <Text backgroundColor={inputBg}>{pad('')}</Text>
         <Text backgroundColor={inputBg}>
-          {pad('  ')}
+          {'  '}
           <Text color={modeColor}>{currentMode}</Text>
           <Text>{' ' + TUI_GLYPHS.bullet + ' ' + modelName}</Text>
+          {' '.repeat(Math.max(0, lineW - 2 - currentMode.length - 3 - modelName.length))}
         </Text>
         <Text backgroundColor={inputBg}>{pad('')}</Text>
         <HintBar w={lineW} />
