@@ -2226,7 +2226,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
             cursorRow: prev.cursorRow + 1,
             cursorCol: newLines[prev.cursorRow + 1] ? newLines[prev.cursorRow + 1].length : 0,
             historyIndex: null,
-            showSlashMenu: opensInlineSlash ? true : prev.showSlashMenu,
+            showSlashMenu: opensInlineSlash,
             slashMenuMode: opensInlineSlash ? 'inline' : prev.slashMenuMode,
             slashFilter: opensInlineSlash ? '' : prev.slashFilter,
             slashIndex: opensInlineSlash ? 0 : prev.slashIndex,
@@ -2237,9 +2237,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           return {
             ...prev,
             inputLines: newLines,
-            cursorCol: prev.cursorCol + input.length, // 光标右移
+            cursorCol: prev.cursorCol + input.length,
             historyIndex: null,
-            showSlashMenu: opensInlineSlash ? true : prev.showSlashMenu,
+            showSlashMenu: opensInlineSlash,
             slashMenuMode: opensInlineSlash ? 'inline' : prev.slashMenuMode,
             slashFilter: opensInlineSlash ? '' : prev.slashFilter,
             slashIndex: opensInlineSlash ? 0 : prev.slashIndex,
@@ -2630,7 +2630,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
             <Box flexDirection="column" height={termHeight - 1}>
               {state.showSlashMenu && state.slashMenuMode === 'inline' && (
                 <Box position="absolute" flexDirection="column" width={textWidth + 2} marginTop={inputBoxY - menuHeight} marginLeft={inputBoxX}>
-                  <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
+                  <Text backgroundColor={TUI_THEME.inputBg}>{' '.repeat(textWidth + 2)}</Text>
                   <Box flexDirection="column" paddingX={1}>
                     <Box justifyContent="space-between">
                       <Text color={TUI_THEME.warning}>Commands</Text>
