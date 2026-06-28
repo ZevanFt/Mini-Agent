@@ -2624,50 +2624,54 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           const logoH = getLogoHeight(logoVariant);
           const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoH - 3 - 10) / 2));
           return (
-            <Box
-              flexDirection="column"
-              alignItems="center"
-              height={termHeight - 1}
-            >
-              <Box height={fixedTopOffset} />
-              <Logo variant={logoVariant} subtitle="by Zevan" />
-              <Box height={3} />
-              {showAutocomplete && autocompleteFiles.length > 0 && (
-                <Box marginBottom={1}>
-                  <AutocompletePopup
-                    files={autocompleteFiles}
-                    selectedIndex={autocompleteIndex}
-                    width={textWidth + 2}
-                    query={autocompleteQuery}
-                  />
-                </Box>
-              )}
+            <Box flexDirection="column" height={termHeight - 1}>
               {state.showSlashMenu && state.slashMenuMode === 'inline' && (
-                <Box width={textWidth + 2} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
-                  <Box justifyContent="space-between">
-                    <Text color={TUI_THEME.accent}>Commands</Text>
-                    <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
+                <Box position="absolute" flexDirection="column" width={textWidth + 2} marginTop={fixedTopOffset}>
+                  <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
+                  <Box flexDirection="column" paddingX={1}>
+                    <Box justifyContent="space-between">
+                      <Text color={TUI_THEME.warning}>Commands</Text>
+                      <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
+                    </Box>
+                    {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
+                    {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, textWidth), activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command' })}
+                    {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, textWidth)).text}</Text>}
+                    <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (textWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, textWidth))}</Text>
                   </Box>
-                  {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
-                  {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, textWidth), activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command' })}
-                  {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, textWidth)).text}</Text>}
-                  <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (textWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, textWidth))}</Text>
                 </Box>
               )}
-              <Composer
-                inputLines={state.inputLines}
-                cursorRow={state.cursorRow}
-                cursorCol={state.cursorCol}
-                currentMode={currentMode}
-                modelName={modelName}
-                agentName={state.agentName}
-                promptStateLabel={promptStateLabel}
-                width={textWidth + 2}
-                contentWidth={textWidth + 2}
-                textWidth={textWidth}
-                maxVisibleLines={maxComposerInputLines}
-                position="start"
-              />
+              <Box
+                flexDirection="column"
+                alignItems="center"
+              >
+                <Box height={fixedTopOffset} />
+                <Logo variant={logoVariant} subtitle="by Zevan" />
+                <Box height={3} />
+                {showAutocomplete && autocompleteFiles.length > 0 && (
+                  <Box marginBottom={1}>
+                    <AutocompletePopup
+                      files={autocompleteFiles}
+                      selectedIndex={autocompleteIndex}
+                      width={textWidth + 2}
+                      query={autocompleteQuery}
+                    />
+                  </Box>
+                )}
+                <Composer
+                  inputLines={state.inputLines}
+                  cursorRow={state.cursorRow}
+                  cursorCol={state.cursorCol}
+                  currentMode={currentMode}
+                  modelName={modelName}
+                  agentName={state.agentName}
+                  promptStateLabel={promptStateLabel}
+                  width={textWidth + 2}
+                  contentWidth={textWidth + 2}
+                  textWidth={textWidth}
+                  maxVisibleLines={maxComposerInputLines}
+                  position="start"
+                />
+              </Box>
             </Box>
           );
         })()

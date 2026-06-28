@@ -39,13 +39,14 @@ export function renderCommandRows<T extends { name: string; description?: string
     return (
       <Box key={`${keyPrefix}-${cmd.name}`} width={width} justifyContent="space-between">
         <Text
-          color={selected ? 'white' : TUI_THEME.accent}
+          color={selected ? 'black' : TUI_THEME.accent}
+          backgroundColor={selected ? TUI_THEME.warning : undefined}
         >
           {fillByWidth(line, width - getStringWidth(suffix))}
         </Text>
         <Text
-          dimColor={!selected}
-          color={selected ? TUI_THEME.warning : TUI_THEME.muted}
+          color={selected ? 'black' : TUI_THEME.muted}
+          backgroundColor={selected ? TUI_THEME.warning : undefined}
         >
           {suffix}
         </Text>
