@@ -128,6 +128,7 @@ interface TUIProps {
   onExit: () => void;        // 退出回调函数
   onCursorMove?: (row: number, col: number) => void;  // 光标定位回调（IME支持）
   onCursorHide?: () => void;                          // 隐藏光标回调
+  onExclusionZonesChange?: (zones: { x: number; y: number; width: number; height: number }[]) => void;
 }
 
 // TUI 内部状态类型定义
@@ -152,7 +153,7 @@ interface TUIState {
 }
 
 // TUI 主组件：渲染整个终端用户界面
-export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove, onCursorHide }: TUIProps) {
+export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove, onCursorHide, onExclusionZonesChange }: TUIProps) {
   // useApp: 获取 Ink 应用控制，exit() 用于退出应用
   const { exit } = useApp();
   // useStdout: 获取标准输出流引用
@@ -2267,6 +2268,20 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   const chatTextWidth = Math.max(chatInputBoxWidth - 3, 20);
   const composerContentWidth = chatInputBoxWidth - 1;
   const textWidth = Math.max(Math.floor(termWidth * 0.35) - 4, 20);
+
+  // Report exclusion zones for skin background
+  useEffect(() => {
+    if (!onExclusionZonesChange) return;
+    const zones: { x: number; y: number; width: number; height: number }[] = [];
+    const inputBoxWidth = textWidth + 2;
+    const inputBoxX = Math.max(0, Math.floor((termWidth - inputBoxWidth) / 2));
+    const logoH = getLogoHeight(logoVariant);
+    const inputBoxY = Math.floor((termHeight - 1 - logoH - 3 - 10) / 2) + logoH + 3;
+    const inputBoxHeight = 1 + Math.max(1, Math.min(state.inputLines.length, 5)) + 1 + 1 + 1 + 1;
+    zones.push({ x: inputBoxX, y: inputBoxY, width: inputBoxWidth, height: inputBoxHeight });
+    onExclusionZonesChange(zones);
+  }, [textWidth, termWidth, termHeight, logoVariant, state.inputLines.length, onExclusionZonesChange]);
+
   const lastUserPrompt = [...messages].reverse().find(msg => msg.role === 'user')?.content;
   const sidebarRows = buildSidebarRows({
     messages: messages.length,

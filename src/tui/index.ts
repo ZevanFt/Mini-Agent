@@ -72,15 +72,16 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
       },
       onCursorMove: (row: number, col: number) => {
         const cmd = `\x1b[?25h\x1b[${row};${col + 1}H`;
-        // Set pending so future Ink re-renders auto-append cursor position
         pendingCursorCmd = cmd;
-        // Also write directly for the current render (useEffect runs after Ink's write)
         originalWrite(cmd);
       },
       onCursorHide: () => {
         const cmd = '\x1b[?25l';
         pendingCursorCmd = cmd;
         originalWrite(cmd);
+      },
+      onExclusionZonesChange: (zones: { x: number; y: number; width: number; height: number }[]) => {
+        starfield.setExclusionZones(zones);
       },
     });
 
