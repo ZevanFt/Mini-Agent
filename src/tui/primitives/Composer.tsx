@@ -75,7 +75,9 @@ export function Composer({
     const truncated = truncateByWidth(displayText, textWidth - 2).text;
     return (
       <Box width={lineW} flexDirection="column">
+        <Text backgroundColor={inputBg}>{pad('')}</Text>
         <Text backgroundColor={inputBg}>{pad('> ' + truncated)}</Text>
+        <Text backgroundColor={inputBg}>{pad('')}</Text>
         <Text backgroundColor={inputBg}>{pad('  ' + currentMode + ' ' + TUI_GLYPHS.bullet + ' ' + modelName)}</Text>
         <HintBar w={lineW} />
       </Box>

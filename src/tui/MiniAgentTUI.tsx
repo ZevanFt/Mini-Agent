@@ -335,26 +335,21 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
 
     if (!hasConversation) {
       // === START PAGE ===
-      // Layout: vertically centered container with Logo + Tip + Composer
-      // Logo: 5 lines + marginBottom 1 = 6 rows
-      // Tip: 1 line + marginBottom 1 = 2 rows
-      // Composer (position="start"): visibleInputLineCount × 2 + 5 rows (no border, no marginX)
-      const visibleInputLinesCalc = state.inputLines.slice(composerInputStartCalc, composerInputStartCalc + maxComposerInputLines).length;
-      const composerHeight = !hasConversation ? 3 : visibleInputLinesCalc * 2 + 5;
+      // Composer: 5 rows (topPad + input + bottomPad + status + hints)
+      const composerHeight = 5;
       const logoHeight = getLogoHeight(logoVariant);
-      const spacerHeight = 2;  // space between logo and input
-      const tipHeight = 0;   // tip banner removed
-      const totalContentHeight = logoHeight + spacerHeight + tipHeight + composerHeight;
+      const spacerHeight = 3;  // space between logo and input
+      const totalContentHeight = logoHeight + spacerHeight + composerHeight;
 
-      // justifyContent="center" → top padding = (containerHeight - contentHeight) / 2
       const containerHeight = termHeight - 1;
       const topPadding = Math.max(0, Math.floor((containerHeight - totalContentHeight) / 2));
 
-      cursorRow = topPadding + logoHeight + spacerHeight + tipHeight + cursorRowInComposer;
+      // Cursor on row 1 of Composer (> input text line)
+      cursorRow = topPadding + logoHeight + spacerHeight + 1;
       const composerWidth = textWidth + 2;
       const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
-      cursorCol = centerX + 1 + displayWidthBeforeCursor;
-      // +1: content starts after Composer's left edge padding
+      cursorCol = centerX + 2 + displayWidthBeforeCursor;
+      // +2: "> " prefix takes 2 columns
     } else {
       // === CHAT PAGE ===
       // Composer (position="chat") structure:
