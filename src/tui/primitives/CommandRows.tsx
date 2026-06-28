@@ -1,5 +1,5 @@
 import { Box, Text } from 'ink';
-import { TUI_GLYPHS, TUI_THEME } from './theme.js';
+import { TUI_THEME } from './theme.js';
 import { fillByWidth, getStringWidth, truncateByWidth } from './text.js';
 
 export type CommandRow<T> =
@@ -11,6 +11,8 @@ export interface RenderCommandRowsOptions<T extends { name: string; description?
   width: number;
   activeIndex: number;
   keyPrefix: string;
+  /** 左侧 padding 字符数（内容前填充空格，背景色延伸到 padding 区域） */
+  leftPadding?: number;
 }
 
 export function renderCommandRows<T extends { name: string; description?: string }>({
@@ -18,30 +20,35 @@ export function renderCommandRows<T extends { name: string; description?: string
   width,
   activeIndex,
   keyPrefix,
+  leftPadding = 0,
 }: RenderCommandRowsOptions<T>) {
+  const pad = ' '.repeat(leftPadding);
+  // 内容可用宽度 = 总宽 - 左 padding
+  const contentWidth = Math.max(1, width - leftPadding);
   return rows.map((row, i) => {
     if (row.type === 'header') {
-      return (
-        <Text key={`${keyPrefix}-header-${row.category}-${i}`} color={TUI_THEME.warning}>
-          {fillByWidth(i === 0 ? row.category : ` ${row.category}`, width)}
-        </Text>
-      );
+      return null;
     }
 
     const cmd = row.command;
     const selected = row.index === activeIndex;
-    const label = `${selected ? TUI_GLYPHS.selected : ' '} /${cmd.name}`;
-    const suffix = `[${row.category}]`;
-    const descriptionWidth = Math.max(0, width - getStringWidth(label) - getStringWidth(suffix) - 4);
-    const description = truncateByWidth(cmd.description || '', descriptionWidth).text;
-    const line = description ? `${label}  ${description}` : label;
+    const name = `/${cmd.name}`;
+    const description = truncateByWidth(cmd.description || '', Math.max(10, contentWidth - getStringWidth(name) - 4)).text;
+    const line = description ? `${name}  ${description}` : name;
+    // 加左 padding，fillByWidth 填充到总宽度（右侧自动补空格，背景色延伸）
+    const paddedLine = pad + line;
 
     return (
-      <Box key={`${keyPrefix}-${cmd.name}`} width={width} flexDirection="column">
-        <Text backgroundColor={selected ? TUI_THEME.accent : TUI_THEME.inputBg}>
-          {'  '}{fillByWidth(line, width - getStringWidth(suffix) - 2)}
-          <Text color={selected ? 'white' : TUI_THEME.muted}>{suffix}</Text>
-        </Text>
+      <Box key={`${keyPrefix}-${cmd.name}-${i}`} width={width}>
+        {selected ? (
+          <Text backgroundColor={TUI_THEME.selected} color="white">
+            {fillByWidth(paddedLine, width)}
+          </Text>
+        ) : (
+          <Text backgroundColor={TUI_THEME.inputBg}>
+            {fillByWidth(paddedLine, width)}
+          </Text>
+        )}
       </Box>
     );
   });

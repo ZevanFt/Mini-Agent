@@ -3,23 +3,23 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 // Ink TUI 框架的组件和 hooks
-import { Box, Text, useInput, useApp, useStdout } from 'ink';
+import { Box, Text, useInput, useApp, useStdin, useStdout } from 'ink';
 // Agent 类型定义
 import type { Agent } from '../core/agent.js';
 // 斜杠命令工厂函数
 import { createSlashCommands } from '../core/commands.js';
 import { renderCommandRows } from './primitives/CommandRows.js';
-import { CommandPaletteDialog } from './primitives/CommandPaletteDialog.js';
+
 import { Composer } from './primitives/Composer.js';
 import { DialogFrame, DialogHeader } from './primitives/DialogFrame.js';
 import { Footer } from './primitives/Footer.js';
 import { MessageList, messageLineCount } from './primitives/MessageList.js';
 import { type NoticeState } from './primitives/Notice.js';
-import { getScrollWindow, scrollHint } from './primitives/ScrollWindow.js';
+import { getScrollWindow } from './primitives/ScrollWindow.js';
 import { Sidebar, buildSidebarRows, buildSidebarFooterRows } from './primitives/Sidebar.js';
 import { TUI_THEME } from './primitives/theme.js';
 import { TimelineDialog } from './primitives/TimelineDialog.js';
-import { fillByWidth, getStringWidth, truncateByWidth } from './primitives/text.js';
+import { getStringWidth, truncateByWidth } from './primitives/text.js';
 import type { Message } from './types.js';
 import { safeCopy } from './primitives/Clipboard.js';
 import { copyTranscript } from './primitives/Transcript.js';
@@ -139,7 +139,6 @@ interface TUIState {
   cursorRow: number;         // 光标所在行索引
   cursorCol: number;         // 光标所在列索引
   showSlashMenu: boolean;    // 是否显示斜杠命令菜单
-  slashMenuMode: 'modal' | 'inline'; // modal=Ctrl+P 全屏命令面板，inline=/ 输入框上方选择框
   slashFilter: string;       // 斜杠命令过滤关键词
   slashIndex: number;        // 命令面板当前选中项
   isProcessing: boolean;     // 是否正在处理请求
@@ -158,6 +157,19 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   const { exit } = useApp();
   // useStdout: 获取标准输出流引用
   useStdout();
+  // useStdin: 获取 stdin，用于监听 raw data 来区分 Windows 的 Backspace(\x7f) 和 Delete(\x1b[3~)
+  const { stdin } = useStdin();
+
+  // 保存最近一次按键的 raw sequence，用来在 useInput 回调里区分 Backspace 和 Delete
+  const lastRawSeqRef = React.useRef('');
+  useEffect(() => {
+    if (!stdin) return;
+    const onData = (data: Buffer | string) => {
+      lastRawSeqRef.current = typeof data === 'string' ? data : data.toString('latin1');
+    };
+    stdin.on('data', onData);
+    return () => { stdin.off('data', onData); };
+  }, [stdin]);
 
   // 使用 useMemo 缓存斜杠命令列表，避免每次渲染都重新创建
   const slashCommands = React.useMemo(() => createSlashCommands(), []);
@@ -171,7 +183,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     cursorRow: 0,           // 光标初始在第 0 行
     cursorCol: 0,           // 光标初始在第 0 列
     showSlashMenu: false,   // 默认不显示斜杠菜单
-    slashMenuMode: 'modal', // 默认 Ctrl+P 模态面板
     slashFilter: '',        // 默认无过滤关键词
     slashIndex: 0,          // 默认选中第一条命令
     isProcessing: false,    // 默认未在处理
@@ -343,7 +354,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       cursorRow = fixedTopOffset + logoHeight + spacerHeight + 4 + state.cursorRow;
       const composerWidth = textWidth + 2;
       const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
-      cursorCol = centerX + 2 + displayWidthBeforeCursor;
+      cursorCol = centerX + 3 + displayWidthBeforeCursor;
     } else {
       // === CHAT PAGE ===
       // Composer (position="chat") structure:
@@ -352,8 +363,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       void composerTotalHeight;
 
       cursorRow = messagePaneHeight + inlineMenuRows + consolePanelHeight + cursorRowInComposer;
-      // marginX=2 + border ┃ = 3 columns offset
-      cursorCol = 3 + displayWidthBeforeCursor;
+      // marginX=2 + border ┃ + prefix '  > ' = 5 columns offset
+      cursorCol = 5 + displayWidthBeforeCursor;
     }
 
     // Only position if cursor is within visible area
@@ -524,8 +535,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   useInput((input, key) => {
     const navigationKey = key as typeof key & { home?: boolean; end?: boolean };
     const isEnterKey = key.return || input === '\r' || input === '\n';
-    const isForwardDeleteKey = input === '\u001b[3~' || (key.delete && !key.backspace);
-    const isBackspaceKey = key.backspace || input === '\u007f' || input === '\b' || input === '\x08';
+    // Windows 终端的 Backspace 键发送 \x7f，Ink 的 parseKeypress 会把它解析成 key.delete=true,
+    // 和真正的 Delete 键（\x1b[3~）混淆。这里用 raw sequence 来区分：
+    //   - Backspace: raw sequence 是 \x7f 或 \b
+    //   - Delete:    raw sequence 是 \x1b[3~
+    const rawSeq = lastRawSeqRef.current;
+    const isRealForwardDelete = rawSeq === '\u001b[3~';
+    const isBackspaceKey = key.backspace || rawSeq === '\u007f' || rawSeq === '\b' || rawSeq === '\x08' || (key.delete && !key.backspace && !isRealForwardDelete);
+    const isForwardDeleteKey = isRealForwardDelete;
     const isHomeKey = navigationKey.home || input === '\u001b[H' || input === '\u001bOH' || input === '\u001b[1~';
     const isEndKey = navigationKey.end || input === '\u001b[F' || input === '\u001bOF' || input === '\u001b[4~';
 
@@ -750,13 +767,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       return;
     }
 
-    // Ctrl+P：打开/关闭斜杠命令菜单
+    // Ctrl+P：打开/关闭斜杠命令菜单（始终 inline）
     if (key.ctrl && input === 'p') {
       updateState(prev => ({
         ...prev,
         showSlashMenu: !prev.showSlashMenu,
-        slashMenuMode: 'modal',
-        slashFilter: '', // 重置过滤关键词
+        slashFilter: '',
         slashIndex: 0,
       }));
       return;
@@ -869,38 +885,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       return;
     }
 
-    // ==================== Diff Navigation: [ ] n p b s d v ? ====================
-    if (input === '[') {
-      setNotice({ message: 'Previous diff hunk', level: 'info' });
-      return;
-    }
-    if (input === ']') {
-      setNotice({ message: 'Next diff hunk', level: 'info' });
-      return;
-    }
-    if (input === 'n' && !state.showSlashMenu && !sessionList.isOpen) {
-      // Only if diff viewer is open
-      return;
-    }
-    if (input === 'p' && !state.showSlashMenu && !sessionList.isOpen) {
-      return;
-    }
-    if (input === 'b') {
-      setNotice({ message: 'Toggle file tree', level: 'info' });
-      return;
-    }
-    if (input === 's') {
-      setNotice({ message: 'Single patch view', level: 'info' });
-      return;
-    }
-    if (input === 'd') {
-      setNotice({ message: 'Switch diff source', level: 'info' });
-      return;
-    }
-    if (input === 'v') {
-      setNotice({ message: 'Toggle split/unified', level: 'info' });
-      return;
-    }
+    // ==================== Diff Navigation: only active when diff viewer is open ====================
+    // Note: b/s/d/v 等单字母快捷键仅在 diff viewer 打开时生效，避免和输入框冲突。
+    // 目前 diff viewer 尚未实现，先只保留 ? 打开 which-key 帮助面板。
     if (input === '?') {
       setWhichKey(prev => openWhichKey(prev));
       return;
@@ -977,7 +964,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
 
     // ==================== Session Manager: Ctrl+O (list), Ctrl+N (new), Ctrl+S (save) ====================
     if (key.ctrl && input.toLowerCase() === 'o') {
-      updateState(prev => ({ ...prev, showSlashMenu: false, slashMenuMode: 'modal' }));
+      updateState(prev => ({ ...prev, showSlashMenu: false }));
       // Toggle session list view
       setNotice({ message: `Sessions: ${sessionManager.sessions.length} total`, level: 'info' });
       return;
@@ -1335,24 +1322,29 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     // 斜杠菜单打开时的输入处理
     if (state.showSlashMenu) {
       if (key.upArrow) {
-        updateState(prev => ({
-          ...prev,
-          slashIndex: Math.max(0, prev.slashIndex - 1),
-        }));
+        // 循环：在第一条时按上跳到最后一条
+        updateState(prev => {
+          const total = filteredSlashCommands.length;
+          if (total === 0) return prev;
+          const next = prev.slashIndex <= 0 ? total - 1 : prev.slashIndex - 1;
+          return { ...prev, slashIndex: next };
+        });
         return;
       }
       if (key.downArrow) {
-        updateState(prev => ({
-          ...prev,
-          slashIndex: Math.min(Math.max(filteredSlashCommands.length - 1, 0), prev.slashIndex + 1),
-        }));
+        // 循环：在最后一条时按下跳到第一条
+        updateState(prev => {
+          const total = filteredSlashCommands.length;
+          if (total === 0) return prev;
+          const next = prev.slashIndex >= total - 1 ? 0 : prev.slashIndex + 1;
+          return { ...prev, slashIndex: next };
+        });
         return;
       }
       if (isEnterKey || key.tab) {
-        // Modal 中填充命令；inline 中补全为可继续输入参数的形式。
         const selected = filteredSlashCommands[activeSlashIndex] || filteredSlashCommands[0];
         if (selected) {
-          const commandText = state.slashMenuMode === 'inline' ? `/${selected.name} ` : `/${selected.name}`;
+          const commandText = `/${selected.name} `;
           updateState(prev => ({
             ...prev,
             inputLines: [commandText],
@@ -1362,14 +1354,12 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
             slashFilter: '',
             slashIndex: 0,
           }));
-          if (state.slashMenuMode === 'inline') setNotice({ message: `Selected /${selected.name}`, level: 'success' });
+          setNotice({ message: `Selected /${selected.name}`, level: 'success' });
         }
         return;
       }
       if (isBackspaceKey) {
-        // 退格键：删除过滤关键词最后一个字符
         updateState(prev => {
-          if (prev.slashMenuMode !== 'inline') return { ...prev, slashFilter: prev.slashFilter.slice(0, -1) };
           if (prev.slashFilter.length === 0) {
             return {
               ...prev,
@@ -1393,30 +1383,37 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         });
         return;
       }
+      if (isForwardDeleteKey) {
+        // Delete 键：直接关闭菜单，不删除内容（和 MiMoCode 行为一致）
+        updateState(prev => ({
+          ...prev,
+          showSlashMenu: false,
+          slashFilter: '',
+          slashIndex: 0,
+        }));
+        return;
+      }
       if (input.length === 1 && input >= ' ' && input !== '\u007f') {
-        // 可打印字符：追加到过滤关键词
-        updateState(prev => {
-          if (prev.slashMenuMode === 'inline' && input === ' ' && prev.slashFilter.length > 0) {
-            const text = `/${prev.slashFilter} `;
-            return {
-              ...prev,
-              showSlashMenu: false,
-              inputLines: [text],
-              cursorRow: 0,
-              cursorCol: text.length,
-            };
-          }
-          const nextFilter = prev.slashFilter + input;
-          if (prev.slashMenuMode !== 'inline') return { ...prev, slashFilter: nextFilter, slashIndex: 0 };
-          return {
+        if (input === ' ' && state.slashFilter.length > 0) {
+          const text = `/${state.slashFilter} `;
+          updateState(prev => ({
+            ...prev,
+            showSlashMenu: false,
+            inputLines: [text],
+            cursorRow: 0,
+            cursorCol: text.length,
+          }));
+        } else {
+          const nextFilter = state.slashFilter + input;
+          updateState(prev => ({
             ...prev,
             slashFilter: nextFilter,
             slashIndex: 0,
             inputLines: [`/${nextFilter}`],
             cursorRow: 0,
             cursorCol: nextFilter.length + 1,
-          };
-        });
+          }));
+        }
       }
       return;
     }
@@ -2227,7 +2224,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
             cursorCol: newLines[prev.cursorRow + 1] ? newLines[prev.cursorRow + 1].length : 0,
             historyIndex: null,
             showSlashMenu: opensInlineSlash,
-            slashMenuMode: opensInlineSlash ? 'inline' : prev.slashMenuMode,
             slashFilter: opensInlineSlash ? '' : prev.slashFilter,
             slashIndex: opensInlineSlash ? 0 : prev.slashIndex,
           };
@@ -2240,7 +2236,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
             cursorCol: prev.cursorCol + input.length,
             historyIndex: null,
             showSlashMenu: opensInlineSlash,
-            slashMenuMode: opensInlineSlash ? 'inline' : prev.slashMenuMode,
             slashFilter: opensInlineSlash ? '' : prev.slashFilter,
             slashIndex: opensInlineSlash ? 0 : prev.slashIndex,
           };
@@ -2340,7 +2335,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     .sort((a, b) => a.score - b.score || a.cmd.name.localeCompare(b.cmd.name))
     .map(item => item.cmd);
   const activeSlashIndex = Math.min(state.slashIndex, Math.max(0, filteredSlashCommands.length - 1));
-  const slashWindowSize = 6;
+  const slashWindowSize = 10;
   const slashWindow = getScrollWindow(filteredSlashCommands, activeSlashIndex, slashWindowSize);
   const slashWindowStart = slashWindow.start;
   const visibleSlashCommands = slashWindow.items;
@@ -2353,22 +2348,17 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     return rows;
   });
   const inlineSlashRows = visibleSlashRows.filter((row, i, rows) => {
-    if (row.type === 'command') return rows.slice(0, i + 1).filter(item => item.type === 'command').length <= 5;
+    // 保留窗口内的所有 command（slashWindowSize 已限制总数），只剔除尾部没有 command 跟随的 header
+    if (row.type === 'command') return rows.slice(0, i + 1).filter(item => item.type === 'command').length <= slashWindowSize;
     return rows.slice(i + 1).some(item => item.type === 'command');
   });
-  const selectedSlashCommand = filteredSlashCommands[activeSlashIndex];
-  const selectedSlashUsage = selectedSlashCommand?.usage ? `/${selectedSlashCommand.usage}` : selectedSlashCommand ? `/${selectedSlashCommand.name}` : '';
-  const selectedSlashCategory = selectedSlashCommand ? commandCategory(selectedSlashCommand.name) : '';
-  const slashScrollHint = scrollHint(slashWindow.hasMoreAbove, slashWindow.hasMoreBelow);
   const promptStateLabel = [
     state.historyIndex !== null ? 'history' : '',
     promptStash ? 'draft' : '',
   ].filter(Boolean).join(' ');
-  const modalWidth = Math.min(termWidth - 8, 76);
-  const modalContentWidth = Math.max(20, modalWidth - 6);
   const composerInputStart = Math.max(0, state.cursorRow - maxComposerInputLines + 1);
   const visibleInputLines = state.inputLines.slice(composerInputStart, composerInputStart + maxComposerInputLines);
-  const inlineMenuRows = state.showSlashMenu && state.slashMenuMode === 'inline' ? Math.min(inlineSlashRows.length + 6, 13) : 0;
+  const inlineMenuRows = state.showSlashMenu ? slashWindowSize : 0;
   const visibleInputLineCount = visibleInputLines.length;
   const messageLineBudget = Math.max(4, termHeight - visibleInputLineCount * 2 - inlineMenuRows - 10);
   const composerRows = visibleInputLineCount * 2 + 4 + inlineMenuRows;
@@ -2602,42 +2592,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           termWidth={termWidth}
           termHeight={termHeight}
         />
-      ) : state.showSlashMenu && state.slashMenuMode === 'modal' ? (
-        <CommandPaletteDialog
-          width={modalWidth}
-          contentWidth={modalContentWidth}
-          termWidth={termWidth}
-          termHeight={termHeight}
-          filter={state.slashFilter}
-          totalCount={filteredSlashCommands.length}
-          scrollHint={slashScrollHint}
-          activeIndex={activeSlashIndex}
-          rows={visibleSlashRows}
-          selectedName={selectedSlashCommand?.name ?? ''}
-          selectedUsage={selectedSlashUsage}
-          selectedCategory={selectedSlashCategory}
-          selectedDescription={selectedSlashCommand?.description ?? ''}
-        />
       ) : !hasConversation ? (
-        // 起始页面：Logo 固定位置 + 输入框在下方
+        // 起始页面：Logo 固定位置 + 输入框在下方（slash 菜单 absolute 盖在 Logo 上）
         (() => {
           const logoH = getLogoHeight(logoVariant);
           const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoH - 3 - 10) / 2));
-          const inputBoxY = fixedTopOffset + logoH + 3;
-          const inputBoxX = Math.max(0, Math.floor((termWidth - textWidth - 2) / 2));
-          const menuHeight = Math.min(filteredSlashCommands.length + 4, 12);
           return (
-            <Box flexDirection="column" height={termHeight - 1}>
-              {state.showSlashMenu && state.slashMenuMode === 'inline' && (
-                <Box position="absolute" flexDirection="column" width={textWidth + 2} marginTop={inputBoxY - menuHeight} marginLeft={inputBoxX}>
-                  <Text backgroundColor={TUI_THEME.inputBg}>{' '.repeat(textWidth + 2)}</Text>
-                  <Text backgroundColor={TUI_THEME.inputBg}>{'  '}<Text color={TUI_THEME.warning}>Commands</Text>{' '.repeat(Math.max(0, textWidth - 2 - 8 - `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}`.length))}{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
-                  {visibleSlashCommands.length === 0 && <Text backgroundColor={TUI_THEME.inputBg}>{'  '}No commands found</Text>}
-                  {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, textWidth), activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command' })}
-                  {selectedSlashCommand && <Text backgroundColor={TUI_THEME.inputBg} dimColor>{'  '}{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, textWidth)).text}</Text>}
-                  <Text backgroundColor={TUI_THEME.inputBg} dimColor>{'  '}{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (textWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, textWidth))}</Text>
-                </Box>
-              )}
+            <Box flexDirection="column" height={termHeight - 1} position="relative">
               <Box
                 flexDirection="column"
                 alignItems="center"
@@ -2670,6 +2631,27 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
                   position="start"
                 />
               </Box>
+              {state.showSlashMenu && (() => {
+                // 菜单固定 10 行高度，位置固定不动（命令总数 >> 10，循环时窗口永远满 10 行）
+                const menuHeight = slashWindowSize;
+                const composerTop = fixedTopOffset + logoH + 3;
+                const menuTop = Math.max(0, composerTop - menuHeight) + 2;
+                // 水平居中：菜单宽度 = textWidth + 4（和 Composer lineW 一致，含左右各 2 padding）
+                const menuWidth = textWidth + 4;
+                const menuLeft = Math.max(0, Math.floor((termWidth - menuWidth) / 2));
+                return (
+                  <Box
+                    position="absolute"
+                    flexDirection="column"
+                    marginLeft={menuLeft}
+                    marginTop={menuTop}
+                    width={menuWidth}
+                  >
+                    {visibleSlashCommands.length === 0 && <Text dimColor>{'  '}No commands found</Text>}
+                    {renderCommandRows({ rows: inlineSlashRows, width: menuWidth, activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command', leftPadding: 2 })}
+                  </Box>
+                );
+              })()}
             </Box>
           );
         })()
@@ -2687,16 +2669,10 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
               currentResponse={state.currentResponse}
               sessionToggles={sessionToggles}
             />
-            {state.showSlashMenu && state.slashMenuMode === 'inline' && (
-              <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" borderStyle="round" borderColor={TUI_THEME.accent} paddingX={1} marginBottom={1}>
-                <Box justifyContent="space-between">
-                  <Text color={TUI_THEME.accent}>Commands</Text>
-                  <Text dimColor>{filteredSlashCommands.length > 0 ? `${slashScrollHint} ${activeSlashIndex + 1}/${filteredSlashCommands.length}` : '0'}</Text>
-                </Box>
+            {state.showSlashMenu && (
+              <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" marginBottom={1}>
                 {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
-                {renderCommandRows({ rows: inlineSlashRows, width: Math.max(20, chatInputBoxWidth - 4), activeIndex: activeSlashIndex, keyPrefix: 'chat-inline-command' })}
-                {selectedSlashCommand && <Text dimColor>{truncateByWidth(`[${selectedSlashCategory}] ${selectedSlashUsage}`, Math.max(20, chatInputBoxWidth - 4)).text}</Text>}
-                <Text dimColor>{fillByWidth(visibleSlashCommands.length === 0 ? 'Backspace edit   Esc close' : (chatInputBoxWidth < 42 ? 'Tab complete   Esc close' : '↑↓ move   Tab/Enter complete   Esc close'), Math.max(20, chatInputBoxWidth - 4))}</Text>
+                {renderCommandRows({ rows: inlineSlashRows, width: chatInputBoxWidth, activeIndex: activeSlashIndex, keyPrefix: 'chat-inline-command' })}
               </Box>
             )}
             {consolePanel.isOpen && (
@@ -2741,7 +2717,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         version={version}
         termWidth={termWidth}
         notice={notice}
-        isPaletteOpen={state.showSlashMenu && state.slashMenuMode === 'modal'}
+        isPaletteOpen={false}
         hasConversation={hasConversation}
       />
       )}

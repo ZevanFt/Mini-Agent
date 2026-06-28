@@ -7,7 +7,7 @@ export const TUI_THEME = {
   panel: '#141414',
   inputBg: '#1e1e1e',
   logo: '#0078d7',
-  selected: '#264f78',
+  selected: '#0078d7',
 };
 
 export const TUI_GLYPHS = {

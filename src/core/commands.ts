@@ -82,7 +82,7 @@ export function createSlashCommands(): SlashCommand[] {
   return [
     {
       name: 'help',
-      description: 'Show available commands',
+      description: '显示可用命令',
       execute: () => ({
         success: true,
         content: `MiniAgent Slash Commands (50+ total):
@@ -174,7 +174,7 @@ export function createSlashCommands(): SlashCommand[] {
     },
     {
       name: 'compact',
-      description: 'Compress conversation context to save tokens',
+      description: '压缩对话上下文以节省 Token',
       execute: (_, ctx) => ({
         success: true,
         content: `Context: ${ctx.messageCount} messages, ~${ctx.tokenCount || 'unknown'} tokens.
@@ -183,7 +183,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'clear',
-      description: 'Clear conversation history',
+      description: '清空对话历史',
       execute: () => ({
         success: true,
         content: 'Conversation history cleared.',
@@ -191,7 +191,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'plan',
-      description: 'Enter planning mode',
+      description: '进入规划模式',
       execute: () => ({
         success: true,
         content: 'Enter planning mode. Please describe your task and I will create a detailed execution plan.',
@@ -199,7 +199,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'review',
-      description: 'Review current changes in the working directory',
+      description: '审查工作区当前的代码改动',
       execute: () => ({
         success: true,
         content: 'Running code review workflow. Checking git status and recent changes...',
@@ -207,7 +207,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'commit',
-      description: 'Analyze changes and generate commit message',
+      description: '分析改动并生成提交信息',
       execute: () => ({
         success: true,
         content: 'Analyzing git diff and generating commit message...',
@@ -215,7 +215,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'config',
-      description: 'Show current configuration',
+      description: '查看当前配置',
       execute: () => ({
         success: true,
         content: 'Current configuration: [use "config" tool for detailed config]',
@@ -223,7 +223,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'tools',
-      description: 'List available tools',
+      description: '列出可用工具',
       execute: (_, ctx) => ({
         success: true,
         content: `Available tools (${ctx.tools.length}):\n${ctx.tools.map(t => `  - ${t}`).join('\n')}`,
@@ -231,7 +231,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'skills',
-      description: 'List available skills',
+      description: '列出可用 Skill',
       execute: (_, ctx) => {
         if (ctx.skillRegistry) {
           const all = ctx.skillRegistry.listSkills();
@@ -251,7 +251,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'hooks',
-      description: 'Show hook status',
+      description: '查看 Hook 状态',
       execute: (_, ctx) => {
         if (ctx.hooks) {
           const all = ctx.hooks.listHooks();
@@ -270,7 +270,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'memory',
-      description: 'Show memory statistics',
+      description: '查看记忆统计',
       execute: (_, ctx) => ({
         success: true,
         content: `Session: ${ctx.messageCount} messages, ~${ctx.tokenCount || 'unknown'} tokens.`,
@@ -278,7 +278,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'status',
-      description: 'Show agent status',
+      description: '查看 Agent 状态',
       execute: (_, ctx) => ({
         success: true,
         content: `Agent status:
@@ -291,7 +291,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'quit',
-      description: 'Exit the agent',
+      description: '退出 Agent',
       execute: () => ({
         success: true,
         content: 'Goodbye!',
@@ -299,7 +299,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'thinking',
-      description: 'Toggle verbose thinking mode',
+      description: '切换详细思考模式',
       usage: '/thinking [normal|verbose]',
       execute: (args, ctx) => {
         if (ctx.agent) {
@@ -321,7 +321,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'undo',
-      description: 'Undo last file changes',
+      description: '撤销上次的文件改动',
       execute: () => ({
         success: true,
         content: 'Undoing last changes...',
@@ -329,7 +329,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'redo',
-      description: 'Redo last undone changes',
+      description: '重做上次撤销的改动',
       execute: () => ({
         success: true,
         content: 'Redoing changes...',
@@ -337,7 +337,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'save',
-      description: 'Save current session',
+      description: '保存当前会话',
       usage: '/save [name]',
       execute: (args) => ({
         success: true,
@@ -346,7 +346,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'resume',
-      description: 'Resume a saved session',
+      description: '恢复已保存的会话',
       usage: '/resume [name]',
       execute: (args) => ({
         success: true,
@@ -355,7 +355,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'context',
-      description: 'Show current context usage',
+      description: '查看当前上下文用量',
       execute: (_, ctx) => ({
         success: true,
         content: `Context Usage:
@@ -368,7 +368,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'permissions',
-      description: 'Show/modify permissions',
+      description: '查看或修改权限',
       execute: () => ({
         success: true,
         content: 'Current permissions: [ask, allow, deny]',
@@ -376,7 +376,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'version',
-      description: 'Show current version',
+      description: '查看当前版本',
       execute: () => ({
         success: true,
         content: 'MiniAgent v0.1.0',
@@ -384,7 +384,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'reset',
-      description: 'Reset configuration to defaults',
+      description: '将配置重置为默认值',
       execute: () => ({
         success: true,
         content: 'Resetting configuration to defaults...',
@@ -392,7 +392,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'add-dir',
-      description: 'Add additional directory to context',
+      description: '添加额外目录到上下文',
       usage: '/add-dir <path>',
       execute: (args) => ({
         success: true,
@@ -401,7 +401,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'init',
-      description: 'Initialize project (generate AGENTS.md)',
+      description: '初始化项目（生成 AGENTS.md）',
       execute: () => ({
         success: true,
         content: 'Generating AGENTS.md for current project...',
@@ -409,7 +409,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'diff',
-      description: 'Show git diff of current changes',
+      description: '查看当前改动的 git diff',
       execute: () => ({
         success: true,
         content: 'Showing git diff...',
@@ -417,7 +417,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'cost',
-      description: 'Show token usage and cost for current session',
+      description: '查看本会话的 Token 用量和花费',
       execute: () => ({
         success: true,
         content: 'Session cost: calculating...',
@@ -425,7 +425,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'test',
-      description: 'Run tests after changes',
+      description: '改动后运行测试',
       execute: () => ({
         success: true,
         content: 'Running tests...',
@@ -433,7 +433,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'retry',
-      description: 'Retry the last failed action',
+      description: '重试上次失败的操作',
       execute: () => ({
         success: true,
         content: 'Retrying last action...',
@@ -441,7 +441,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'explain',
-      description: 'Explain the last response in more detail',
+      description: '详细解释上一次回复',
       execute: () => ({
         success: true,
         content: 'Explaining in detail...',
@@ -449,7 +449,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'copy',
-      description: 'Copy last response to clipboard',
+      description: '复制上次回复到剪贴板',
       execute: () => ({
         success: true,
         content: 'Copied to clipboard.',
@@ -457,7 +457,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'security-review',
-      description: 'Security review of pending changes',
+      description: '对当前改动做安全审查',
       execute: () => ({
         success: true,
         content: 'Running security review...',
@@ -465,7 +465,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'loop',
-      description: 'Repeat a task with iteration',
+      description: '循环迭代执行任务',
       execute: () => ({
         success: true,
         content: 'Starting loop mode...',
@@ -473,7 +473,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'skill',
-      description: 'Activate or manage a skill',
+      description: '激活或管理某个 Skill',
       usage: '/skill <name> | /skill reload',
       execute: (args, ctx) => {
         if (args.trim() === 'reload') {
@@ -488,7 +488,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'mcp',
-      description: 'List connected MCP servers',
+      description: '列出已连接的 MCP 服务器',
       execute: () => ({
         success: true,
         content: 'Connected MCP servers: listing...',
@@ -496,7 +496,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'model',
-      description: 'Switch or show current model',
+      description: '切换或查看当前模型',
       usage: '/model [name]',
       execute: (args) => ({
         success: true,
@@ -505,7 +505,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'session',
-      description: 'Manage sessions (list/load/delete)',
+      description: '管理会话（列出/加载/删除）',
       execute: () => ({
         success: true,
         content: 'Session management...',
@@ -513,7 +513,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'checkpoints',
-      description: 'List checkpoints',
+      description: '列出检查点',
       execute: () => ({
         success: true,
         content: 'Available checkpoints: listing...',
@@ -521,7 +521,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'rewind',
-      description: 'Rewind to a checkpoint',
+      description: '回到某个检查点',
       usage: '/rewind <checkpoint-id>',
       execute: (args) => ({
         success: true,
@@ -530,7 +530,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'plugins',
-      description: 'List plugins',
+      description: '列出插件',
       execute: () => ({
         success: true,
         content: 'Installed plugins: listing...',
@@ -538,7 +538,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'background',
-      description: 'Manage background tasks',
+      description: '管理后台任务',
       execute: () => ({
         success: true,
         content: 'Background tasks: listing...',
@@ -546,7 +546,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'history',
-      description: 'Search prompt history',
+      description: '搜索输入历史',
       execute: () => ({
         success: true,
         content: 'Prompt history: searching...',
@@ -554,7 +554,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'update',
-      description: 'Check for updates',
+      description: '检查更新',
       execute: () => ({
         success: true,
         content: 'Checking for updates...',
@@ -562,7 +562,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'format',
-      description: 'Format code with Prettier/ESLint',
+      description: '用 Prettier/ESLint 格式化代码',
       execute: () => ({
         success: true,
         content: 'Formatting code...',
@@ -570,7 +570,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'github',
-      description: 'GitHub operations (issues, PRs)',
+      description: 'GitHub 操作（issues、PR）',
       execute: () => ({
         success: true,
         content: 'GitHub operations...',
@@ -578,7 +578,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'login',
-      description: 'Authenticate with Anthropic',
+      description: '与 Anthropic 进行认证',
       execute: () => ({
         success: true,
         content: 'Authenticating...',
@@ -586,7 +586,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'logout',
-      description: 'Log out of current session',
+      description: '退出当前会话登录',
       execute: () => ({
         success: true,
         content: 'Logging out...',
@@ -594,7 +594,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'restart',
-      description: 'Restart the current session',
+      description: '重启当前会话',
       execute: () => ({
         success: true,
         content: 'Restarting session...',
@@ -602,7 +602,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'rename',
-      description: 'Rename current session',
+      description: '重命名当前会话',
       usage: '/rename <name>',
       execute: (args) => ({
         success: true,
@@ -611,7 +611,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'export',
-      description: 'Export current conversation',
+      description: '导出当前对话',
       usage: '/export [filename]',
       execute: () => ({
         success: true,
@@ -620,7 +620,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'branch',
-      description: 'Create a conversation branch',
+      description: '创建对话分支',
       usage: '/branch <name>',
       execute: () => ({
         success: true,
@@ -629,7 +629,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'files',
-      description: 'List files Claude has access to',
+      description: '列出可访问的文件',
       execute: () => ({
         success: true,
         content: 'Listing available files...',
@@ -637,7 +637,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'approve',
-      description: 'Approve the current plan',
+      description: '批准当前方案',
       execute: () => ({
         success: true,
         content: 'Plan approved! Executing...',
@@ -645,7 +645,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'skip',
-      description: 'Skip the current step',
+      description: '跳过当前步骤',
       execute: () => ({
         success: true,
         content: 'Skipping to next step...',
@@ -653,7 +653,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'batch',
-      description: 'Parallel large-scale changes',
+      description: '并行大规模改动',
       usage: '/batch <instruction>',
       execute: () => ({
         success: true,
@@ -662,7 +662,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'simplify',
-      description: 'Auto-improve code quality',
+      description: '自动提升代码质量',
       usage: '/simplify [focus]',
       execute: () => ({
         success: true,
@@ -671,7 +671,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'debug',
-      description: 'Structured debugging',
+      description: '结构化调试',
       execute: () => ({
         success: true,
         content: 'Starting debug session...',
@@ -679,7 +679,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'git',
-      description: 'Git operations (commit, push, branch)',
+      description: 'Git 操作（commit、push、branch）',
       execute: () => ({
         success: true,
         content: 'Git operations...',
@@ -687,7 +687,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'web',
-      description: 'Force web search before answering',
+      description: '回答前强制进行网络搜索',
       execute: () => ({
         success: true,
         content: 'Web search enabled for next response.',
@@ -695,7 +695,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'doctor',
-      description: 'Check MiniAgent installation health',
+      description: '检查 MiniAgent 安装健康度',
       execute: () => ({
         success: true,
         content: 'Running diagnostics...\nAll systems operational.',
@@ -703,7 +703,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'bug',
-      description: 'Report a bug',
+      description: '报告 Bug',
       execute: () => ({
         success: true,
         content: 'Opening bug report form...',
@@ -711,7 +711,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'docs',
-      description: 'Open documentation',
+      description: '打开文档',
       execute: () => ({
         success: true,
         content: 'Opening documentation...',
@@ -719,7 +719,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'connect',
-      description: 'Connect to an LLM provider',
+      description: '连接到 LLM 服务提供商',
       execute: () => ({
         success: true,
         content: 'Connecting to LLM provider...',
@@ -727,7 +727,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'privacy-settings',
-      description: 'Manage privacy settings',
+      description: '管理隐私设置',
       execute: () => ({
         success: true,
         content: 'Privacy settings...',
@@ -735,7 +735,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'share',
-      description: 'Share current session',
+      description: '分享当前会话',
       execute: () => ({
         success: true,
         content: 'Generating share link...',
@@ -743,7 +743,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'insights',
-      description: 'Show usage insights and patterns',
+      description: '查看使用洞察与模式',
       execute: () => ({
         success: true,
         content: 'Generating insights report...',
@@ -751,7 +751,7 @@ Run context compaction to reduce token usage.`,
     },
     {
       name: 'vim',
-      description: 'Toggle vim mode',
+      description: '切换 Vim 模式',
       execute: () => ({
         success: true,
         content: 'Vim mode toggled.',

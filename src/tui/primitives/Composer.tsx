@@ -93,7 +93,7 @@ export function Composer({
           const lineIndex = visibleStart + i;
           const isCurrentLine = lineIndex === cursorRow;
           const isFirstLine = lineIndex === 0;
-          const prefix = isFirstLine ? '> ' : '  ';
+          const prefix = isFirstLine ? '  > ' : '    ';
           const displayText = line === '' && isCurrentLine && cursorCol === 0 && totalLines <= 1
             ? '输入消息... (输入 / 唤起命令)' : line;
           const truncated = truncateByWidth(displayText, textAreaW - prefix.length).text;
@@ -117,7 +117,7 @@ export function Composer({
         const row = composerInputStart + visibleRow;
         return [
           <Text key={`line-${row}`} backgroundColor={inputBg}>
-            {'> '}{inputLineText(line, row)}
+            {'    > '}{inputLineText(line, row)}
           </Text>,
         ];
       })}
