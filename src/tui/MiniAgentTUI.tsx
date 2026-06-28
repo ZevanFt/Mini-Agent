@@ -2623,10 +2623,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         (() => {
           const logoH = getLogoHeight(logoVariant);
           const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoH - 3 - 10) / 2));
+          const inputBoxY = fixedTopOffset + logoH + 3;
+          const inputBoxX = Math.max(0, Math.floor((termWidth - textWidth - 2) / 2));
+          const menuHeight = Math.min(filteredSlashCommands.length + 4, 12);
           return (
             <Box flexDirection="column" height={termHeight - 1}>
               {state.showSlashMenu && state.slashMenuMode === 'inline' && (
-                <Box position="absolute" flexDirection="column" width={textWidth + 2} marginTop={fixedTopOffset}>
+                <Box position="absolute" flexDirection="column" width={textWidth + 2} marginTop={inputBoxY - menuHeight} marginLeft={inputBoxX}>
                   <Text backgroundColor={TUI_THEME.panel}>{' '.repeat(textWidth + 2)}</Text>
                   <Box flexDirection="column" paddingX={1}>
                     <Box justifyContent="space-between">
