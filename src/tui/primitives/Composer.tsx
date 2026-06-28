@@ -88,12 +88,14 @@ export function Composer({
         {visibleLines.map((line, i) => {
           const lineIndex = visibleStart + i;
           const isCurrentLine = lineIndex === cursorRow;
+          const isFirstLine = lineIndex === 0;
+          const prefix = isFirstLine ? '> ' : '  ';
           const displayText = line === '' && isCurrentLine && cursorCol === 0 && totalLines <= 1
             ? '输入消息... (输入 / 唤起命令)' : line;
           const truncated = truncateByWidth(displayText, textWidth - 2).text;
           return (
             <Text key={`line-${lineIndex}`} backgroundColor={inputBg}>
-              {pad('> ' + truncated)}
+              {pad(prefix + truncated)}
             </Text>
           );
         })}

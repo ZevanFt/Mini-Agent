@@ -346,8 +346,8 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       const containerHeight = termHeight - 1;
       const topPadding = Math.max(0, Math.floor((containerHeight - totalContentHeight) / 2));
 
-      // Cursor on row 0 of Composer (top padding line, above > input)
-      cursorRow = topPadding + logoHeight + spacerHeight;
+      // Cursor follows current input line: topPad(1) + cursorRow offset
+      cursorRow = topPadding + logoHeight + spacerHeight + 1 + state.cursorRow;
       const composerWidth = textWidth + 2;
       const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
       cursorCol = centerX + 2 + displayWidthBeforeCursor;
