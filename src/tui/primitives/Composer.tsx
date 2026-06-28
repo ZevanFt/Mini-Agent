@@ -3,6 +3,12 @@ import { TUI_GLYPHS, TUI_THEME } from './theme.js';
 import { fillByWidth, truncateByWidth } from './text.js';
 import { Scanner } from './Scanner.js';
 
+const MAX_INPUT_LINES = 5;
+const MODE_COLORS: Record<string, string> = {
+  Build: '#0078d7',
+  Plan: '#f5a742',
+};
+
 export interface ComposerProps {
   inputLines: string[];
   cursorRow: number;
@@ -37,11 +43,11 @@ export function Composer({
   const composerInputStart = Math.max(0, cursorRow - maxVisibleLines + 1);
   const visibleInputLines = inputLines.slice(composerInputStart, composerInputStart + maxVisibleLines);
   const inputBg = TUI_THEME.inputBg;
+  const modeColor = MODE_COLORS[currentMode] || TUI_THEME.accent;
 
   const inputLineText = (line: string, row: number) => {
     const content = row === 0 && cursorCol === 0 && line === ''
-      ? ` 输入消息... (输入 / 唤起命令)`
-      : line;
+      ? ` 输入消息... (输入 / 唤起命令)` : line;
     return fillByWidth(truncateByWidth(content, textWidth).text, contentWidth);
   };
 
@@ -69,16 +75,41 @@ export function Composer({
   if (position === 'start') {
     const lineW = textWidth + 2;
     const pad = (s: string) => fillByWidth(s, lineW);
-    const currentLine = inputLines[cursorRow] ?? '';
-    const displayText = currentLine === '' && cursorCol === 0
-      ? '输入消息... (输入 / 唤起命令)' : currentLine;
-    const truncated = truncateByWidth(displayText, textWidth - 2).text;
+
+    // Calculate visible input lines with scroll support
+    const totalLines = inputLines.length;
+    const visibleStart = Math.max(0, cursorRow - MAX_INPUT_LINES + 1);
+    const visibleEnd = Math.min(totalLines, visibleStart + MAX_INPUT_LINES);
+    const visibleLines = inputLines.slice(visibleStart, visibleEnd);
+
+    // Pad to MAX_INPUT_LINES if fewer lines
+    const paddedLines = [...visibleLines];
+    while (paddedLines.length < MAX_INPUT_LINES) {
+      paddedLines.push('');
+    }
+
     return (
       <Box width={lineW} flexDirection="column">
         <Text backgroundColor={inputBg}>{pad('')}</Text>
-        <Text backgroundColor={inputBg}>{pad('> ' + truncated)}</Text>
+        {paddedLines.map((line, i) => {
+          const lineIndex = visibleStart + i;
+          const isCurrentLine = lineIndex === cursorRow;
+          const displayText = line === '' && isCurrentLine && cursorCol === 0 && totalLines <= 1
+            ? '输入消息... (输入 / 唤起命令)' : line;
+          const truncated = truncateByWidth(displayText, textWidth - 2).text;
+          return (
+            <Text key={`line-${lineIndex}`} backgroundColor={inputBg}>
+              {pad('> ' + truncated)}
+            </Text>
+          );
+        })}
         <Text backgroundColor={inputBg}>{pad('')}</Text>
-        <Text backgroundColor={inputBg}>{pad('  ' + currentMode + ' ' + TUI_GLYPHS.bullet + ' ' + modelName)}</Text>
+        <Text backgroundColor={inputBg}>
+          {pad('  ')}
+          <Text color={modeColor}>{currentMode}</Text>
+          <Text>{' ' + TUI_GLYPHS.bullet + ' ' + modelName}</Text>
+        </Text>
+        <Text backgroundColor={inputBg}>{pad('')}</Text>
         <HintBar w={lineW} />
       </Box>
     );
@@ -96,7 +127,7 @@ export function Composer({
       })}
       <Text backgroundColor={inputBg}>
         {'  '}
-        <Text color={TUI_THEME.accent}>{currentMode}</Text>
+        <Text color={modeColor}>{currentMode}</Text>
         {fillByWidth(`${TUI_GLYPHS.bullet} ${modelName} ${agentName} ${stateLabel}`.trim(), contentWidth - currentMode.length - 2)}
       </Text>
       {isProcessing ? (
