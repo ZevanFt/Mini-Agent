@@ -93,7 +93,7 @@ export function Composer({
             ? '输入消息... (输入 / 唤起命令)' : line;
           const truncated = truncateByWidth(displayText, textWidth - 8).text;
           return (
-            <Text key={`line-${lineIndex}`} backgroundColor={inputBg}>
+            <Text key={`line-${i}-${line.length}`} backgroundColor={inputBg}>
               {pad(prefix + truncated)}
             </Text>
           );
