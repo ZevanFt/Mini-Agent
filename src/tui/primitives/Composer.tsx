@@ -73,8 +73,10 @@ export function Composer({
   );
 
   if (position === 'start') {
-    const lineW = textWidth + 2;
+    const MARGIN = 2;
+    const lineW = textWidth + MARGIN * 2;
     const pad = (s: string) => fillByWidth(s, lineW);
+    const textAreaW = lineW - MARGIN * 2;
 
     const totalLines = inputLines.length;
     const visibleStart = Math.max(0, cursorRow - MAX_INPUT_LINES + 1);
@@ -91,10 +93,10 @@ export function Composer({
           const prefix = isFirstLine ? '> ' : '  ';
           const displayText = line === '' && isCurrentLine && cursorCol === 0 && totalLines <= 1
             ? '输入消息... (输入 / 唤起命令)' : line;
-          const truncated = truncateByWidth(displayText, textWidth - 8).text;
+          const truncated = truncateByWidth(displayText, textAreaW - prefix.length).text;
           return (
             <Text key={`line-${i}-${line.length}`} backgroundColor={inputBg}>
-              {pad(prefix + truncated)}
+              {'  '}{prefix}{truncated}
             </Text>
           );
         })}
@@ -103,7 +105,7 @@ export function Composer({
           {'  '}
           <Text color={modeColor}>{currentMode}</Text>
           <Text>{' ' + TUI_GLYPHS.bullet + ' ' + modelName}</Text>
-          {' '.repeat(Math.max(0, lineW - 2 - currentMode.length - 3 - modelName.length))}
+          {' '.repeat(Math.max(0, textAreaW - 2 - currentMode.length - 3 - modelName.length))}
         </Text>
         <Text>{' '.repeat(lineW)}</Text>
         <HintBar w={lineW} />

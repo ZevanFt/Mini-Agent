@@ -525,7 +525,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
     const navigationKey = key as typeof key & { home?: boolean; end?: boolean };
     const isEnterKey = key.return || input === '\r' || input === '\n';
     const isForwardDeleteKey = input === '\u001b[3~';
-    const isBackspaceKey = key.backspace || input === '\u007f' || input === '\b' || input === '\x08' || (key.delete && !isForwardDeleteKey);
+    const isBackspaceKey = key.backspace || input === '\u007f' || input === '\b' || input === '\x08';
     const isHomeKey = navigationKey.home || input === '\u001b[H' || input === '\u001bOH' || input === '\u001b[1~';
     const isEndKey = navigationKey.end || input === '\u001b[F' || input === '\u001bOF' || input === '\u001b[4~';
 
