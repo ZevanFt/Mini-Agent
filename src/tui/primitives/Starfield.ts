@@ -54,7 +54,6 @@ export class Starfield {
 
   setExclusionZones(zones: ExclusionZone[]): void {
     this.exclusionZones = zones;
-    this.generate();
   }
 
   private isInExclusionZone(row: number, col: number): boolean {
