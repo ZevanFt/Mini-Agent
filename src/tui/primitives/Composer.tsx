@@ -76,7 +76,6 @@ export function Composer({
     const lineW = textWidth + 2;
     const pad = (s: string) => fillByWidth(s, lineW);
 
-    // Dynamic height: show actual lines, max MAX_INPUT_LINES
     const totalLines = inputLines.length;
     const visibleStart = Math.max(0, cursorRow - MAX_INPUT_LINES + 1);
     const visibleEnd = Math.min(totalLines, visibleStart + MAX_INPUT_LINES);
@@ -92,7 +91,7 @@ export function Composer({
           const prefix = isFirstLine ? '> ' : '  ';
           const displayText = line === '' && isCurrentLine && cursorCol === 0 && totalLines <= 1
             ? '输入消息... (输入 / 唤起命令)' : line;
-          const truncated = truncateByWidth(displayText, textWidth - 2).text;
+          const truncated = truncateByWidth(displayText, textWidth - 4).text;
           return (
             <Text key={`line-${lineIndex}`} backgroundColor={inputBg}>
               {pad(prefix + truncated)}

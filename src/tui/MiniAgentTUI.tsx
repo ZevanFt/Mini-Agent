@@ -336,17 +336,14 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
 
     if (!hasConversation) {
       // === START PAGE ===
-      // Fixed position: logo at fixedTopOffset, input below
       const logoHeight = getLogoHeight(logoVariant);
       const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoHeight - 3 - 10) / 2));
       const spacerHeight = 3;
 
-      // Cursor: fixedTopOffset + logoHeight + spacerHeight + topPad(1) + cursorRow
-      cursorRow = fixedTopOffset + logoHeight + spacerHeight + 1 + state.cursorRow;
+      cursorRow = fixedTopOffset + logoHeight + spacerHeight + state.cursorRow;
       const composerWidth = textWidth + 2;
       const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
-      cursorCol = centerX + 2 + displayWidthBeforeCursor;
-      // +2: "> " prefix takes 2 columns
+      cursorCol = centerX + displayWidthBeforeCursor;
     } else {
       // === CHAT PAGE ===
       // Composer (position="chat") structure:
