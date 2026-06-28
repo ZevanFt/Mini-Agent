@@ -336,18 +336,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
 
     if (!hasConversation) {
       // === START PAGE ===
-      // Composer: topPad(1) + inputLines(dynamic, max 5) + bottomPad(1) + status(1) + spacing(1) + hints(1)
-      const inputLineCount = Math.max(1, Math.min(state.inputLines.length, 5));
-      const composerHeight = 1 + inputLineCount + 1 + 1 + 1 + 1; // topPad + lines + bottomPad + status + spacing + hints
+      // Fixed position: logo at fixedTopOffset, input below
       const logoHeight = getLogoHeight(logoVariant);
-      const spacerHeight = 3;  // space between logo and input
-      const totalContentHeight = logoHeight + spacerHeight + composerHeight;
+      const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoHeight - 3 - 10) / 2));
+      const spacerHeight = 3;
 
-      const containerHeight = termHeight - 1;
-      const topPadding = Math.max(0, Math.floor((containerHeight - totalContentHeight) / 2));
-
-      // Cursor follows current input line: topPad(1) + cursorRow offset
-      cursorRow = topPadding + logoHeight + spacerHeight + state.cursorRow;
+      // Cursor: fixedTopOffset + logoHeight + spacerHeight + topPad(1) + cursorRow
+      cursorRow = fixedTopOffset + logoHeight + spacerHeight + 1 + state.cursorRow;
       const composerWidth = textWidth + 2;
       const centerX = Math.max(0, Math.floor((termWidth - composerWidth) / 2));
       cursorCol = centerX + 2 + displayWidthBeforeCursor;
@@ -2627,45 +2622,46 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           selectedDescription={selectedSlashCommand?.description ?? ''}
         />
       ) : !hasConversation ? (
-        // 起始页面：Logo + 输入框 + 版本信息
-        <Box
-          flexDirection="column"
-          alignItems="center"
-          justifyContent="center"
-          height={termHeight - 1}
-        >
-          <Logo variant={logoVariant} subtitle="by Zevan" />
-
-          <Box height={2} />
-
-          {showAutocomplete && autocompleteFiles.length > 0 && (
-            <Box marginBottom={1}>
-              <AutocompletePopup
-                files={autocompleteFiles}
-                selectedIndex={autocompleteIndex}
+        // 起始页面：Logo 固定位置 + 输入框在下方
+        (() => {
+          const logoH = getLogoHeight(logoVariant);
+          const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoH - 3 - 10) / 2));
+          return (
+            <Box
+              flexDirection="column"
+              alignItems="center"
+              height={termHeight - 1}
+            >
+              <Box height={fixedTopOffset} />
+              <Logo variant={logoVariant} subtitle="by Zevan" />
+              <Box height={3} />
+              {showAutocomplete && autocompleteFiles.length > 0 && (
+                <Box marginBottom={1}>
+                  <AutocompletePopup
+                    files={autocompleteFiles}
+                    selectedIndex={autocompleteIndex}
+                    width={textWidth + 2}
+                    query={autocompleteQuery}
+                  />
+                </Box>
+              )}
+              <Composer
+                inputLines={state.inputLines}
+                cursorRow={state.cursorRow}
+                cursorCol={state.cursorCol}
+                currentMode={currentMode}
+                modelName={modelName}
+                agentName={state.agentName}
+                promptStateLabel={promptStateLabel}
                 width={textWidth + 2}
-                query={autocompleteQuery}
+                contentWidth={textWidth + 2}
+                textWidth={textWidth}
+                maxVisibleLines={maxComposerInputLines}
+                position="start"
               />
             </Box>
-          )}
-
-          <Composer
-            inputLines={state.inputLines}
-            cursorRow={state.cursorRow}
-            cursorCol={state.cursorCol}
-            currentMode={currentMode}
-            modelName={modelName}
-            agentName={state.agentName}
-            promptStateLabel={promptStateLabel}
-            width={textWidth + 2}
-            contentWidth={textWidth + 2}
-            textWidth={textWidth}
-            maxVisibleLines={maxComposerInputLines}
-            position="start"
-          />
-
-          <Box height={6} />
-        </Box>
+          );
+        })()
       ) : (
         // 对话页面：左侧消息/输入框 + 右侧上下贯穿 sidebar
         <Box flexDirection="row" height={termHeight}>
