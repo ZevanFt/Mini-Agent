@@ -106,6 +106,27 @@ export class Starfield {
     return parts.join('');
   }
 
+  /** Render stars to a ScreenBuffer for compositor use */
+  renderToBuffer(buffer: import('./ScreenBuffer.js').ScreenBuffer): void {
+    for (const s of this.stars) {
+      if (this.isInExclusionZone(s.row, s.col)) continue;
+      // ANSI 行号是 1-based，ScreenBuffer 是 0-based
+      const row = s.row - 1;
+      const col = s.col - 1;
+      if (row >= 0 && row < buffer.rows && col >= 0 && col < buffer.cols) {
+        buffer.set(row, col, {
+          char: s.char,
+          width: 1,
+          fg: `#${s.r.toString(16).padStart(2, '0')}${s.g.toString(16).padStart(2, '0')}${s.b.toString(16).padStart(2, '0')}`,
+          bg: null,
+          bold: false,
+          dim: false,
+          italic: false,
+        });
+      }
+    }
+  }
+
   /** Twinkle: randomly dim/brighten a few stars */
   twinkle(): void {
     const count = Math.max(1, Math.floor(this.stars.length * 0.1));

@@ -115,6 +115,9 @@ import { ForkDialog, createForkState, closeFork, type ForkState } from './primit
 import { SubagentDialog, createSubagentDialogState, closeSubagentDialog, type SubagentDialogState } from './primitives/SubagentDialog.js';
 import { ThemeListDialog, createThemeListState, openThemeList, closeThemeList, type ThemeListState } from './primitives/ThemeListDialog.js';
 import { QueuedPromptsDialog, createQueuedPromptsState, closeQueuedPrompts, type QueuedPromptsState } from './primitives/QueuedPromptsDialog.js';
+import { SettingsDialog, createSettingsState, openSettings, closeSettings, type SettingsState } from './primitives/SettingsDialog.js';
+import { ModalOverlay } from './primitives/ModalOverlay.js';
+
 
 // Agent 模式列表：Build（构建模式）和 Plan（规划模式）
 const AGENT_MODES = ['Build', 'Plan'] as const;
@@ -246,6 +249,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   const [subagentDialog, setSubagentDialog] = useState<SubagentDialogState>(() => createSubagentDialogState());
   const [themeList, setThemeList] = useState<ThemeListState>(() => createThemeListState());
   const [queuedPrompts, setQueuedPrompts] = useState<QueuedPromptsState>(() => createQueuedPromptsState());
+  const [settingsState, setSettingsState] = useState<SettingsState>(() => createSettingsState());
   const [leaderActive, setLeaderActive] = useState(false);
   const [leaderTimeout, setLeaderTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [logoVariant, setLogoVariant] = useState<LogoVariant>('bold');
@@ -767,14 +771,9 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
       return;
     }
 
-    // Ctrl+P：打开/关闭斜杠命令菜单（始终 inline）
+    // Ctrl+P：打开/关闭设置 modal
     if (key.ctrl && input === 'p') {
-      updateState(prev => ({
-        ...prev,
-        showSlashMenu: !prev.showSlashMenu,
-        slashFilter: '',
-        slashIndex: 0,
-      }));
+      setSettingsState(prev => prev.isOpen ? closeSettings(prev) : openSettings(prev));
       return;
     }
 
@@ -1037,6 +1036,31 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         setNotice({ message: `Logo: ${next}`, level: 'info' });
         return next;
       });
+      return;
+    }
+
+    // ==================== Settings Modal keyboard ====================
+    if (settingsState.isOpen) {
+      if (key.escape || input === 'escape' || input === '\u001b') {
+        setSettingsState(prev => closeSettings(prev));
+        return;
+      }
+      if (key.upArrow || input.toLowerCase() === 'k') {
+        setSettingsState(prev => ({ ...prev, selectedIndex: Math.max(0, prev.selectedIndex - 1) }));
+        return;
+      }
+      if (key.downArrow || input.toLowerCase() === 'j') {
+        setSettingsState(prev => ({ ...prev, selectedIndex: prev.selectedIndex + 1 }));
+        return;
+      }
+      if (isBackspaceKey) {
+        setSettingsState(prev => ({ ...prev, filter: prev.filter.slice(0, -1) }));
+        return;
+      }
+      if (input.length === 1 && input >= ' ') {
+        setSettingsState(prev => ({ ...prev, filter: prev.filter + input, selectedIndex: 0 }));
+        return;
+      }
       return;
     }
 
@@ -2417,7 +2441,145 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
           }}
           termWidth={termWidth}
         />
-      ) : modelSelector.isOpen ? (
+      ) : settingsState.isOpen ? (() => {
+        // 动态计算 modal 实际高度（上限 17 行）
+        const lowerFilter = settingsState.filter.toLowerCase();
+        const filteredItems = DEFAULT_KEYBINDINGS.filter(b =>
+          !lowerFilter ||
+          b.description.toLowerCase().includes(lowerFilter) ||
+          b.keys.toLowerCase().includes(lowerFilter) ||
+          b.category.toLowerCase().includes(lowerFilter)
+        );
+        const grouped = new Map<string, number>();
+        for (const item of filteredItems) {
+          grouped.set(item.category, (grouped.get(item.category) || 0) + 1);
+        }
+        let contentLines = 1; // 标题栏
+        if (settingsState.filter) contentLines += 1; // 搜索框
+        for (const count of grouped.values()) {
+          contentLines += 1 + count; // 分类标题 + 命令数
+        }
+        const modalHeight = Math.min(contentLines + 2, 17); // 加上下各 1 格内边距，上限 17
+        const modalWidth = Math.min(termWidth - 8, 60);
+        return (
+          <Box flexDirection="column" width={termWidth} height={termHeight - 1}>
+            {/* 背景层：始终渲染，保持 Starfield 和 Footer */}
+            {!hasConversation ? (
+              // 起始页面内容
+              (() => {
+                const logoH = getLogoHeight(logoVariant);
+                const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoH - 3 - 10) / 2));
+                return (
+                  <Box flexDirection="column" position="relative">
+                    <Box flexDirection="column" alignItems="center">
+                      <Box height={fixedTopOffset} />
+                <Logo variant={logoVariant} subtitle="by Zevan" />
+                <Box height={3} />
+                {showAutocomplete && autocompleteFiles.length > 0 && (
+                  <Box marginBottom={1}>
+                    <AutocompletePopup files={autocompleteFiles} selectedIndex={autocompleteIndex} width={textWidth + 2} query={autocompleteQuery} />
+                  </Box>
+                )}
+                <Composer inputLines={state.inputLines} cursorRow={state.cursorRow} cursorCol={state.cursorCol} currentMode={currentMode} modelName={modelName} agentName={state.agentName} promptStateLabel={promptStateLabel} width={textWidth + 2} contentWidth={textWidth + 2} textWidth={textWidth} maxVisibleLines={maxComposerInputLines} position="start" />
+                    </Box>
+                    {state.showSlashMenu && (() => {
+                      const menuHeight = slashWindowSize;
+                      const composerTop = fixedTopOffset + logoH + 3;
+                      const menuTop = Math.max(0, composerTop - menuHeight) + 2;
+                      const menuWidth = textWidth + 4;
+                      const menuLeft = Math.max(0, Math.floor((termWidth - menuWidth) / 2));
+                      return (
+                        <Box position="absolute" marginTop={menuTop} marginLeft={menuLeft} flexDirection="column" width={menuWidth}>
+                          {visibleSlashCommands.length === 0 && <Text dimColor>{'  '}No commands found</Text>}
+                          {renderCommandRows({ rows: inlineSlashRows, width: menuWidth, activeIndex: activeSlashIndex, keyPrefix: 'start-inline-command', leftPadding: 2 })}
+                        </Box>
+                      );
+                    })()}
+                  </Box>
+                );
+              })()
+            ) : (
+              // 聊天页面内容
+              <Box flexDirection="row">
+                <Box flexDirection="column" width={chatAreaWidth}>
+                  <MessageList
+                    messages={effectiveScrollOffset > 0 ? scrollAdjustedVisible : visibleMessages}
+                    hiddenMessageCount={effectiveScrollOffset > 0 ? scrollAdjustedHidden : hiddenMessageCount}
+                    chatTextWidth={chatTextWidth}
+                    chatAreaWidth={chatAreaWidth}
+                    height={messagePaneHeight}
+                    isProcessing={state.isProcessing}
+                    currentResponse={state.currentResponse}
+                    sessionToggles={sessionToggles}
+                  />
+                  {state.showSlashMenu && (() => {
+                    const menuTop = messagePaneHeight;
+                    const menuLeft = chatComposerMarginX;
+                    const menuWidth = chatInputBoxWidth;
+                    return (
+                      <Box position="absolute" marginTop={menuTop} marginLeft={menuLeft} flexDirection="column" width={menuWidth}>
+                        {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
+                        {renderCommandRows({ rows: inlineSlashRows, width: chatInputBoxWidth, activeIndex: activeSlashIndex, keyPrefix: 'chat-inline-command' })}
+                      </Box>
+                    );
+                  })()}
+                  {consolePanel.isOpen && (
+                    <ConsolePanel
+                      entries={consolePanel.entries}
+                      termWidth={termWidth}
+                      termHeight={consolePanelHeight}
+                    />
+                  )}
+                  <Composer
+                    inputLines={state.inputLines}
+                    cursorRow={state.cursorRow}
+                    cursorCol={state.cursorCol}
+                    currentMode={currentMode}
+                    modelName={modelName}
+                    agentName={state.agentName}
+                    promptStateLabel={promptStateLabel}
+                    width={chatInputBoxWidth}
+                    contentWidth={composerContentWidth}
+                    textWidth={chatTextWidth}
+                    maxVisibleLines={maxComposerInputLines}
+                    position="chat"
+                    isProcessing={state.isProcessing}
+                  />
+                </Box>
+                {(isWideMode || sessionToggles.sidebarVisible) && (
+                  <Sidebar
+                    rows={sidebarRows}
+                    footerRows={sidebarFooterRows}
+                    width={sidebarWidth}
+                    paddingX={sidebarPaddingX}
+                    fillHeight={sidebarFillRows}
+                  />
+                )}
+              </Box>
+            )}
+            {/* Modal 覆盖层 */}
+            <ModalOverlay
+              isOpen={settingsState.isOpen}
+              rect={{
+                row: Math.floor((termHeight - modalHeight) / 2),
+                col: Math.floor((termWidth - modalWidth) / 2),
+                width: modalWidth,
+                height: modalHeight,
+              }}
+              dimRatio={0.5}
+            >
+              <SettingsDialog
+                termWidth={termWidth}
+                termHeight={termHeight}
+                items={DEFAULT_KEYBINDINGS.map(b => ({ label: b.description, shortcut: b.keys, category: b.category }))}
+                filter={settingsState.filter}
+                selectedIndex={settingsState.selectedIndex}
+                maxHeight={modalHeight}
+              />
+            </ModalOverlay>
+          </Box>
+        );
+      })() : modelSelector.isOpen ? (
         <ModelSelector
           models={modelSelector.models}
           selectedIndex={modelSelector.selectedIndex}
@@ -2639,12 +2801,13 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
                 // 水平居中：菜单宽度 = textWidth + 4（和 Composer lineW 一致，含左右各 2 padding）
                 const menuWidth = textWidth + 4;
                 const menuLeft = Math.max(0, Math.floor((termWidth - menuWidth) / 2));
+                // slash 菜单不需要遮罩层，用 position="absolute" 定位
                 return (
                   <Box
                     position="absolute"
-                    flexDirection="column"
-                    marginLeft={menuLeft}
                     marginTop={menuTop}
+                    marginLeft={menuLeft}
+                    flexDirection="column"
                     width={menuWidth}
                   >
                     {visibleSlashCommands.length === 0 && <Text dimColor>{'  '}No commands found</Text>}
@@ -2669,12 +2832,24 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
               currentResponse={state.currentResponse}
               sessionToggles={sessionToggles}
             />
-            {state.showSlashMenu && (
-              <Box width={chatInputBoxWidth} marginX={chatComposerMarginX} flexDirection="column" marginBottom={1}>
-                {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
-                {renderCommandRows({ rows: inlineSlashRows, width: chatInputBoxWidth, activeIndex: activeSlashIndex, keyPrefix: 'chat-inline-command' })}
-              </Box>
-            )}
+            {state.showSlashMenu && (() => {
+              // chat 页菜单：紧接 MessageList 下方，左对齐到 chatComposerMarginX
+              const menuTop = messagePaneHeight;
+              const menuLeft = chatComposerMarginX;
+              const menuWidth = chatInputBoxWidth;
+              return (
+                <Box
+                  position="absolute"
+                  marginTop={menuTop}
+                  marginLeft={menuLeft}
+                  flexDirection="column"
+                  width={menuWidth}
+                >
+                  {visibleSlashCommands.length === 0 && <Text dimColor>No commands found</Text>}
+                  {renderCommandRows({ rows: inlineSlashRows, width: chatInputBoxWidth, activeIndex: activeSlashIndex, keyPrefix: 'chat-inline-command' })}
+                </Box>
+              );
+            })()}
             {consolePanel.isOpen && (
               <ConsolePanel
                 entries={consolePanel.entries}
