@@ -64,18 +64,17 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
       const str = typeof data === 'string'
         ? data
         : Buffer.from(data).toString('utf8');
-      
+
       // 检测是否是清屏命令（Ink re-render 时会先清屏）
       const isClearScreen = str.includes('\x1b[2J') || str.includes('\x1b[H\x1b[2J');
-      
+
       // 检查 modal 状态
       const modal = modalState.get();
       const isModalOpen = modal && modal.isOpen;
-      
+
       if (isClearScreen) {
         if (!isModalOpen) {
           // modal 关闭时清屏 → 快照背景到 preservedBg
-          // 仅当 screenBuffer 有内容时才快照（避免首次清屏时快照为空）
           let hasContent = false;
           outer: for (let r = 0; r < termRows; r++) {
             for (let c = 0; c < termCols; c++) {
@@ -87,7 +86,6 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
             }
           }
           if (hasContent) {
-            // 清空 preservedBg 再写入新内容
             preservedBg.clear();
             for (let r = 0; r < termRows; r++) {
               for (let c = 0; c < termCols; c++) {
@@ -95,7 +93,6 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
                 if (cell) preservedBg.set(r, c, cell);
               }
             }
-            // 将星空渲染到 preservedBg 中，保持星空皮肤
             if (showStarfield) {
               starfield.renderToBuffer(preservedBg);
             }
@@ -103,7 +100,7 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
           }
           screenBuffer.clear();
         } else {
-          // modal 打开时清屏 → 清空 screenBuffer（准备接收新 modal 内容）
+          // modal 打开时清屏 → 清空 screenBuffer
           screenBuffer.clear();
         }
       } else {
@@ -117,7 +114,6 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
               if (cell) preservedBg.set(r, c, cell);
             }
           }
-          // 将星空渲染到 preservedBg 中
           if (showStarfield) {
             starfield.renderToBuffer(preservedBg);
           }
@@ -126,32 +122,14 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
       }
 
       if (isModalOpen) {
-        // modal 打开时：
-        // 1. 用 preservedBg 做背景降亮度
-        const dimmedBg = compositor.dimAll(preservedBg, modal.dimRatio);
-        // 2. 输出降亮度的背景（清屏 + 移动到左上角 + 输出背景）
-        originalWrite('\x1b[2J\x1b[1;1H');
-        originalWrite(dimmedBg.encode());
-        // 3. 渲染星空（在暗化背景之上，保持星空皮肤）
-        if (showStarfield) {
-          originalWrite(starfield.render());
-        }
-        // 4. 从 Ink 的输出中移除清屏和光标定位命令，只保留 modal 内容
-        //    这样 modal 内容会渲染在降亮度背景之上，不会覆盖背景
-        const inkContentWithoutClear = str
-          .replace(/\x1b\[H\x1b\[2J/g, '')  // 移除 \x1b[H\x1b[2J
-          .replace(/\x1b\[2J/g, '')          // 移除 \x1b[2J
-          .replace(/\x1b\[1;1H/g, '');       // 移除 \x1b[1;1H（光标回左上角）
-        if (inkContentWithoutClear) {
-          originalWrite(inkContentWithoutClear);
-        }
+        // modal 打开时：直接透传 Ink 输出，不干预
+        // 让 Ink 正常渲染整个 UI（包括背景和 modal）
+        const result = originalWrite(data, ...args);
         if (pendingCursorCmd) {
           originalWrite(pendingCursorCmd);
           pendingCursorCmd = '';
         }
-        const cb = args.find(a => typeof a === 'function');
-        if (cb) (cb as () => void)();
-        return true;
+        return result;
       }
 
       // modal 关闭时：正常透传
