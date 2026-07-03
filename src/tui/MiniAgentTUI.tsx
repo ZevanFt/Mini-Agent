@@ -117,6 +117,7 @@ import { ThemeListDialog, createThemeListState, openThemeList, closeThemeList, t
 import { QueuedPromptsDialog, createQueuedPromptsState, closeQueuedPrompts, type QueuedPromptsState } from './primitives/QueuedPromptsDialog.js';
 import { SettingsDialog, createSettingsState, openSettings, closeSettings, type SettingsState } from './primitives/SettingsDialog.js';
 import { ModalOverlay } from './primitives/ModalOverlay.js';
+import { modalState } from './primitives/ModalState.js';
 
 
 // Agent 模式列表：Build（构建模式）和 Plan（规划模式）
@@ -250,6 +251,15 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
   const [themeList, setThemeList] = useState<ThemeListState>(() => createThemeListState());
   const [queuedPrompts, setQueuedPrompts] = useState<QueuedPromptsState>(() => createQueuedPromptsState());
   const [settingsState, setSettingsState] = useState<SettingsState>(() => createSettingsState());
+  // 同步跟踪 modal 状态：渲染期间同步设置 modalState，完全不依赖 useEffect
+  // 避免 useEffect 清理-重执行间隙 modalState 短暂为 null，导致 stdout hook 误判 modal 关闭
+  if (settingsState.isOpen) {
+    // modal 打开：同步设置 modalState（rect 在下面计算后设置，这里先标记 isOpen）
+    // 实际 rect 在 modal 分支渲染时同步设置
+  } else {
+    // modal 关闭：同步清空 modalState
+    modalState.set(null);
+  }
   const [leaderActive, setLeaderActive] = useState(false);
   const [leaderTimeout, setLeaderTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [logoVariant, setLogoVariant] = useState<LogoVariant>('bold');
@@ -2461,18 +2471,50 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         }
         const modalHeight = Math.min(contentLines + 2, 17); // 加上下各 1 格内边距，上限 17
         const modalWidth = Math.min(termWidth - 8, 60);
+        const modalRect = {
+          row: Math.floor((termHeight - modalHeight) / 2),
+          col: Math.floor((termWidth - modalWidth) / 2),
+          width: modalWidth,
+          height: modalHeight,
+        };
+        // 同步设置 modalState（带 rect），完全不依赖 ModalOverlay 的 useEffect
+        modalState.set({ isOpen: true, rect: modalRect, dimRatio: 0.5, modalAnsi: '' });
+        const logoH = getLogoHeight(logoVariant);
+        const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoH - 3 - 10) / 2));
         return (
-          <Box flexDirection="column" width={termWidth} height={termHeight - 1}>
-            {/* Modal 打开时只渲染 ModalOverlay，不渲染背景 UI */}
-            {/* 背景由 preservedBg 快照处理，避免 Logo 等元素残留 */}
+          <Box flexDirection="column" width={termWidth} height={termHeight}>
+            {/* 完整背景 UI：Logo + Composer + Footer */}
+            <Box flexDirection="column" alignItems="center">
+              <Box height={fixedTopOffset} />
+              <Logo variant={logoVariant} subtitle="by Zevan" />
+              <Box height={3} />
+              <Composer
+                inputLines={state.inputLines}
+                cursorRow={state.cursorRow}
+                cursorCol={state.cursorCol}
+                currentMode={currentMode}
+                modelName={modelName}
+                agentName={state.agentName}
+                promptStateLabel={promptStateLabel}
+                width={textWidth + 2}
+                contentWidth={textWidth + 2}
+                textWidth={textWidth}
+                maxVisibleLines={maxComposerInputLines}
+                position="start"
+              />
+            </Box>
+            <Footer
+              cwd={cwd}
+              version={version}
+              termWidth={termWidth}
+              notice={notice}
+              isPaletteOpen={false}
+              hasConversation={hasConversation}
+            />
+            {/* ModalOverlay 叠加在背景 UI 之上 */}
             <ModalOverlay
               isOpen={settingsState.isOpen}
-              rect={{
-                row: Math.floor((termHeight - modalHeight) / 2),
-                col: Math.floor((termWidth - modalWidth) / 2),
-                width: modalWidth,
-                height: modalHeight,
-              }}
+              rect={modalRect}
               dimRatio={0.5}
             >
               <SettingsDialog

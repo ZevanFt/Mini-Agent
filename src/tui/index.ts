@@ -73,63 +73,35 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
       const isModalOpen = modal && modal.isOpen;
 
       if (isClearScreen) {
-        if (!isModalOpen) {
-          // modal 关闭时清屏 → 快照背景到 preservedBg
-          let hasContent = false;
-          outer: for (let r = 0; r < termRows; r++) {
-            for (let c = 0; c < termCols; c++) {
-              const cell = screenBuffer.get(r, c);
-              if (cell && (cell.char !== ' ' || cell.bg !== null)) {
-                hasContent = true;
-                break outer;
-              }
-            }
-          }
-          if (hasContent) {
-            preservedBg.clear();
-            for (let r = 0; r < termRows; r++) {
-              for (let c = 0; c < termCols; c++) {
-                const cell = screenBuffer.get(r, c);
-                if (cell) preservedBg.set(r, c, cell);
-              }
-            }
-            if (showStarfield) {
-              starfield.renderToBuffer(preservedBg);
-            }
-            backgroundCaptured = true;
-          }
-          screenBuffer.clear();
-        } else {
-          // modal 打开时清屏 → 清空 screenBuffer
-          screenBuffer.clear();
-        }
-      } else {
-        screenBuffer.write(str);
-        // 第一次非清屏写入时，捕获背景
-        if (!backgroundCaptured && !isModalOpen) {
-          preservedBg.clear();
-          for (let r = 0; r < termRows; r++) {
-            for (let c = 0; c < termCols; c++) {
-              const cell = screenBuffer.get(r, c);
-              if (cell) preservedBg.set(r, c, cell);
-            }
-          }
-          if (showStarfield) {
-            starfield.renderToBuffer(preservedBg);
-          }
-          backgroundCaptured = true;
-        }
+        // 清屏时：清空 screenBuffer（准备接收新帧内容）
+        screenBuffer.clear();
       }
 
+      // 把 Ink 输出解析到 screenBuffer（无论是否 modal 打开）
+      // 移除清屏命令，避免 ScreenBuffer.write() 内部再次 clear()
+      const writeStr = isModalOpen ? str.replace(/\x1b\[2J/g, '') : str;
+      screenBuffer.write(writeStr);
+
       if (isModalOpen) {
-        // modal 打开时：直接透传 Ink 输出，不干预
-        // 让 Ink 正常渲染整个 UI（包括背景和 modal）
-        const result = originalWrite(data, ...args);
+        // modal 打开时：直接输出 Ink 内容（含完整背景 UI + modal）
+        // 用深色背景色覆盖整个屏幕，模拟暗化效果
+        originalWrite('\x1b[2J\x1b[1;1H');
+        // 设置深色背景色（模拟暗化）
+        originalWrite('\x1b[48;2;20;20;20m');
+        // 输出 Ink 内容（含 Logo、Composer、modal 等）
+        originalWrite(str);
+        // 重置样式
+        originalWrite('\x1b[0m');
+        if (showStarfield) {
+          originalWrite(starfield.render());
+        }
         if (pendingCursorCmd) {
           originalWrite(pendingCursorCmd);
           pendingCursorCmd = '';
         }
-        return result;
+        const cb = args.find(a => typeof a === 'function');
+        if (cb) (cb as () => void)();
+        return true;
       }
 
       // modal 关闭时：正常透传
