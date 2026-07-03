@@ -2503,14 +2503,6 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
                 position="start"
               />
             </Box>
-            <Footer
-              cwd={cwd}
-              version={version}
-              termWidth={termWidth}
-              notice={notice}
-              isPaletteOpen={false}
-              hasConversation={hasConversation}
-            />
             {/* ModalOverlay 叠加在背景 UI 之上 */}
             <ModalOverlay
               isOpen={settingsState.isOpen}
