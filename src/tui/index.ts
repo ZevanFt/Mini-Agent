@@ -4,7 +4,7 @@ import type { Agent } from '../core/agent.js';
 import { MiniAgentTUI } from './MiniAgentTUI.js';
 import { Starfield } from './primitives/Starfield.js';
 import { ScreenBuffer } from './primitives/ScreenBuffer.js';
-import { ModalCompositor } from './primitives/ModalCompositor.js';
+import { ModalCompositor, dimCell } from './primitives/ModalCompositor.js';
 import { modalState } from './primitives/ModalState.js';
 
 // Patch cli-cursor: prevent Ink from hiding the terminal cursor.
@@ -83,15 +83,41 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
       screenBuffer.write(writeStr);
 
       if (isModalOpen) {
-        // modal 打开时：直接输出 Ink 内容（含完整背景 UI + modal）
-        // 用深色背景色覆盖整个屏幕，模拟暗化效果
+        // modal 打开时：用 compositor 合成
+        // - preservedBg 作为背景（含完整 UI）
+        // - screenBuffer 作为 modal 内容
+        // - modal 区域外：降亮度
+        // - modal 区域内：用 modal 内容
+
+        // 创建合成 buffer
+        const compositeBuffer = new ScreenBuffer(termRows, termCols);
+
+        // 1. 复制 preservedBg 到 compositeBuffer（降亮度）
+        for (let r = 0; r < termRows; r++) {
+          for (let c = 0; c < termCols; c++) {
+            const cell = preservedBg.get(r, c);
+            if (cell) {
+              // 降亮度
+              const dimmed = dimCell(cell, modal.dimRatio);
+              compositeBuffer.set(r, c, dimmed);
+            }
+          }
+        }
+
+        // 2. 叠加 modal 内容（从 screenBuffer 提取 modalRect 区域）
+        const mRect = modal.rect;
+        for (let r = mRect.row; r < mRect.row + mRect.height; r++) {
+          for (let c = mRect.col; c < mRect.col + mRect.width; c++) {
+            const cell = screenBuffer.get(r, c);
+            if (cell) {
+              compositeBuffer.set(r, c, cell);
+            }
+          }
+        }
+
+        // 3. 输出合成结果
         originalWrite('\x1b[2J\x1b[1;1H');
-        // 设置深色背景色（模拟暗化）
-        originalWrite('\x1b[48;2;20;20;20m');
-        // 输出 Ink 内容（含 Logo、Composer、modal 等）
-        originalWrite(str);
-        // 重置样式
-        originalWrite('\x1b[0m');
+        originalWrite(compositeBuffer.encode());
         if (showStarfield) {
           originalWrite(starfield.render());
         }
@@ -102,6 +128,18 @@ export async function initTUI({ agent, model, cwd, version }: TUIOptions) {
         const cb = args.find(a => typeof a === 'function');
         if (cb) (cb as () => void)();
         return true;
+      }
+
+      // 非 modal 时：保存 screenBuffer 到 preservedBg
+      preservedBg.clear();
+      for (let r = 0; r < termRows; r++) {
+        for (let c = 0; c < termCols; c++) {
+          const cell = screenBuffer.get(r, c);
+          if (cell) preservedBg.set(r, c, cell);
+        }
+      }
+      if (showStarfield) {
+        starfield.renderToBuffer(preservedBg);
       }
 
       // modal 关闭时：正常透传

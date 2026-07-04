@@ -2483,7 +2483,7 @@ export function MiniAgentTUI({ agent, model, cwd, version, onExit, onCursorMove,
         const fixedTopOffset = Math.max(0, Math.floor((termHeight - 1 - logoH - 3 - 10) / 2));
         return (
           <Box flexDirection="column" width={termWidth} height={termHeight}>
-            {/* 完整背景 UI：Logo + Composer + Footer */}
+            {/* 完整背景 UI：Logo + Composer */}
             <Box flexDirection="column" alignItems="center">
               <Box height={fixedTopOffset} />
               <Logo variant={logoVariant} subtitle="by Zevan" />
